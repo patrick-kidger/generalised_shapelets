@@ -17,6 +17,7 @@ from src.experiments.setup import create_fso, basic_gridsearch
 from src.data.make_dataset import UcrDataset
 from src.models.model import ShapeletNet
 from src.models.dataset import PointsDataset, SigletDataset
+from src.experiments.utils import ignite_accuracy_transform
 
 import logging
 logging.getLogger("ignite").setLevel(logging.WARNING)
@@ -33,19 +34,26 @@ save_dir = MODELS_DIR + '/experiments/{}'.format(ex_name)
 # Configuration, setup parameters that can vary here
 @ex.config
 def my_config():
+    path_data = 'points'
     num_shapelets = 10
     window_size = 40
+    discriminator = 'l2'
+    max_epochs = 1000
+    lr = 1e-2
 
 
 # Main run file
 @ex.main
-def main(_run, ds_name, num_shapelets, window_size, max_epochs):
+def main(_run, ds_name, path_tfm, num_shapelets, window_size, discriminator, max_epochs, lr):
     # Add in save_dir
     _run.save_dir = save_dir + '/' + _run._id
 
     # Get model training datsets
     ucr_train, ucr_test = UcrDataset(ds_name).get_original_train_test()
-    train_ds, test_ds = [PointsDataset(x.data, x.labels, window_size=window_size) for x in (ucr_train, ucr_test)]
+    if path_tfm == 'points':
+        train_ds, test_ds = [PointsDataset(x.data, x.labels, window_size=window_size) for x in (ucr_train, ucr_test)]
+    elif path_tfm == 'signature':
+        train_ds, test_ds = [SigletDataset(x.data, x.labels, window_size=window_size, depth=4, aug_list=['addtime', 'penoff']) for x in (ucr_train, ucr_test)]
     n_classes = ucr_train.n_classes
     n_outputs = n_classes - 1 if n_classes == 2 else n_classes
 
@@ -54,20 +62,26 @@ def main(_run, ds_name, num_shapelets, window_size, max_epochs):
     test_dl = DataLoader(test_ds, batch_size=test_ds.size(0))
 
     # Setup
-    model = ShapeletNet(num_shapelets=num_shapelets, shapelet_len=train_ds.shapelet_len, num_outputs=n_outputs)
+    model = ShapeletNet(
+        num_shapelets=num_shapelets,
+        shapelet_len=train_ds.shapelet_len,
+        num_outputs=n_outputs,
+        init_data=train_ds.data,
+        discriminator=discriminator
+    )
     loss_fn = nn.BCELoss() if ucr_train.n_classes == 2 else nn.CrossEntropyLoss()
-    optimizer = optim.Adam(params=model.parameters(), lr=1e-2)
+    optimizer = optim.Adam(params=model.parameters(), lr=lr)
 
     # Setup
     trainer = create_supervised_trainer(model=model, optimizer=optimizer, loss_fn=loss_fn)
     evaluator = create_supervised_evaluator(
         model=model,
         metrics={
-            'acc': Accuracy(output_transform=lambda x: [(x[0] > 0.5).int(), x[1]])
+            'acc': Accuracy(output_transform=ignite_accuracy_transform, is_multilabel=True if n_classes > 2 else False)
         }
     )
 
-    @trainer.on(Events.ITERATION_COMPLETED)
+    @trainer.on(Events.EPOCH_COMPLETED)
     def evaluate(trainer):
         epoch = trainer.state.epoch
         if epoch % 10 == 0:
@@ -75,15 +89,22 @@ def main(_run, ds_name, num_shapelets, window_size, max_epochs):
             train_acc = evaluator.state.metrics['acc']
             evaluator.run(test_dl)
             test_acc = evaluator.state.metrics['acc']
-            print('Acc Train: {:.2f}% - Acc Test: {:.2f}%'.format(100 * train_acc, 100 * test_acc))
+            print('EPOCH: [{}]'.format(epoch))
+            print('Train loss: {} - Train acc: {:.2f}%'.format(trainer.state.output, 100 * train_acc))
+            print('Acc Test: {:.2f}%'.format(100 * test_acc))
 
     trainer.run(train_dl, max_epochs=max_epochs)
 
 
 if __name__ == '__main__':
     param_grid = {
-        'ds_name': ['ChlorineConcentration'],
-        'max_epochs': [100],
+        'ds_name': ['Beef'],
+        'path_tfm': ['points'],
+        'num_shapelets': [10],
+        'window_size': [40],
+        'discriminator': ['l2'],
+        'max_epochs': [5000],
+        'lr': [1e-2],
     }
 
     # Create FSO (this creates a folder to log information into).

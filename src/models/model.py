@@ -5,7 +5,7 @@ from sklearn.cluster import KMeans
 
 class ShapeletNet(nn.Module):
     """ Generic model for shapelet learning. """
-    def __init__(self, num_shapelets, shapelet_len, num_outputs, init_data=None):
+    def __init__(self, num_shapelets, shapelet_len, num_outputs, init_data=None, discriminator='l2'):
         super().__init__()
         self.num_shapelets = num_shapelets
         self.shapelet_len = shapelet_len
@@ -18,14 +18,21 @@ class ShapeletNet(nn.Module):
         self.shapelets = lambda: self.shapelets_(torch.ones(1, 1)).view(self.num_shapelets, self.shapelet_len)
 
         # Discriminator for evaluating similarity
-        self.discriminator = lambda diffs: torch.norm(diffs, dim=3, p=2)
-        #
-        # self.discriminator = nn.Sequential(
-        #     nn.Linear(self.shapelet_len, self.shapelet_len),
-        #     nn.ReLU(),
-        #     nn.Linear(self.shapelet_len, 1)
-        # )
-        #
+        if discriminator == 'l1':
+            self.discriminator = lambda diffs: torch.norm(diffs, dim=3, p=1)
+        elif discriminator == 'l2':
+            self.discriminator = lambda diffs: torch.norm(diffs, dim=3, p=2)
+        elif discriminator == 'mlp':
+            self.discriminator = nn.Sequential(
+                nn.Linear(self.shapelet_len, self.shapelet_len, bias=0),
+                nn.ReLU(),
+                nn.Linear(self.shapelet_len, 1, bias=0)
+            )
+        elif discriminator == 'linear':
+            self.discriminator = nn.Sequential(
+                nn.Linear(self.shapelet_len, 1),
+            )
+
         # Classifier on the min value of the discriminator
         self.classifier = nn.Sequential(
             nn.Linear(self.num_shapelets, num_outputs),
@@ -47,7 +54,7 @@ class ShapeletNet(nn.Module):
         shapelets = self.shapelets()
 
         # Compute the difference
-        diffs = (x.unsqueeze(2) - shapelets)
+        diffs = (x.unsqueeze(2) - shapelets).abs()
 
         # Get min discrimination
         discrim = self.discriminator(diffs).squeeze(-1)
