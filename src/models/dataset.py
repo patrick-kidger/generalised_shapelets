@@ -18,13 +18,12 @@ class ShapeletDataset(Dataset):
             data (torch.Tensor): A tensor with dimensions [N, L, C].
             labels (torch.Tensor): A tensor of labels.
             window_size (int): The sub-interval window size.
-            # depth (int): Set an int to pre-compute the log-signatures of the data and return these instead of the paths.
         """
         self.labels = labels
         self.window_size = window_size
-        # self.depth = depth
 
         self.data = self._init_data(data)
+        self.shapelet_len = self.data.size(2)
 
     def roll_data(self, data):
         return pytorch_rolling(data, dimension=1, window_size=self.window_size)
@@ -62,10 +61,10 @@ class SigletDataset(ShapeletDataset):
     [N, L-W, SIG_DIM].
     """
     def __init__(self, data, labels, window_size, depth, aug_list=['addtime']):
-        super(SigletDataset, self).__init__(data, labels, window_size)
-
         self.depth = depth
         self.aug_list = aug_list
+        super(SigletDataset, self).__init__(data, labels, window_size)
+
 
     def _init_data(self, data):
         # Unroll the data

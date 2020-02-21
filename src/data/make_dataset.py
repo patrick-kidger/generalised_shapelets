@@ -66,7 +66,8 @@ def get_dataset(ds_name, multivariate=False):
     data = load_pickle(save_dir + '/data.pkl')
     labels = load_pickle(save_dir + '/labels.pkl').view(-1)
     n_classes = len(np.unique(labels))
-    if n_classes > 2: labels = labels.long()
+    if n_classes > 2:
+        labels = labels.long()
 
     # Get original train/test indexes
     original_idxs = load_pickle(save_dir + '/original_idxs.pkl')

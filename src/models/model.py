@@ -4,10 +4,11 @@ from torch import nn, optim
 
 class ShapeletNet(nn.Module):
     """ Generic model for shapelet learning. """
-    def __init__(self, num_shapelets, shapelet_len):
+    def __init__(self, num_shapelets, shapelet_len, num_outputs):
         super().__init__()
         self.num_shapelets = num_shapelets
         self.shapelet_len = shapelet_len
+        self.num_outputs = num_outputs
 
         # Setup shapelets
         self.shapelets_ = nn.Linear(1, self.num_shapelets * self.shapelet_len, bias=False)
@@ -15,16 +16,16 @@ class ShapeletNet(nn.Module):
 
         # Discriminator for evaluating similarity
         self.discriminator = lambda diffs: torch.norm(diffs, dim=3, p=2)
-
+        #
         # self.discriminator = nn.Sequential(
         #     nn.Linear(self.shapelet_len, self.shapelet_len),
         #     nn.ReLU(),
         #     nn.Linear(self.shapelet_len, 1)
         # )
-
+        #
         # Classifier on the min value of the discriminator
         self.classifier = nn.Sequential(
-            nn.Linear(self.num_shapelets, 1),
+            nn.Linear(self.num_shapelets, num_outputs),
             nn.Sigmoid()
         )
 
@@ -45,9 +46,10 @@ class ShapeletNet(nn.Module):
         return predictions
 
 
+
 if __name__ == '__main__':
     from src.data.make_dataset import UcrDataset
-    from src.models.dataset import SigletDataset
+    from src.models.dataset import SigletDataset, PointsDataset
     from torch.utils.data import DataLoader
     import numpy as np
     import matplotlib.pyplot as plt
@@ -60,15 +62,17 @@ if __name__ == '__main__':
 
     # Get datasets
     ucr_train, ucr_test = UcrDataset(ds_name='GunPoint', multivariate=False).get_original_train_test()
-    train_ds, test_ds = [SigletDataset(x.data, x.labels, window_size=window_size, depth=depth) for x in (ucr_train, ucr_test)]
+    n_classes = ucr_train.n_classes
+    n_outputs = n_classes if n_classes > 2 else n_classes - 1
+    train_ds, test_ds = [PointsDataset(x.data, x.labels, window_size=window_size) for x in (ucr_train, ucr_test)]
     train_dl = DataLoader(train_ds, batch_size=32)
 
     num_shapelets = 10
     shapelet_len = train_ds.data.size(2)
 
     # Setup
-    model = ShapeletNet(num_shapelets=num_shapelets, shapelet_len=shapelet_len)
-    criterion = nn.BCELoss()
+    model = ShapeletNet(num_shapelets=num_shapelets, shapelet_len=shapelet_len, num_outputs=n_outputs)
+    criterion = nn.CrossEntropyLoss() if n_classes > 2 else nn.BCELoss()
     optimizer = optim.Adam(params=model.parameters(), lr=1e-2)
 
     # Run
@@ -77,11 +81,11 @@ if __name__ == '__main__':
         for i, (data, labels) in enumerate(train_dl):
             optimizer.zero_grad()
             preds = model(data)
-            loss = criterion(preds.view(-1), labels)
+            loss = criterion(preds, labels)
             loss.backward()
             optimizer.step()
             losses.append(loss.item())
-        if iter % 100 == 0:
+        if iter % 10 == 0:
             print('Iter: {} - Loss: {}'.format(iter, np.mean(losses)))
 
     # Validate
