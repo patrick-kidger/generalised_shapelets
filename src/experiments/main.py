@@ -83,7 +83,6 @@ def main(_run, ds_name, num_shapelets, window_size, max_epochs):
 if __name__ == '__main__':
     param_grid = {
         'ds_name': ['ChlorineConcentration'],
-        ''
         'max_epochs': [100],
     }
 

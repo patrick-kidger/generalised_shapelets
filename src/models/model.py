@@ -1,10 +1,11 @@
 import torch
 from torch import nn, optim
+from sklearn.cluster import KMeans
 
 
 class ShapeletNet(nn.Module):
     """ Generic model for shapelet learning. """
-    def __init__(self, num_shapelets, shapelet_len, num_outputs):
+    def __init__(self, num_shapelets, shapelet_len, num_outputs, init_data=None):
         super().__init__()
         self.num_shapelets = num_shapelets
         self.shapelet_len = shapelet_len
@@ -12,6 +13,8 @@ class ShapeletNet(nn.Module):
 
         # Setup shapelets
         self.shapelets_ = nn.Linear(1, self.num_shapelets * self.shapelet_len, bias=False)
+        if init_data is not None:
+            self._init_shapelets(init_data)
         self.shapelets = lambda: self.shapelets_(torch.ones(1, 1)).view(self.num_shapelets, self.shapelet_len)
 
         # Discriminator for evaluating similarity
@@ -28,6 +31,16 @@ class ShapeletNet(nn.Module):
             nn.Linear(self.num_shapelets, num_outputs),
             nn.Sigmoid()
         )
+
+    def _init_shapelets(self, data):
+        """ Shapelet initialisation using k-means clustering. """
+        # Compute centroids
+        kmeans = KMeans(n_clusters=self.num_shapelets)
+        kmeans.fit(data.reshape(-1, data.size(2)))
+        cluster_centers = kmeans.cluster_centers_
+
+        # Update weights to start at cluster centers
+        self.shapelets_.weight.data = torch.Tensor(cluster_centers.reshape(-1, 1))
 
     def forward(self, x):
         # Get shapelets
@@ -61,7 +74,7 @@ if __name__ == '__main__':
     n_iters = 2000
 
     # Get datasets
-    ucr_train, ucr_test = UcrDataset(ds_name='GunPoint', multivariate=False).get_original_train_test()
+    ucr_train, ucr_test = UcrDataset(ds_name='ChlorineConcentration').get_original_train_test()
     n_classes = ucr_train.n_classes
     n_outputs = n_classes if n_classes > 2 else n_classes - 1
     train_ds, test_ds = [PointsDataset(x.data, x.labels, window_size=window_size) for x in (ucr_train, ucr_test)]
@@ -71,7 +84,7 @@ if __name__ == '__main__':
     shapelet_len = train_ds.data.size(2)
 
     # Setup
-    model = ShapeletNet(num_shapelets=num_shapelets, shapelet_len=shapelet_len, num_outputs=n_outputs)
+    model = ShapeletNet(num_shapelets=num_shapelets, shapelet_len=shapelet_len, num_outputs=n_outputs, init_data=train_ds.data)
     criterion = nn.CrossEntropyLoss() if n_classes > 2 else nn.BCELoss()
     optimizer = optim.Adam(params=model.parameters(), lr=1e-2)
 
