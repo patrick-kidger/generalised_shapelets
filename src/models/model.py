@@ -54,7 +54,7 @@ class ShapeletNet(nn.Module):
         shapelets = self.shapelets()
 
         # Compute the difference
-        diffs = (x.unsqueeze(2) - shapelets).abs()
+        diffs = (x.unsqueeze(2) - shapelets)
 
         # Get min discrimination
         discrim = self.discriminator(diffs).squeeze(-1)
