@@ -1,0 +1,227 @@
+\documentclass{article}
+
+% if you need to pass options to natbib, use, e.g.:
+%     \PassOptionsToPackage{numbers, compress}{natbib}
+% before loading neurips_2019
+
+% ready for submission
+%\usepackage{neurips_2019}
+
+% to compile a preprint version, e.g., for submission to arXiv, add add the
+% [preprint] option:
+%     \usepackage[preprint]{neurips_2019}
+
+% to compile a camera-ready version, add the [final] option, e.g.:
+\usepackage[preprint, nonatbib]{neurips_2019}
+
+
+\usepackage[utf8]{inputenc} % allow utf-8 input
+\usepackage{hyperref}       % hyperlinks
+\usepackage{url}            % simple URL typesetting
+\usepackage{booktabs}       % professional-quality tables
+\usepackage{amsfonts}       % blackboard math symbols
+\usepackage{amsmath}
+\usepackage{graphicx,wrapfig,lipsum}
+\usepackage{amsfonts}
+\usepackage{booktabs}
+\usepackage{empheq}
+\usepackage{amsthm}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{mathrsfs}  
+\usepackage{amssymb}
+\usepackage{tikz}
+\usetikzlibrary{calc,positioning}
+
+%\usepackage{nicefrac}       % compact symbols for 1/2, etc.
+%\usepackage{microtype}      % microtypography
+%\usepackage[title]{appendix}
+
+\hyphenpenalty=10000
+
+\theoremstyle{plain}
+\newtheorem{thm}{Theorem}[section]
+\newtheorem{proposition}[thm]{Proposition}
+\newtheorem{lemma}[thm]{Lemma}
+\newtheorem{corollary}[thm]{Corollary}
+
+\theoremstyle{definition}
+\newtheorem{definition}[thm]{Definition}
+\newtheorem{remark}[thm]{Remark}
+\newtheorem{example}[thm]{Example}
+
+\newcommand{\reals}{\mathbb{R}}
+\newcommand{\naturals}{\mathbb{N}}
+\newcommand{\bigO}{\mathcal{O}}
+\newcommand{\norm}[1]{\mathord|\!\mathord|#1\mathord|\!\mathord|} % TODO: replace
+\newcommand{\restr}[2]{{\left.\kern-\nulldelimiterspace #1 \right|_{#2}}}
+\newcommand{\dee}{\,\mathrm{d}}
+\newcommand{\logsig}{\mathrm{LogSig}}
+\newcommand{\argmin}{\mathop\mathrm{argmin}\limits}
+
+\title{Generalised Interpretable Shapelets}
+
+\author{
+	\And
+	Terry Lyons$^{1, 2}$
+	\AND \\[-12pt]
+	\null$^1$ Mathematical Institute, University of Oxford \\
+	\null$^2$ The Alan Turing Institute, British Library \\
+	\texttt{\{tlyons\}@\hspace{0.1pt}maths.ox.ac.uk}
+}
+
+% Notation:
+% n index of N samples
+% k index of K shapelets
+% t index of S or T_n length
+% s index of offset
+% d index of D channels
+% i index of I, the size of the wavelet basis
+
+% TODO: need way more this-is-cool
+% TODO: make sure this handles irregularly sampled time series properly
+\begin{document}
+	\maketitle
+	\begin{abstract}
+		The shapelet transform is a form of feature extraction for time series, in which a time series is described by its similarity to each of a collection of `shapelets'. However existing work has suffered from several limitations, such as expensive training procedures, loss of interpretability, fragility to noise, and a requirement for regularly sampled data. In this work, we demonstrate how these issues may collectively be overcome, and furthermore how the procedure may be generalised in multiple ways. This produces a method that normalises its input data, is straightforward to implement, and whose results are interpretable. We validate our method on several datasets, such as TODO. (TODO: talk about the successes of our method.)
+	\end{abstract}
+	\section{Introduction}
+	Shaplets are a form of feature extraction for time series. Given some fixed hyperparameter $K$, describing how many shapelets we are willing to consider, then each time series is reduced to a vector of length $K$ describing how similar it is to each of the $k$ selected shapelets.
+	
+	We begin by stating the classical definition of shapelets.
+	\subsection{Classical shapelets}
+	Given $N$ regularly sampled multivariate time series, with $D$ observed channels, where the $i$-th time series is of length $T_n$, then the $n$-th time series is a matrix 
+	\begin{equation}\label{eq:f-n}
+	f^n = (f^n_{t})_{t \in \{0, \ldots, T_n - 1\}} = (f^n_{t, d})_{t \in \{0, \ldots, T_n - 1\}, d \in \{1, \ldots, d\}},
+	\end{equation}
+	with each $f^n_{t, d} \in \reals$. We assume without loss of generality that $0, \ldots, T_n - 1$ are the times at which each sample is observed, so that the parameterisation $t$ corresponds to the time of an observation.
+	
+	Fix some hyperparameter $K \in \naturals$, which will describe the number of shapelets. Fix some $S \in \{0, \ldots, \min_{i \in \{1, \ldots, N\}}T_n - 1\}$, which will describe the length of each shapelet. We define the $k$-th shapelet as a matrix
+	\begin{equation*}
+	w^{k} = (w^{k}_t)_{t \in \{0, \ldots, S - 1\}} = (w^{k}_{t, d})_{t \in \{0, \ldots, S - 1\}, d \in \{1, \ldots, d\}},
+	\end{equation*}
+	with each $w^{k}_{t, d} \in \reals$.
+	
+	Then the discrepancy between $f^n$ and $w^{k}$ is defined by:
+	\begin{equation}\label{eq:classical-shapelets}
+	\sigma_S(f^n, w^{k}) = \min_{s \in \{0, \ldots, T_n - S\}} \sum_{t = 0}^{S - 1} \norm{f^n_{s + t} - w^{k}_t}_2^2,
+	\end{equation}
+	where $\norm{\,\cdot\,}_2$ describes the $L^2$ norm on $\reals^D$. A small discrepancy implies that $f^n$ and $w^{k}$ are similar to one another.
+	
+	Given some already-selected $w^{k}$, then this corresponds to sweeping it over $f^n$, and finding the offset $s$ at which it best matches $f^n$. The collection of $(\sigma_S(f^n, w^{1}), \ldots, \sigma_S(f^n, w^{K})) \in \reals^K$ is now a feature describing $f^n$. This may now be passed to some model to perform classification or regression.
+	
+	This method is attractive for two reasons. First, it is invariant to the value of $T_n$, and as such provides a way to normalise variable-length time series. Second, it is interpretable, as use of a particular feature corresponds to the importance of the similarity to the shapelet $w^{k}$, which may for example describe some shape that is characteristic of a particular class; furthermore the value of $s$ gives where the similarity occurs.
+	
+	\subsection{Limitations}
+	However, classical shapelet methods also suffer from a number of limitations.
+	\begin{enumerate}
+	\item The technique only applies to regularly spaced time series, due to the minimisation over $s$. 
+	\item The choice of $S$ is a hyperparameter; it is discrete, and choosing it is thus a relatively expensive optimisation procedure.
+	\item The technique is not robust to irrelevant channels (which will typically exist in many real world datasets, for example medical time series): equation \eqref{eq:classical-shapelets} attempts to fit a $w^{k}_{t, d}$ even for uninformative channels $d$.
+	\item Determining the choice of $w^{k}$ is either expensive, following the procedure of \cite{TODO}, or loses interpretability, following the procedure of \cite{TODO}.  % TODO: there's also the adversarial interpretability paper that seems a bit naff
+	\item The formulation of equation \eqref{eq:classical-shapelets} has essentially made several ad-hoc choices, for example in the choice of $L^2$ norm on $\reals^D$, or the sum-over-$s$ procedure that generalises it to a discrepancy between time series. (Which is not a norm, as it is not multiplicative.) Indeed, there are many other natural notions of discrepancy between time series \cite{TODO, TODO, TODO, TODO} that do not fit this framework.
+	\end{enumerate}
+	
+	\subsection{Contributions} % TODO: say more
+	We demonstrate how classical shapelets may be generalised in multiple ways, so as to address the collection of limitations just described.
+	
+	By treating the objects in continuous time rather than discrete time, we demonstrate how the shapelet method may be extended to irregularly-sampled time series. Furthermore we demonstrate how this allows for the length of each shapelet to be learnt, individually for each shapelet, in a differentiable manner. (Rather than a single hyperparameter shared amongst all shapelets.)
+	
+	Next, we generalise to allowing the discrepancy between a shapelet and a time series to a learnt pseudometric. This makes our proposed method robust to noise in unrelated channels, and furthermore this introduces a great deal of flexibility into the method.
+	
+	Finally, we demonstrate how simple regularisation is enough to achieve shapelets that resemble characteristic features of the data, in order to achieve the desired interpretability.
+	
+	\section{Method}
+	We move on to describing our method, which we present in a general form. In the next section we will discuss the specific choices made in our experiments.
+	
+	\subsection{Continuous-time objects}
+	We interpret a time series as a discretised sample from an underlying process, observed only through the time series. Similarly, the shapelet previously constructed may be thought of as a discretisation of some underlying function. The first important step in our procedure is to construct continuous-time approximations to these underlying objects.
+	
+	Formally speaking, we assume that for $n \in \{1, \ldots, N\}$ indexing different observations, we observe a collection of time series
+	\begin{equation*}
+	f^n = (f^n_{t_\tau})_{\tau \in \{1, \ldots, T_n\}},
+	\end{equation*}
+	where $t_\tau \in \reals$ is the observation time of $f^n_{t_\tau} \in \reals^D$. Note that this description allows irregularly sampled time series to be treated on the same footing as regularly sampled time series.
+	
+	Next, interpolate to get a function $\iota(f^n) \colon [0, T_n - 1] \to \reals^D$ such that $\iota(f^n)(t_\tau) = f^n_{t_\tau}$ for $\tau \in \{0, \ldots, T_n - 1\}$. There are many possible choices for interpolations, for example splines \cite{TODO}, kernel methods \cite{interpolation-prediction}, or Gaussian processes \cite{gp-adapter1, gp-adapter2}.
+	
+	The shapelets themselves we are free to control, and so for $k \in \{1, \ldots, K\}$ indexing different shapelets, we take each $w^{k, \rho} \colon [0, 1] \to \reals^D$ to be some learnt function depending on learnt parameters $\rho$. For example, this could be an interpolated sequence of learnt points, an expansion in some basis functions, or a neural network. Then for $S_k > 0$ define $w^{k, \rho, S_k} \colon [0, S_k] \to \reals^D$ by
+	\begin{equation*}
+	w^{k, \rho, S_k}(t) = w^{k, \rho}\left(\frac{t}{S_k}\right).
+	\end{equation*}
+	Taking the length $S_k$ to be continuous is a necessary prerequisite to training it differentiably. We will discuss the training procedure in a moment.
+	
+	\subsection{Generalised discrepancy}
+	The core of the shapelet method is that the similarity or discrepancy between $f^n$ and $w^{k, \rho, S}$ is important. In general, we approach this by defining a \emph{discrepancy function} between the two, which will typically be learnt, and which we require only to be a pseudometric, rather than a metric. By relaxing to allow pseudometricity, then the procedure becomes robust to noise in unrelated channels, as the learning procedure may learn to ignore extraneous dimensions.
+	
+	We denote this discrepancy function by $\pi^A_S$; it depends upon the length $S$ and a learnt parameter $A$, consumes two paths in $\reals^D$, and returns a real number describing some notion of closeness between them. We are being deliberately vague about the domain of $\pi^A_S$, as it will depend on the regularity of $\iota$.	
+	
+	Given some fixed $\pi^A_S$, then we define the discrepancy between $f^n$ and $w^{k, \rho, S}$ to be given by
+	\begin{equation}\label{eq:new-sigma}
+	\sigma^A_S(f^n, w^{k, \rho, S}) = \min_{s \in [0, T_n - S]} \pi^A_S(\restr{\iota(f^n)}{[s, s + S]}(s + \cdot), w^{k, \rho, S}).
+	\end{equation}
+	
+	The collection of discrepancies $(\sigma^A_S(f^n, w^{1, \rho, S}), \ldots, \sigma^A_S(f^n, w^{K, \rho, S}))$ is now a feature describing $f^n$, and is invariant to the length $T_n$. Use of the particular feature $\sigma^A_S(f^n, w^{k, \rho, S})$ corresponds to the importance of the similarity between $f^n$ and $w^{k, \rho, S}$. In this way, the choice of $\pi^A_S$ gives a great deal of flexibility: not only may it be selected for reasons of classification performance, but it may also be selected to aid interpretability. For example, in many domains it may be of interest to take Fourier transform-based choices of $\pi^A_S$.
+	
+	A simple example, in analogy to the classical shapelet method of equation \eqref{eq:classical-shapelets}, is to take
+	\begin{equation}\label{eq:learnt-discrepancy}
+	\pi^A_S(f, w) = (\int_{0}^S \norm{f(t) - w(t)}_2^2 \dee t)^{\frac{1}{2}},
+	\end{equation}
+	which in fact has no $A$ dependence. If $\iota$ is taken to be a piecewise constant `interpolation' then this will exactly correspond to (the square root of) the classical shapelet approach.
+	
+	This may be generalised by taking our learnt parameter $A \in \reals^{D \times D}$, and then letting
+	\begin{equation}\label{eq:logsignature-discrepancy}
+	\pi^A_S(f, w) = (\int_{0}^S \norm{Af(t) - Aw(t)}_2^2 \dee t)^{\frac{1}{2}}.
+	\end{equation}
+	We do not put any conditions on $A$. In particular, as we have allowed pseudometricity, uninformative dimensions may be shrunk to zero.
+	
+	An explicitly interpretable example is given by a $\pi^A_S$ that is based on the logsignature transform, which is a transform on paths, known to characterise its input path whilst extracting statistics which describe how the path controls differential equations \cite{levy-lyons, TODO, TODO, TODO, TODO}. Machine learning extensions are natural; see for example \cite{toth2019, signature-kernel, deep-signatures, signatory, logsig-rnn}. Here, we define the \emph{$p$-logsignature distance} between two functions to be
+	\begin{equation*}
+	\pi^A_S(f, w) = \norm{A\,\logsig^R(f) - A\,\logsig^R(w)}_p,
+	\end{equation*}
+	where $A \in \reals^{\beta_{D, R} \times \beta_{D, R}}$, $\logsig^R$ is the depth-$R$ logsignature transform of the path, $\norm{\,\cdot\,}_p$ is the $L^p$ norm on $\reals^{\beta_{D, R}}$, and
+	\begin{equation*}
+	\beta_{D, R} = \sum_{r = 1}^R \frac{1}{r} \sum_{\rho \vert r} \mu\left(\frac{r}{\rho}\right) D^\rho
+	\end{equation*}
+	is Witt's formula \cite{witt}, and $\mu$ is the M{\"o}bius function.
+
+	% TODO: why not DTW
+	
+	In analogy to classical shapelet methods, we call the map
+	\begin{equation*}
+	f \mapsto (\sigma^A_S(f, w^{1, \rho, S}), \ldots, \sigma^A_S(f, w^{K, \rho, S}))
+	\end{equation*}
+	the \emph{generalised shapelet transform}.
+	
+	\subsection{Interpretable regularisation}
+	In \cite{TODO}, a procedure is described for selecting shapelets as particular small intervals from particular training samples. But doing so is very expensive, requiring $\bigO(N^2 \cdot \max_n T_n^4)$ work. As such, \cite{TODO} instead show that the discrepancy $\sigma_S$ of equation \eqref{eq:classical-shapelets} is differentiable with respect to $w^{k, \rho, S}$, and so the shapelets may be selected differentiably, as part of an end-to-end optimisation of the final loss function of the model that consumes the shapelets as features.\footnote{Although they include a `softmin' procedure which we believe to be unnecessary, as the minimum function is already almost everywhere differentiable.}
+	
+	However, it has been noted in \cite{TODO} that doing so sacrifices much of the interpretability, as the shapelets that are then selected need not look like any small extracts from the training data. They propose to solve this issue via adversarial regularisation.
+	
+	We instead propose a much simpler method; train differentiably as before, and simply add on $\sigma^A_S(f^n, w^{k, \rho, s})$ as a regularisation term, so that minimising the discrepancy between $f^n$ and $w^{k, \rho, S}$ is also important. One obvious danger of this is that this introduces a bias towards small values of $S$, as the discrepancy can then easily be made small because $\iota(f^n)$ is locally almost constant. The solution is to regularise $S$ back towards larger values, with another regularisation term, which we denote $\mathcal{R}(S)$; for example we could take $\mathcal{R}(S) = 1/S$.
+	
+	\subsection{Minimisation objective and training procedure}
+	Overall, suppose we have some parametric model $F^\theta$, some loss function $\mathcal{L}$, and some observed time series $f^1, \ldots, f^N$ with targets $y_1, \ldots, y_N$.	
+	
+	Then letting $\gamma, \delta > 0$ control the amount of each kind of regularisation, we propose to minimise
+	\newcommand{\objective}{&\frac{1}{N}\sum_{n = 1}^N \mathcal{L}(y_n, F^\theta(\sigma^A_{S_1}(f^n, w^{1, \rho, S_1}), \ldots, \sigma^A_{S_K}(f^n, w^{K, \rho, S_K})))\nonumber\\[-10pt]
+	&\hspace{15em} + \frac{\gamma}{K} \sum_{k = 1}^K \min_{n \in \{1, \ldots, N\}} \sigma^A_{S_k}(f^n, w^{k, \rho, S_k}) + \delta \sum_{k = 1}^K\mathcal{R}(S_k)}
+	\begin{align}
+	\objective \label{eq:objective}
+	\end{align}
+	over $\theta$, $\rho$, $A$ and $S_k$. We allow the length $S_k$ to vary between different shapelets.
+	
+	Note the choice of minimisation over $n$ in the first regularisation term, rather than a sum over $n$. A sum over $n$ would ask that every shapelet should look like every training sample. Taking a minimum instead asks only that every shapelet should be similar to some training sample, not all of them.
+	
+	We will minimise this via standard stochastic gradient descent based techniques. Some thought is necessary to verify that our constructions are in fact differentiable with respect to $S_k$, and in general this will depend on the regularity of $\pi^A_S$, but this is essentially straightforward analysis. Practically speaking, we would like to implement this in an autodifferentiation framework (for example PyTorch \cite{pytorch}), and indeed provided $\pi^A_S$ is constructed in an autodifferentiable manner, then the rest of our constructions may be as well. For completeness we include sample code to do so in Appendix \ref{appendix:code}.
+	
+	\section{Experiments}
+	Our generalised shapelet transform, contrasted with the classical shapelet transform, has two extra degrees of freedom: the choice of interpolation scheme $\iota$, and the choice of discrepancy function $\pi^A_S$. In our experiments, we consider $\pi^A_S$ given by either of equations \eqref{eq:learnt-discrepancy} or \eqref{eq:logsignature-discrepancy}. Meanwhile, we take $\iota$ to be piecewise linear interpolation, because efficient algorithms for computing the logsignature transform only exist for piecewise linear paths \cite{signatory}.
+	
+	TODO: we need to consider more disrepancy functions than this.
+	
+	\appendix
+	\section{Code for the shapelet transform}\label{appendix:code}
+	TODO: include!
+	
+\end{document}

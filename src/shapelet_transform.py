@@ -36,28 +36,28 @@ def _restriction(times, path, start, end):
     assert end <= times[-1], "start and end must be within the interval specified by times."
     assert start < end, "start must be less than end."
     prev_time = times[0]
-    for time in times[1:]
+    for time in times[1:]:
         assert time > prev_time, "times must be an increasing sequence."
         prev_time = time
     
     # >= for start and > for end is deliberate
     # this correctly handles the cases that start == times[i] or end == times[i] for some i.
-    start_index = (start >= times).sum()
-    end_index = (end > times).sum()
+    start_index = (start >= times).sum() - 1
+    end_index = (end > times).sum() - 1
     
-    before_start_time = times[start_index - 1]
-    after_start_time = times[start_index]
+    before_start_time = times[start_index]
+    after_start_time = times[start_index + 1]
     start_ratio = (start - before_start_time) / (after_start_time - before_start_time)
-    start_restriction = path[..., start_index - 1] + start_ratio * (path[..., start_index, :] - path[..., start_index - 1, :])
+    start_restriction = path[..., start_index, :] + start_ratio * (path[..., start_index + 1, :] - path[..., start_index, :])
     
-    middle_restriction = path[..., start_index:end_index, :]
+    middle_restriction = path[..., start_index + 1:end_index, :]
     
     before_end_time = times[end_index]
     after_end_time = times[end_index + 1]
     end_ratio = (end - before_end_time) / (after_end_time - before_end_time)
     end_restriction = path[..., end_index, :] + end_ratio * (path[..., end_index + 1, :] - path[..., end_index, :])
     
-    restricted_times = torch.cat([start, times[start_index:end_index], end], dim=0)
+    restricted_times = torch.cat([start.unsqueeze(0), times[start_index + 1:end_index], end.unsqueeze(0)], dim=0)
     restricted_path = torch.cat([start_restriction.unsqueeze(-2), middle_restriction, end_restriction.unsqueeze(-2)],
                                 dim=-2)
     return restricted_times, restricted_path
@@ -98,14 +98,15 @@ def _continuous_min(start, end, fn, max_sampling_gap=None):
         max_sampling_gap = torch.as_tensor(max_sampling_gap)
         assert not max_sampling_gap.requires_grad, "Cannot differentiate with respect to the number of sample points."
         num_samples = 1 + torch.ceil((end_detached - start_detached) / max_sampling_gap)
+        num_samples = num_samples.to(torch.long)
     points = torch.linspace(start_detached, end_detached, num_samples)
     
-    min_result_middle = torch.stack([fn(point) for point in points[1:-1]], dim=0).min(dim=0)
+    min_result_middle = torch.stack([fn(point) for point in points[1:-1]], dim=0).min(dim=0).values
     # This allows us to differentiate through the endpoints
     # If we wanted we could also construct every point in points[1:,-1] differentiably, but we're aiming for a
     # continuous minimum here, and that's just an implementation detail. (Basically it depends on whether you use a
     # discretise-then-optimise or optimise-then-discretise approach.)
-    min_result = torch.stack([fn(start), min_result_middle, fn(end)], dim=0).min(dim=0)
+    min_result = torch.stack([fn(start), min_result_middle, fn(end)], dim=0).min(dim=0).values
     return min_result
 
 
@@ -121,7 +122,11 @@ def _add_knots(times, path, additional_times):
     """
     times = torch.as_tensor(times)
     path = torch.as_tensor(path)
-    additional_times = torch.as_tensor(additional_times)
+    # Adding knots doesn't change the underlying function so detaching is the correct thing to do
+    additional_times = torch.as_tensor(additional_times).detach()
+
+    if len(additional_times) == 0:
+        return times, path
 
     prev_time = times[0]
     for time in times[1:]:
@@ -140,7 +145,10 @@ def _add_knots(times, path, additional_times):
     next_time = next(iter_times)
     new_path = [path[..., 0, :]]
     new_times = [times[0]]
+    _skips = 0
     if additional_times[0] == times[0]:
+        # Note that this operation technically subtly breaks differentiability wrt time, because taking uniques
+        # isn't a differentiable operation. Still, it doesn't do it too badly so this should be fine.
         additional_times = additional_times[1:]
     for additional_time in additional_times:
         while additional_time > next_time:
@@ -150,6 +158,7 @@ def _add_knots(times, path, additional_times):
             prev_time = next_time
             next_time = next(iter_times)
         if additional_time == next_time:
+            # Similarly, this operation subtly breaks differentiability.
             continue
         ratio = (additional_time - prev_time) / (next_time - prev_time)
         path_at_additional_time = path[..., prev_time_index, :] + ratio * (path[..., prev_time_index + 1, :] - path[..., prev_time_index, :])
@@ -159,16 +168,19 @@ def _add_knots(times, path, additional_times):
         prev_time_index += 1
         new_times.append(times[prev_time_index])
         new_path.append(path[..., prev_time_index, :])
+    new_times.append(times[-1])
+    new_path.append(path[..., -1, :])
+
     return torch.stack(new_times, dim=0), torch.stack(new_path, dim=-2)
   
     
-class ShapeletTransform(torch.nn.Module):
+class GeneralisedShapeletTransform(torch.nn.Module):
     """Applies a generalised shapelet transform.
 
     Each shapelet that it is compared against will be a piecewise linear function.
     """
     def __init__(self, in_channels, num_shapelets, num_shapelet_samples, discrepancy_fn,  max_shapelet_length,
-                 max_sampling_gap=None):
+                 max_sampling_gap=None, scale_length_gradients='auto'):
         """
         Arguments:
             in_channels: An integer specifying the number of input channels in the path it will be called with.
@@ -184,14 +196,20 @@ class ShapeletTransform(torch.nn.Module):
                 describing the similarity between `path1` and `path2`.
             max_shapelet_length: The maximum length for a shapelet. (As if it grows too long then it cannot be compared
                 against.)
-            max_sampling_gap: As `continuous_min`.
+            max_sampling_gap: As `continuous_min`. Setting this argument is often important to the speed of the shapelet
+                transform.
+            scale_length_gradients: Shapelet lengths are often much larger than other parameters in models, so their
+                learning rates should be larger as well. This can either be done by setting parameter-specific learning
+                rates in the optimiser, but by default we apply it automatically. This may be disabled by setting this
+                parameter to 1 (i.e. no scaling), or set to a specific scaling value by passing that as a value. By
+                default a suitable scaling is inferred from the max_shapelet_length argument.
         """
         # discrepancy_fn accepts two tensors:
         #   a restricted_path of shape (..., restricted_length, in_channels)
         #   a shapelet of shape (num_shapelet_samples, in_channels)
         # and should return a tensor of shape (...,).
         
-        super(Shapelet, self).__init__()
+        super(GeneralisedShapeletTransform, self).__init__()
         
         self.in_channels = in_channels
         self.num_shapelets = num_shapelets
@@ -199,11 +217,18 @@ class ShapeletTransform(torch.nn.Module):
         self.discrepancy_fn = discrepancy_fn
         self.max_sampling_gap = max_sampling_gap
         self.max_shapelet_length = max_shapelet_length
+        self.scale_length_gradients = scale_length_gradients
 
         self.lengths = torch.nn.Parameter(torch.empty(num_shapelets))
-        self.shapelets  = torch.nn.Parameter(torch.empty(num_shapelets, num_shapelet_samples, in_channels))
+        self.shapelets = torch.nn.Parameter(torch.empty(num_shapelets, num_shapelet_samples, in_channels))
 
         self.reset_parameters()
+
+        if scale_length_gradients == 'auto':
+            scale = max_shapelet_length
+        else:
+            scale = scale_length_gradients
+        self.lengths.register_hook(lambda grad: scale * grad)
 
     def reset_parameters(self):
         with torch.no_grad():
@@ -211,14 +236,19 @@ class ShapeletTransform(torch.nn.Module):
             self.shapelets.uniform_(-1, 1)
 
     def clip_length(self):
-        """Clips the length of the shapelets to valid values. Should be called after every backward pass."""
-        self.lengths.clamp_(0.01, self.max_shapelet_length)
+        """Clips the length of the shapelets to valid values. Should be called after every backward pass. (i.e. after
+        optimiser.step())"""
+        with torch.no_grad():
+            self.lengths.clamp_(0.01, self.max_shapelet_length)
         
     def forward(self, times, path):
         # times is of shape (length,)
         # path is of shape (..., length, in_channels)
-        
-        assert self.lengths.min() > times[-1], "Time series is too short for shapelet."
+
+        assert self.lengths.max() <= self.max_shapelet_length, ("Shapelets have exceeded maximum length; please "
+                                                                 "remember to call the `clip_length` method after each "
+                                                                 "backward pass. (After optimiser.step())")
+        assert self.max_shapelet_length < times[-1] - times[0], "Time series is too short for shapelet."
         assert path.size(-1) == self.in_channels, ("Wrong number of input channels. Expected {}, got {}"
                                                    "".format(self.in_channels, path.size(-1)))
                                                    
@@ -227,13 +257,17 @@ class ShapeletTransform(torch.nn.Module):
             def min_fn(point):
                 # restricted path is of shape (..., restricted_length, in_channels)
                 restricted_times, restricted_path = _restriction(times, path, point, point + length)
-                restricted_times = restricted_times - point  # TODO: reflect this in the LaTeX
-                shapelet_times = torch.linspace(0, length, self.num_shapelet_samples)
-                # normalise both the path and the shapelet to have knots at the same points as each other
-                mutual_times, restricted_path = _add_knots(restricted_times, restricted_path, shapelet_times)
-                _, shapelet = _add_knots(shapelet_times, shapelet, restricted_times)
+                restricted_times = restricted_times - point
+                # detach is fine because adding knots doesn't actually change the underlying function; there's no
+                # gradients that need backpropagating.
+                shapelet_times = torch.linspace(0, length.detach(), self.num_shapelet_samples)
+                # normalise both the path and the shapelet to have knots at the same points as each other. Slice with
+                # [1:-1] because otherwise floating point inaccuracies mean that spurious errors can get thrown, and it
+                # doesn't matter anyway as they have the same start and endpoints.
+                mutual_times, restricted_path = _add_knots(restricted_times, restricted_path, shapelet_times[1:-1])
+                _, shapelet_ = _add_knots(shapelet_times, shapelet, restricted_times[1:-1])
                 # this will then return a tensor of shape (...,)
-                return discrepancy_fn(mutual_times, restricted_path, shapelet)
+                return self.discrepancy_fn(mutual_times, restricted_path, shapelet_)
             discrepancy = _continuous_min(times[0], times[-1] - length, min_fn, self.max_sampling_gap)
             discrepancies.append(discrepancy)
         # returns a tensor of shape (..., num_shapelets)
