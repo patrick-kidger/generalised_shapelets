@@ -12,10 +12,3 @@ docs/_build
 docs/_templates
 *.egg-info/
 **/.mypy_cache/
-
-/data/external
-/data/interim
-/data/processed
-/data/raw
-env/
-models/experiments

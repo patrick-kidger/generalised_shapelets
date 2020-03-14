@@ -63,7 +63,7 @@ def _restriction(times, path, start, end):
     return restricted_times, restricted_path
    
     
-def _continuous_min(start, end, fn, max_sampling_gap=None):
+def _continuous_min(start, end, fn, max_sampling_gap=None, num_samples=1000):
     """Differentiably calculates
     ```
     g(start, end) = \min_{s \in [start, end]} fn(s)
@@ -77,9 +77,11 @@ def _continuous_min(start, end, fn, max_sampling_gap=None):
         start: A scalar.
         end: A scalar.
         fn: A function which consumes a scalar and returns an any-dimensional tensor.
-        max_sampling_gap: Either None (=1000 sample points) or the maximum gap between two sample points; i.e. we
+        max_sampling_gap, num_samples: Precisely one of these must be non-None. If max_sampling_gap is not None then we
             compute a minimum over s in {start, start + epsilon, start + 2 * epsilon, ..., end - epsilon, end} where
-            epsilon < max_sampling_gap.
+            epsilon is the largest epsilon allowing this exact splitting, such that epsilon < max_sampling_gap. If
+            num_samples is not None then it computes a minimum over s in {start, start + 1/num_samples,
+            start + 2/num_samples, ..., end - 1/num_samples, end}.
 
     Returns:
         A PyTorch tensor of the same shape as `fn` returns.
@@ -91,10 +93,12 @@ def _continuous_min(start, end, fn, max_sampling_gap=None):
     
     assert start < end, "start must be less than end."
     assert max_sampling_gap > 0, "max_sampling_gap must be positive."
+    assert not (max_sampling_gap is None and num_samples is None), "Cannot have both max_sampling_gap and " \
+                                                                   "num_samples set to None"
+    assert not (max_sampling_gap is not None and num_samples is not None), "Cannot pass both max_sampling_gap and " \
+                                                                           "num_samples."
     
-    if max_sampling_gap is None:
-        num_samples = 1000
-    else:
+    if max_sampling_gap is not None:
         max_sampling_gap = torch.as_tensor(max_sampling_gap)
         assert not max_sampling_gap.requires_grad, "Cannot differentiate with respect to the number of sample points."
         num_samples = 1 + torch.ceil((end_detached - start_detached) / max_sampling_gap)
@@ -180,7 +184,7 @@ class GeneralisedShapeletTransform(torch.nn.Module):
     Each shapelet that it is compared against will be a piecewise linear function.
     """
     def __init__(self, in_channels, num_shapelets, num_shapelet_samples, discrepancy_fn,  max_shapelet_length,
-                 max_sampling_gap=None, scale_length_gradients='auto'):
+                 continuous_sampling_gap, num_continuous_samples, scale_length_gradients='auto'):
         """
         Arguments:
             in_channels: An integer specifying the number of input channels in the path it will be called with.
@@ -196,18 +200,18 @@ class GeneralisedShapeletTransform(torch.nn.Module):
                 describing the similarity between `path1` and `path2`.
             max_shapelet_length: The maximum length for a shapelet. (As if it grows too long then it cannot be compared
                 against.)
-            max_sampling_gap: As `continuous_min`. Setting this argument is often important to the speed of the shapelet
-                transform.
+            continuous_sampling_gap, num_continuous_samples: Precisely one of these must be non-None. If
+                continuous_sampling_gap is not None then we compute a minimum over s in {start, start + epsilon,
+                start + 2 * epsilon, ..., end - epsilon, end} where epsilon is the largest epsilon allowing this exact
+                splitting, such that epsilon < continuous_sampling_gap. If num_continuous_samples is not None then it
+                computes a minimum over s in {start, start + 1/num_samples, start + 2/num_samples, ...,
+                end - 1/num_samples, end}.
             scale_length_gradients: Shapelet lengths are often much larger than other parameters in models, so their
                 learning rates should be larger as well. This can either be done by setting parameter-specific learning
                 rates in the optimiser, but by default we apply it automatically. This may be disabled by setting this
                 parameter to 1 (i.e. no scaling), or set to a specific scaling value by passing that as a value. By
                 default a suitable scaling is inferred from the max_shapelet_length argument.
         """
-        # discrepancy_fn accepts two tensors:
-        #   a restricted_path of shape (..., restricted_length, in_channels)
-        #   a shapelet of shape (num_shapelet_samples, in_channels)
-        # and should return a tensor of shape (...,).
         
         super(GeneralisedShapeletTransform, self).__init__()
         
@@ -215,7 +219,8 @@ class GeneralisedShapeletTransform(torch.nn.Module):
         self.num_shapelets = num_shapelets
         self.num_shapelet_samples = num_shapelet_samples
         self.discrepancy_fn = discrepancy_fn
-        self.max_sampling_gap = max_sampling_gap
+        self.continuous_sampling_gap = continuous_sampling_gap
+        self.num_continuous_samples = num_continuous_samples
         self.max_shapelet_length = max_shapelet_length
         self.scale_length_gradients = scale_length_gradients
 
@@ -246,8 +251,8 @@ class GeneralisedShapeletTransform(torch.nn.Module):
         # path is of shape (..., length, in_channels)
 
         assert self.lengths.max() <= self.max_shapelet_length, ("Shapelets have exceeded maximum length; please "
-                                                                 "remember to call the `clip_length` method after each "
-                                                                 "backward pass. (After optimiser.step())")
+                                                                "remember to call the `clip_length` method after each "
+                                                                "backward pass. (After optimiser.step())")
         assert self.max_shapelet_length < times[-1] - times[0], "Time series is too short for shapelet."
         assert path.size(-1) == self.in_channels, ("Wrong number of input channels. Expected {}, got {}"
                                                    "".format(self.in_channels, path.size(-1)))
@@ -268,7 +273,8 @@ class GeneralisedShapeletTransform(torch.nn.Module):
                 _, shapelet_ = _add_knots(shapelet_times, shapelet, restricted_times[1:-1])
                 # this will then return a tensor of shape (...,)
                 return self.discrepancy_fn(mutual_times, restricted_path, shapelet_)
-            discrepancy = _continuous_min(times[0], times[-1] - length, min_fn, self.max_sampling_gap)
+            discrepancy = _continuous_min(times[0], times[-1] - length, min_fn, self.continuous_sampling_gap,
+                                          self.num_continuous_samples)
             discrepancies.append(discrepancy)
         # returns a tensor of shape (..., num_shapelets)
         return torch.stack(discrepancies, dim=-1)
