@@ -20,11 +20,9 @@ def _restriction(times, path, start, end):
         A 2-tuple of (restricted_times, restricted_path), where restricted_times is a 1D tensor of shape (r_length,) and
         restricted_path is a tensor of shape(..., r_length, channels).
     """
-    
-    times = torch.as_tensor(times)
-    path = torch.as_tensor(path)
-    start = torch.as_tensor(start)
-    end = torch.as_tensor(end)
+
+    start = torch.as_tensor(start, device=times.device)
+    end = torch.as_tensor(end, device=times.device)
     
     assert len(times.shape) == 1, "times must be a 1D tensor of shape (length,)."
     assert len(path.shape) >= 2, "path must be a tensor of shape(..., length, channels)."
@@ -63,7 +61,7 @@ def _restriction(times, path, start, end):
     return restricted_times, restricted_path
    
     
-def _continuous_min(start, end, fn, max_sampling_gap=None, num_samples=1000):
+def _continuous_min(start, end, fn, device, max_sampling_gap=None, num_samples=1000):
     """Differentiably calculates
     ```
     g(start, end) = \min_{s \in [start, end]} fn(s)
@@ -86,24 +84,26 @@ def _continuous_min(start, end, fn, max_sampling_gap=None, num_samples=1000):
     Returns:
         A PyTorch tensor of the same shape as `fn` returns.
     """
-    start = torch.as_tensor(start)
-    end = torch.as_tensor(end)
+    start = torch.as_tensor(start, device=device)
+    end = torch.as_tensor(end, device=device)
     start_detached = start.detach()
     end_detached = end.detach()
     
     assert start < end, "start must be less than end."
-    assert max_sampling_gap > 0, "max_sampling_gap must be positive."
     assert not (max_sampling_gap is None and num_samples is None), "Cannot have both max_sampling_gap and " \
                                                                    "num_samples set to None"
     assert not (max_sampling_gap is not None and num_samples is not None), "Cannot pass both max_sampling_gap and " \
                                                                            "num_samples."
     
-    if max_sampling_gap is not None:
-        max_sampling_gap = torch.as_tensor(max_sampling_gap)
+    if max_sampling_gap is None:
+        assert num_samples > 0, "num_samples must be positive."
+    else:
+        assert max_sampling_gap > 0, "max_sampling_gap must be positive."
+        max_sampling_gap = torch.as_tensor(max_sampling_gap, device=device)
         assert not max_sampling_gap.requires_grad, "Cannot differentiate with respect to the number of sample points."
         num_samples = 1 + torch.ceil((end_detached - start_detached) / max_sampling_gap)
         num_samples = num_samples.to(torch.long)
-    points = torch.linspace(start_detached, end_detached, num_samples)
+    points = torch.linspace(start_detached, end_detached, num_samples, device=device)
     
     min_result_middle = torch.stack([fn(point) for point in points[1:-1]], dim=0).min(dim=0).values
     # This allows us to differentiate through the endpoints
@@ -124,10 +124,8 @@ def _add_knots(times, path, additional_times):
     Returns:
         A tensor of shape (..., times.size(0) + additional_times.size(0), path.size(-1)).
     """
-    times = torch.as_tensor(times)
-    path = torch.as_tensor(path)
     # Adding knots doesn't change the underlying function so detaching is the correct thing to do
-    additional_times = torch.as_tensor(additional_times).detach()
+    additional_times = additional_times.detach()
 
     if len(additional_times) == 0:
         return times, path
@@ -265,7 +263,7 @@ class GeneralisedShapeletTransform(torch.nn.Module):
                 restricted_times = restricted_times - point
                 # detach is fine because adding knots doesn't actually change the underlying function; there's no
                 # gradients that need backpropagating.
-                shapelet_times = torch.linspace(0, length.detach(), self.num_shapelet_samples)
+                shapelet_times = torch.linspace(0, length.detach(), self.num_shapelet_samples, device=times.device)
                 # normalise both the path and the shapelet to have knots at the same points as each other. Slice with
                 # [1:-1] because otherwise floating point inaccuracies mean that spurious errors can get thrown, and it
                 # doesn't matter anyway as they have the same start and endpoints.
@@ -273,8 +271,8 @@ class GeneralisedShapeletTransform(torch.nn.Module):
                 _, shapelet_ = _add_knots(shapelet_times, shapelet, restricted_times[1:-1])
                 # this will then return a tensor of shape (...,)
                 return self.discrepancy_fn(mutual_times, restricted_path, shapelet_)
-            discrepancy = _continuous_min(times[0], times[-1] - length, min_fn, self.continuous_sampling_gap,
-                                          self.num_continuous_samples)
+            discrepancy = _continuous_min(times[0], times[-1] - length, min_fn, times.device,
+                                          self.continuous_sampling_gap, self.num_continuous_samples)
             discrepancies.append(discrepancy)
         # returns a tensor of shape (..., num_shapelets)
         return torch.stack(discrepancies, dim=-1)

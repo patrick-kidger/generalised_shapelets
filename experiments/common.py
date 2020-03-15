@@ -27,7 +27,8 @@ def dataloader(dataset, **kwargs):
     if 'drop_last' not in kwargs:
         kwargs['drop_last'] = True
     if 'batch_size' not in kwargs:
-        kwargs['batch_size'] = min(32, len(dataset))
+        kwargs['batch_size'] = 32
+    kwargs['batch_size'] = min(kwargs['batch_size'], len(dataset))
     return torch.utils.data.DataLoader(dataset, **kwargs)
 
 
@@ -85,7 +86,7 @@ def _evaluate_metrics(dataloader, model, times, loss_fn, num_classes):
         for batch in dataloader:
             X, y = batch
             batch_size = y.size(0)
-            pred_y, _, _ = model(times, X)
+            pred_y, _, _, _ = model(times, X)
             total_accuracy += accuracy_fn(pred_y, y) * batch_size
             total_loss += loss_fn(pred_y, y) * batch_size
             total_dataset_size += batch_size
@@ -113,52 +114,61 @@ def train_loop(train_dataloader, val_dataloader, model, times, optimizer, loss_f
     epoch_per_metric = 10
     plateau_patience = 1  # this will be multiplied by epoch_per_metric for the actual patience
     plateau_terminate = 100
-    similarity_coefficient = 1
-    length_coefficient = 1
+    similarity_coefficient = 0.1
+    length_coefficient = 0.1
+    pseudometric_coefficient = 0.1
 
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=plateau_patience, mode='max')
 
     tqdm_range = tqdm.tqdm(range(epochs))
-    for epoch in tqdm_range:
-        if breaking:
-            break
-        for batch in train_dataloader:
+    try:
+        for epoch in tqdm_range:
             if breaking:
                 break
-            X, y = batch
-            pred_y, shapelet_similarity, shapelet_lengths = model(times, X)
-            loss = loss_fn(pred_y, y)
-            similarity_loss = 
-            loss.backward()
-            optimizer.step()
-            optimizer.zero_grad()
+            for batch in train_dataloader:
+                if breaking:
+                    break
+                X, y = batch
+                pred_y, shapelet_similarity, shapelet_lengths, discrepancy_fn = model(times, X)
+                loss = loss_fn(pred_y, y)
+                loss = loss + similarity_coefficient * shapelets.similarity_regularisation(shapelet_similarity)
+                loss = loss + length_coefficient * shapelets.length_regularisation(shapelet_lengths)
+                loss = loss + pseudometric_coefficient * shapelets.pseudometric_regularisation(discrepancy_fn)
+                loss.backward()
+                optimizer.step()
+                model.clip_length()
+                optimizer.zero_grad()
 
-        if epoch % epoch_per_metric == 0 or epoch == epochs - 1:
-            model.eval()
-            train_metrics = _evaluate_metrics(train_dataloader, model, times, loss_fn, num_classes)
-            val_metrics = _evaluate_metrics(val_dataloader, model, times, loss_fn, num_classes)
-            model.train()
+            if epoch % epoch_per_metric == 0 or epoch == epochs - 1:
+                model.eval()
+                train_metrics = _evaluate_metrics(train_dataloader, model, times, loss_fn, num_classes)
+                val_metrics = _evaluate_metrics(val_dataloader, model, times, loss_fn, num_classes)
+                model.train()
 
-            if train_metrics.loss < best_train_loss:
-                best_train_loss = train_metrics.loss
-                best_epoch = epoch
+                if train_metrics.loss * 1.0001 < best_train_loss:
+                    best_train_loss = train_metrics.loss
+                    best_epoch = epoch
 
-            if val_metrics.accuracy > best_val_accuracy:
-                best_val_accuracy = val_metrics.accuracy
-                del best_model  # so that we don't have three copies of a model simultaneously
-                best_model = copy.deepcopy(model)
+                if val_metrics.accuracy > best_val_accuracy:
+                    best_val_accuracy = val_metrics.accuracy
+                    del best_model  # so that we don't have three copies of a model simultaneously
+                    best_model = copy.deepcopy(model)
 
-            tqdm_range.write('Epoch: {}  Train loss: {:.3}  Train accuracy: {:.3}  Val loss: {:.3}  Val accuracy: {:.3}'
-                             ''.format(epoch, train_metrics.loss, train_metrics.accuracy, val_metrics.loss,
-                                       val_metrics.accuracy))
-            scheduler.step(val_metrics.accuracy)
-            history.append(_AttrDict(epoch=epoch, train_loss=train_metrics.loss, train_accuracy=train_metrics.accuracy,
-                                     val_loss=val_metrics.loss, val_accuracy=val_metrics.accuracy))
+                tqdm_range.write('Epoch: {}  Train loss: {:.3}  Train accuracy: {:.3}  Val loss: {:.3}  '
+                                 'Val accuracy: {:.3}'
+                                 ''.format(epoch, train_metrics.loss, train_metrics.accuracy, val_metrics.loss,
+                                           val_metrics.accuracy))
+                scheduler.step(val_metrics.accuracy)
+                history.append(_AttrDict(epoch=epoch, train_loss=train_metrics.loss,
+                                         train_accuracy=train_metrics.accuracy,
+                                         val_loss=val_metrics.loss, val_accuracy=val_metrics.accuracy))
 
-            if epoch > best_epoch + plateau_terminate:
-                tqdm_range.write('Breaking because of no improvement in training loss for {} epochs.'
-                                 ''.format(plateau_terminate))
-                breaking = True
+                if epoch > best_epoch + plateau_terminate:
+                    tqdm_range.write('Breaking because of no improvement in training loss for {} epochs.'
+                                     ''.format(plateau_terminate))
+                    breaking = True
+    except KeyboardInterrupt:
+        tqdm_range.write('Breaking because of keyboard interrupt.')
 
     for parameter, best_parameter in zip(model.parameters(), best_model.parameters()):
         parameter.data = best_parameter.data
@@ -203,4 +213,7 @@ class LinearShapeletTransform(torch.nn.Module):
         out = self.linear(shapelet_similarity)
         if out.size(-1) == 1:
             out.squeeze(-1)
-        return out, shapelet_similarity, self.shapelet_transform.lengths
+        return out, shapelet_similarity, self.shapelet_transform.lengths, self.shapelet_transform.discrepancy_fn
+
+    def clip_length(self):
+        self.shapelet_transform.clip_length()

@@ -1,2 +1,3 @@
 from .discrepancies import L2Discrepancy, LogsignatureDiscrepancy
+from .regularisation import similarity_regularisation, length_regularisation, pseudometric_regularisation
 from .shapelet_transform import GeneralisedShapeletTransform

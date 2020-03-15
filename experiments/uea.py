@@ -117,9 +117,9 @@ def get_data(dataset_name, device):
     val_dataset = torch.utils.data.TensorDataset(val_X, val_y)
     test_dataset = torch.utils.data.TensorDataset(test_X, test_y)
 
-    train_dataloader = common.dataloader(train_dataset)
-    val_dataloader = common.dataloader(val_dataset)
-    test_dataloader = common.dataloader(test_dataset)
+    train_dataloader = common.dataloader(train_dataset, batch_size=2048)
+    val_dataloader = common.dataloader(val_dataset, batch_size=2048)
+    test_dataloader = common.dataloader(test_dataset, batch_size=2048)
 
     num_classes = counter
     input_channels = X.size(-1)
@@ -144,6 +144,13 @@ def main(dataset_name,                        # dataset parameters
     if num_continuous_samples is None and continuous_sampling_gap is None:
         num_continuous_samples = maxlen
 
+    if discrepancy_fn == 'L2':
+        discrepancy_fn = shapelets.L2Discrepancy(in_channels=input_channels)
+    elif 'logsig' in discrepancy_fn:
+        # expects e.g. 'logsig-4'
+        depth = int(discrepancy_fn.split('-')[1])
+        discrepancy_fn = shapelets.LogsignatureDiscrepancy(in_channels=input_channels, depth=depth)
+
     model = common.LinearShapeletTransform(in_channels=input_channels,
                                            out_channels=num_classes,
                                            num_shapelets=num_shapelets_per_class * num_classes,
@@ -159,8 +166,7 @@ def main(dataset_name,                        # dataset parameters
         loss_fn = torch.nn.functional.cross_entropy
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 
-    history = common.train_loop(train_dataloader, val_dataloader, model, times, optimizer, loss_fn, epochs, num_classes,
-                                kwargs)
+    history = common.train_loop(train_dataloader, val_dataloader, model, times, optimizer, loss_fn, epochs, num_classes)
     results = common.evaluate_model(train_dataloader, val_dataloader, test_dataloader, model, times, loss_fn, history,
-                                    num_classes, kwargs)
+                                    num_classes)
     return results
