@@ -3,15 +3,13 @@ import numpy as np
 import pathlib
 import sklearn.model_selection
 import sktime.utils.load_data
-import sys
 import torch
-
-here = pathlib.Path(__file__).resolve().parent
-sys.path.append(str(here / '..'))
-
-import shapelets
+import torchshapelets
 
 import common
+
+
+here = pathlib.Path(__file__).resolve().parent
 
 
 def _pad(channel, maxlen):
@@ -82,7 +80,6 @@ def get_data(dataset_name, device):
     X = common.normalise_data(X)
 
     times = torch.linspace(0, X.size(1) - 1, X.size(1))
-    X = torch.cat([times.unsqueeze(0).repeat(X.size(0), 1).unsqueeze(-1), X], dim=2)
 
     # Now fix the labels to be integers from 0 upwards
     targets = co.OrderedDict()
@@ -145,11 +142,11 @@ def main(dataset_name,                        # dataset parameters
         num_continuous_samples = maxlen
 
     if discrepancy_fn == 'L2':
-        discrepancy_fn = shapelets.L2Discrepancy(in_channels=input_channels)
+        discrepancy_fn = torchshapelets.L2Discrepancy(in_channels=input_channels)
     elif 'logsig' in discrepancy_fn:
         # expects e.g. 'logsig-4'
         depth = int(discrepancy_fn.split('-')[1])
-        discrepancy_fn = shapelets.LogsignatureDiscrepancy(in_channels=input_channels, depth=depth)
+        discrepancy_fn = torchshapelets.LogsignatureDiscrepancy(in_channels=input_channels, depth=depth)
 
     model = common.LinearShapeletTransform(in_channels=input_channels,
                                            out_channels=num_classes,

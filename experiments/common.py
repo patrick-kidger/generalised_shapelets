@@ -1,14 +1,8 @@
 import copy
 import math
-import pathlib
-import sys
 import torch
 import tqdm
-
-here = pathlib.Path(__file__).resolve().parent
-sys.path.append(str(here / '..'))
-
-import shapelets
+import torchshapelets
 
 
 def normalise_data(X, eps=1e-5):
@@ -131,9 +125,9 @@ def train_loop(train_dataloader, val_dataloader, model, times, optimizer, loss_f
                 X, y = batch
                 pred_y, shapelet_similarity, shapelet_lengths, discrepancy_fn = model(times, X)
                 loss = loss_fn(pred_y, y)
-                loss = loss + similarity_coefficient * shapelets.similarity_regularisation(shapelet_similarity)
-                loss = loss + length_coefficient * shapelets.length_regularisation(shapelet_lengths)
-                loss = loss + pseudometric_coefficient * shapelets.pseudometric_regularisation(discrepancy_fn)
+                loss = loss + similarity_coefficient * torchshapelets.similarity_regularisation(shapelet_similarity)
+                loss = loss + length_coefficient * torchshapelets.length_regularisation(shapelet_lengths)
+                loss = loss + pseudometric_coefficient * torchshapelets.pseudometric_regularisation(discrepancy_fn)
                 loss.backward()
                 optimizer.step()
                 model.clip_length()
@@ -199,13 +193,13 @@ class LinearShapeletTransform(torch.nn.Module):
                  max_shapelet_length, continuous_sampling_gap, num_continuous_samples):
         super(LinearShapeletTransform, self).__init__()
 
-        self.shapelet_transform = shapelets.GeneralisedShapeletTransform(in_channels=in_channels,
-                                                                         num_shapelets=num_shapelets,
-                                                                         num_shapelet_samples=num_shapelet_samples,
-                                                                         discrepancy_fn=discrepancy_fn,
-                                                                         max_shapelet_length=max_shapelet_length,
-                                                                         continuous_sampling_gap=continuous_sampling_gap,
-                                                                         num_continuous_samples=num_continuous_samples)
+        self.shapelet_transform = torchshapelets.GeneralisedShapeletTransform(in_channels=in_channels,
+                                                                              num_shapelets=num_shapelets,
+                                                                              num_shapelet_samples=num_shapelet_samples,
+                                                                              discrepancy_fn=discrepancy_fn,
+                                                                              max_shapelet_length=max_shapelet_length,
+                                                                              continuous_sampling_gap=continuous_sampling_gap,
+                                                                              num_continuous_samples=num_continuous_samples)
         self.linear = torch.nn.Linear(num_shapelets, out_channels)
 
     def forward(self, times, X):
