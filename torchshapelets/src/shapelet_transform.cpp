@@ -1,27 +1,31 @@
 #include <torch/extension.h>
+#include <cstdint>    // int64_t
+#include <functional>  // std::function
 #include <omp.h>
-#include <stdexcept>  // std::exception, std::invalid_argument
+#include <stdexcept>  // std::invalid_argument
 #include <tuple>      // std::get, std::tie, std::tuple
 
-#define HAVE_DETAIL_ASSERTS true;
+#define TORCHSHAPELETS_HAVE_DETAIL_ASSERTS true
 
 
 namespace torchshapelets {
     namespace detail {
         struct omp_nested {
-            omp_nested() : omp_was_nested(omp_get_nested()), omp_was_parallel(omp_in_parallel()) {
-                if (!omp_was_parallel) {
-                    omp_set_nested(true);
+            omp_nested() :
+            was_omp_max_active_levels(omp_get_max_active_levels()), was_omp_in_parallel(omp_in_parallel())
+            {
+                if (!was_omp_in_parallel) {
+                    omp_set_max_active_levels(2);
                 }
             }
             ~omp_nested() {
-                if (!omp_was_parallel) {
-                    omp_set_nested(omp_was_nested);
+                if (!was_omp_in_parallel) {
+                    omp_set_max_active_levels(was_omp_max_active_levels);
                 }
             }
         private:
-            int omp_was_nested;
-            int omp_was_parallel;
+            int was_omp_max_active_levels;
+            int was_omp_in_parallel;
         };
 
         void assert_increasing(torch::Tensor sequence) {
@@ -65,7 +69,7 @@ namespace torchshapelets {
         std::tuple<std::tuple<torch::Tensor, torch::Tensor, torch::Tensor>,
                    std::tuple<torch::Tensor, torch::Tensor, torch::Tensor>>
         restriction(torch::Tensor times, torch::Tensor path, torch::Tensor start, torch::Tensor end) {
-            if (HAVE_DETAIL_ASSERTS) {
+            if (TORCHSHAPELETS_HAVE_DETAIL_ASSERTS) {
                 if (times.ndimension() != 1) {
                 throw std::invalid_argument("times must be a 1D tensor of shape (length,).");
                 }
@@ -110,7 +114,7 @@ namespace torchshapelets {
 
             auto middle_restriction = path.narrow(/*dim=*/-2,
                                                   /*start=*/start_index + 1,
-                                                  /*length=*/end_index - start_index - 1);
+                                                  /*length=*/end_index - start_index);
 
             auto before_end_time = times[end_index];
             auto after_end_time = times[end_index + 1];
@@ -118,7 +122,7 @@ namespace torchshapelets {
             auto end_diff = len_index(path, end_index + 1) - len_index(path, end_index);
             auto end_restriction = len_index(path, end_index) + end_ratio * end_diff;
 
-            auto middle_times = times.narrow(/*dim=*/0, /*start=*/start_index + 1, /*end=*/end_index - start_index - 1);
+            auto middle_times = times.narrow(/*dim=*/0, /*start=*/start_index + 1, /*end=*/end_index - start_index);
 
             std::tuple<torch::Tensor, torch::Tensor, torch::Tensor> restricted_times = {start,
                                                                                         middle_times,
@@ -159,7 +163,7 @@ namespace torchshapelets {
         template <typename fn_type>
         torch::Tensor continuous_min(torch::Tensor start, torch::Tensor end, fn_type fn, torch::TensorOptions device,
                                      int64_t num_samples) {
-            if (HAVE_DETAIL_ASSERTS) {
+            if (TORCHSHAPELETS_HAVE_DETAIL_ASSERTS) {
                 if (start.ndimension() != 0) {
                 throw std::invalid_argument("start must be a scalar.");
                 }
@@ -183,7 +187,7 @@ namespace torchshapelets {
             // require gradients. If I understand PyTorch's autograd well enough (and this really might be wrong on my
             // part), then this saves the creation of a zero-initialised tensor for each one, during backpropagation.
             std::vector<torch::Tensor> middle_results (num_samples - 2);
-            #pragma omp parallel for default(none) shared(middle_results, points, fn)
+            #pragma omp parallel for default(none) shared(middle_results, points, fn, num_samples)
             for (int64_t point_index = 1; point_index < num_samples - 1; ++point_index) {
                 middle_results[point_index - 1] = fn(points[point_index]);
             }
@@ -220,31 +224,31 @@ namespace torchshapelets {
             std::tie(start_times, middle_times, end_times) = times;
             std::tie(start_path, middle_path, end_path) = path;
 
-            if (HAVE_DETAIL_ASSERTS) {
+            if (TORCHSHAPELETS_HAVE_DETAIL_ASSERTS) {
                 if (start_times.ndimension() != 0) {
-                throw std::invalid_argument("times[0] must be zero-dimensional.")
+                throw std::invalid_argument("times[0] must be zero-dimensional.");
                 }
                 if (middle_times.ndimension() != 1) {
-                    throw std::invalid_argument("times[1] must be one-dimensional.")
+                    throw std::invalid_argument("times[1] must be one-dimensional.");
                 }
                 if (end_times.ndimension() != 0) {
-                    throw std::invalid_argument("times[2] must be zero-dimensional.")
+                    throw std::invalid_argument("times[2] must be zero-dimensional.");
                 }
                 if (start_path.ndimension() < 1) {
-                    throw std::invalid_argument("path[0] must be at least one-dimensional.")
+                    throw std::invalid_argument("path[0] must be at least one-dimensional.");
                 }
                 if (middle_path.ndimension() < 2) {
-                    throw std::invalid_argument("path[1] must be at least two-dimensional.")
+                    throw std::invalid_argument("path[1] must be at least two-dimensional.");
                 }
                 if (end_path.ndimension() < 1) {
-                    throw std::invalid_argument("path[2] must be at least one-dimensional.")
+                    throw std::invalid_argument("path[2] must be at least one-dimensional.");
                 }
                 if (start_path.ndimension() != end_path.ndimension()) {
-                    throw std::invalid_argument("path[0] and path[2] must have the same number of dimensions.")
+                    throw std::invalid_argument("path[0] and path[2] must have the same number of dimensions.");
                 }
                 if (middle_path.ndimension() - 1 != end_path.ndimension()) {
                     throw std::invalid_argument("path[0] and path[2] must have precisely one fewer dimension than "
-                                                "path[1].")
+                                                "path[1].");
                 }
                 // TODO: This still doesn't test that the dimensions of start_path, middle_path and end_path are
                 //       compatible. (Although that should probably be caught by the torch::cat-s later though.)
@@ -256,7 +260,7 @@ namespace torchshapelets {
                     throw std::invalid_argument("Not an increasing sequence.");
                 }
                 if (additional_times.ndimension() != 1) {
-                    throw std::invalid_argument("additional_times must be one-dimensional.")
+                    throw std::invalid_argument("additional_times must be one-dimensional.");
                 }
                 if ((additional_times >= end_times).any().item().to<bool>()) {
                     throw std::invalid_argument("additional times must be strictly within the interval specified by "
@@ -274,15 +278,15 @@ namespace torchshapelets {
             auto prev_time = start_times;
             auto prev_path = start_path;
             auto next_time = middle_times[0];
-            auto next_path = len_index(path, 0)
+            auto next_path = len_index(middle_path, 0);
 
-            std::vector<torch::Tensor> new_times_vector;
-            std::vector<torch::Tensor> new_path_vector;
+            std::vector<torch::Tensor> new_times;
+            std::vector<torch::Tensor> new_path;
             // # + 2 because of start_times and end_times
-            new_times_vector.reserve(2 + middle_times.size(0) + additional_times.size(0));
-            new_path_vector.reserve(2 + middle_times.size(0) + additional_times.size(0));
-            new_times_vector.push_back(start_times);
-            new_path_vector.push_back(start_path);
+            new_times.reserve(2 + middle_times.size(0) + additional_times.size(0));
+            new_path.reserve(2 + middle_times.size(0) + additional_times.size(0));
+            new_times.push_back(start_times);
+            new_path.push_back(start_path);
 
             for (; additional_time_index < additional_times.size(0); ++additional_time_index) {
                 auto additional_time = additional_times[additional_time_index];
@@ -332,22 +336,23 @@ namespace torchshapelets {
             }
 
             for (; next_time_index < middle_times.size(0); ++next_time_index) {
-                new_times.push_back(times[next_time_index]);
-                new_path.push_back(len_index(path, next_time_index));
+                new_times.push_back(middle_times[next_time_index]);
+                new_path.push_back(len_index(middle_path, next_time_index));
             }
             new_times.push_back(end_times);
             new_path.push_back(end_path);
 
             return std::tuple<torch::Tensor, torch::Tensor> {torch::stack(new_times, /*dim=*/0),
-                                                             torch::stack(new_path, /*dim=*/-2)}
+                                                             torch::stack(new_path, /*dim=*/-2)};
         }
     }  // namespace torchshapelets::detail
 
     torch::Tensor shapelet_transform(torch::Tensor times, torch::Tensor path, torch::Tensor lengths,
-                                     torch::Tensor shapelets, int64_t max_length, int64_t num_samples) {
+                                     torch::Tensor shapelets, int64_t max_length, int64_t num_samples,
+                                     const std::function<torch::Tensor(torch::Tensor, torch::Tensor, torch::Tensor)>& discrepancy_fn) {
         if ((lengths.max() > max_length).item().to<bool>()) {
-            throw std::exception("Shapelets have exceeded maximum length; please remember to call the `clip_length` "
-                                 "method after each backward pass. (After optimiser.step())");
+            throw std::invalid_argument("Shapelets have exceeded maximum length; please remember to call the "
+                                        "`clip_length` method after each backward pass. (After optimiser.step())");
         }
         if (times.ndimension() != 1) {
             throw std::invalid_argument("times must be a 1D tensor of shape (length,).");
@@ -366,7 +371,7 @@ namespace torchshapelets {
             throw std::invalid_argument("times must be of size at least 2 to define a path.");
         }
         detail::assert_increasing(times);
-        if ((self.max_shapelet_length >= times[-1] - times[0]).item().to<bool>()) {
+        if ((max_length > times[-1] - times[0]).item().to<bool>()) {
             throw std::invalid_argument("Time series is too short for shapelet.");
         }
         if (path.size(-1) != shapelets.size(2)) {
@@ -379,36 +384,53 @@ namespace torchshapelets {
             throw std::invalid_argument("lengths and shapelets have different numbers of shapelets.");
         }
 
+        py::gil_scoped_release release;  // Needed to make Python-based discrepancy functions work
         detail::omp_nested omp_nested_instance;
+
         auto device = torch::device(times.device());  // Actually an instance of TensorOptions
 
-        auto num_shapelets = shapelets.size(0);
-        auto num_shapelet_samples = shapelets.size(1);
+        const auto num_shapelets = shapelets.size(0);
+        const auto num_shapelet_samples = shapelets.size(1);
         std::vector<torch::Tensor> discrepancies (num_shapelets);
 
-        #pragma omp parallel for default(none) shared(times, path, lengths, shapelets, num_samples, num_shapelet_samples, discrepancies)
+        #pragma omp parallel for default(none) shared(times, path, lengths, shapelets, num_samples, \
+                                                      device, discrepancies, discrepancy_fn, python_discrepancy_fn)
         for (int64_t shapelet_index = 0; shapelet_index < num_shapelets; ++shapelet_index) {
             auto length = lengths[shapelet_index];
             auto shapelet = shapelets[shapelet_index];
-            auto min_fn = [] (torch::Tensor point) {
+            auto shapelet_times = torch::linspace(0, length.detach().item(), num_shapelet_samples, device);
+            std::tuple<torch::Tensor, torch::Tensor, torch::Tensor>
+                shapelet_times_tuple {shapelet_times[0],
+                                      shapelet_times.narrow(/*dim=*/0, /*start=*/1, /*length=*/shapelet_times.size(0) - 2),
+                                      shapelet_times[-1]};
+            std::tuple<torch::Tensor, torch::Tensor, torch::Tensor>
+                shapelet_tuple {detail::len_index(shapelet, 0),
+                                shapelet.narrow(/*dim=*/-2, /*start=*/1, /*length=*/shapelet.size(0) - 2),
+                                detail::len_index(shapelet, -1)};
+
+            auto min_fn = [times, path, length, shapelet_times_tuple, shapelet_tuple, python_discrepancy_fn,
+                           &discrepancy_fn] (torch::Tensor point) {
                 // restricted path is of shape (..., restricted_length, in_channels)
-                std::tuple<torch::Tensor, torch::Tensor, torch::Tensor> restricted_times, restricted_path;
-                std::tie(restricted_times, restricted_path) = detail::restriction(times, path, point, point + length);
-                restricted_times = restricted_times - point;
-                auto shapelet_times = torch::linspace(0, length.detach(), num_shapelet_samples, device);
+                std::tuple<torch::Tensor, torch::Tensor, torch::Tensor> restricted_times_tuple, restricted_path_tuple;
+                std::tie(restricted_times_tuple, restricted_path_tuple) = detail::restriction(times, path, point,
+                                                                                              point + length);
+                std::get<0>(restricted_times_tuple) = std::get<0>(restricted_times_tuple) - point;
+                std::get<1>(restricted_times_tuple) = std::get<1>(restricted_times_tuple) - point;
+                std::get<2>(restricted_times_tuple) = std::get<2>(restricted_times_tuple) - point;
                 // normalise both the path and the shapelet to have knots at the same points as each other. Slice with
                 // [1:-1] because otherwise floating point inaccuracies mean that spurious errors can get thrown, and it
                 // doesn't matter anyway as they have the same start and endpoints.
                 torch::Tensor mutual_times, knot_restricted_path, knot_shapelet;
-                auto interior_shapelet_times = shapelet_times.narrow(/*dim=*/0, /*start=*/1,
-                                                                     /*length=*/num_shapelet_samples - 2);
-                std::tie(mutual_times, knot_restricted_path) = detail::add_knots(restricted_times,
-                                                                                 restricted_path,
-                                                                                 interior_shapelet_times);
-                std::tie(mutual_times, knot_shapelet) = detail::add_knots(shapelet_times,
-                                                                          shapelet,
-                                                                          std::get<1>(restricted_times));
-                // TODO: define discrepancy_fn
+                std::tie(mutual_times, knot_restricted_path) = detail::add_knots(restricted_times_tuple,
+                                                                                 restricted_path_tuple,
+                                                                                 std::get<1>(shapelet_times_tuple));
+
+
+
+                std::tie(mutual_times, knot_shapelet) = detail::add_knots(shapelet_times_tuple,
+                                                                          shapelet_tuple,
+                                                                          std::get<1>(restricted_times_tuple));
+
                 return discrepancy_fn(mutual_times, knot_restricted_path, knot_shapelet);
             };
             auto discrepancy = detail::continuous_min(times[0], times[-1] - length, min_fn, device,
@@ -416,7 +438,7 @@ namespace torchshapelets {
             discrepancies[shapelet_index] = discrepancy;
         }
 
-        # returns a tensor of shape (..., num_shapelets)
+        // returns a tensor of shape (..., num_shapelets)
         return torch::stack(discrepancies, /*dim=*/-1);
     }
 }  // namespace torchshapelets

@@ -1,5 +1,6 @@
 import torch
 
+from . import discrepancies
 from . import _impl
 
 
@@ -69,5 +70,11 @@ class GeneralisedShapeletTransform(torch.nn.Module):
     def forward(self, times, path):
         # times is of shape (length,)
         # path is of shape (..., length, in_channels)
+
+        if isinstance(self.discrepancy_fn, discrepancies.CppDiscrepancy):
+            discrepancy_fn = self.discrepancy_fn.func
+        else:
+            discrepancy_fn = self.discrepancy_fn
+
         return _impl.shapelet_transform(times, path, self.lengths, self.shapelets, self.max_shapelet_length,
-                                        self.num_continuous_samples)
+                                        self.num_continuous_samples, discrepancy_fn)

@@ -1,6 +1,31 @@
 import signatory
 import torch
 
+from . import _impl
+
+
+class CppDiscrepancy(torch.nn.Module):
+    pass
+
+
+class L2Discrepancy(CppDiscrepancy):
+    def __init__(self, in_channels, pseudometric=True):
+        super(L2Discrepancy, self).__init__()
+
+        self.in_channels = in_channels
+        self.pseudometric = pseudometric
+
+        if pseudometric:
+            self.linear = torch.nn.Linear(in_channels, in_channels, bias=False)
+            self.func = _impl.apply(_impl.l2_discrepancy_pseudometric, self.linear)
+        else:
+            self.register_parameter('linear', None)
+            self.func = _impl.l2_discrepancy
+
+
+
+
+
 
 class L2Discrepancy(torch.nn.Module):
     def __init__(self, in_channels, pseudometric=True):
@@ -16,7 +41,6 @@ class L2Discrepancy(torch.nn.Module):
             
     def forward(self, times, path1, path2):
         path = path1 - path2
-
         if self.pseudometric:
             path = self.linear(path)
 

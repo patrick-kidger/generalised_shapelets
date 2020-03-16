@@ -17,8 +17,13 @@ else:  # linux or mac
     extra_compile_args.append('-fopenmp')
 
 ext_modules = [cpp.CppExtension(name='_impl',
-                                sources=['src/pytorchbind.cpp'],
-                                depends=['src/shapelet_transform.cpp'],
+                                sources=['src/discrepancies.cpp',
+                                         'src/pytorchbind.cpp',
+                                         'src/shapelet_transform.cpp'],
+                                depends=['src/discrepancies.hpp',
+                                         'src/pycapsule.hpp',
+                                         'src/pycapsule.inl',
+                                         'src/shapelet_transform.hpp'],
                                 extra_compile_args=extra_compile_args)]
 
 
