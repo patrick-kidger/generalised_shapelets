@@ -127,22 +127,21 @@ def get_data(dataset_name, device):
 
 
 def main(dataset_name,                        # dataset parameters
-         epochs=1000, device='cuda',          # training parameters
+         epochs=1000, device='cpu',           # training parameters
          num_shapelets_per_class=3,           # model parameters
          num_shapelet_samples=16,             #
          discrepancy_fn='L2',                 #
          max_shapelet_length_proportion=0.2,  #
-         continuous_sampling_gap=None,        #
          num_continuous_samples=None):        #
 
     (times, train_dataloader, val_dataloader,
      test_dataloader, num_classes, input_channels, maxlen) = get_data(dataset_name, device)
 
-    if num_continuous_samples is None and continuous_sampling_gap is None:
+    if num_continuous_samples is None:
         num_continuous_samples = maxlen
 
     if discrepancy_fn == 'L2':
-        discrepancy_fn = torchshapelets.L2Discrepancy(in_channels=input_channels)
+        discrepancy_fn = torchshapelets.L2Discrepancy(in_channels=input_channels, pseudometric=False)
     elif 'logsig' in discrepancy_fn:
         # expects e.g. 'logsig-4'
         depth = int(discrepancy_fn.split('-')[1])
@@ -154,7 +153,6 @@ def main(dataset_name,                        # dataset parameters
                                            num_shapelet_samples=num_shapelet_samples,
                                            discrepancy_fn=discrepancy_fn,
                                            max_shapelet_length=max_shapelet_length_proportion * maxlen,
-                                           continuous_sampling_gap=continuous_sampling_gap,
                                            num_continuous_samples=num_continuous_samples).to(device)
 
     if num_classes == 2:

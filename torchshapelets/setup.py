@@ -21,8 +21,6 @@ ext_modules = [cpp.CppExtension(name='_impl',
                                          'src/pytorchbind.cpp',
                                          'src/shapelet_transform.cpp'],
                                 depends=['src/discrepancies.hpp',
-                                         'src/pycapsule.hpp',
-                                         'src/pycapsule.inl',
                                          'src/shapelet_transform.hpp'],
                                 extra_compile_args=extra_compile_args)]
 

@@ -190,7 +190,7 @@ def evaluate_model(train_dataloader, val_dataloader, test_dataloader, model, tim
 
 class LinearShapeletTransform(torch.nn.Module):
     def __init__(self, in_channels, out_channels, num_shapelets, num_shapelet_samples, discrepancy_fn,
-                 max_shapelet_length, continuous_sampling_gap, num_continuous_samples):
+                 max_shapelet_length, num_continuous_samples):
         super(LinearShapeletTransform, self).__init__()
 
         self.shapelet_transform = torchshapelets.GeneralisedShapeletTransform(in_channels=in_channels,
@@ -198,7 +198,6 @@ class LinearShapeletTransform(torch.nn.Module):
                                                                               num_shapelet_samples=num_shapelet_samples,
                                                                               discrepancy_fn=discrepancy_fn,
                                                                               max_shapelet_length=max_shapelet_length,
-                                                                              continuous_sampling_gap=continuous_sampling_gap,
                                                                               num_continuous_samples=num_continuous_samples)
         self.linear = torch.nn.Linear(num_shapelets, out_channels)
 

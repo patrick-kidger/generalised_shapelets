@@ -1,3 +1,4 @@
+import math
 import signatory
 import torch
 
@@ -5,10 +6,19 @@ from . import _impl
 
 
 class CppDiscrepancy(torch.nn.Module):
-    pass
+    # Every instance of a subclass must have two attributes available:
+    # A function 'fn' with signature (Tensor, Tensor, Tensor, tuple) -> Tensor
+    # A tuple 'args'.
+
+    def forward(self, time, path1, path2):
+        # We never actually call this forward method as part of the shapelet transform, but it's here in case people
+        # want to try calling this outside of the shapelet transform.
+        return self.fn(time, path1, path2, self.arg)
 
 
 class L2Discrepancy(CppDiscrepancy):
+    fn = _impl.l2_discrepancy
+
     def __init__(self, in_channels, pseudometric=True):
         super(L2Discrepancy, self).__init__()
 
@@ -16,53 +26,12 @@ class L2Discrepancy(CppDiscrepancy):
         self.pseudometric = pseudometric
 
         if pseudometric:
-            self.linear = torch.nn.Linear(in_channels, in_channels, bias=False)
-            self.func = _impl.apply(_impl.l2_discrepancy_pseudometric, self.linear)
+            linear = torch.empty(in_channels, in_channels, requires_grad=True)
+            torch.nn.init.kaiming_uniform_(linear, a=math.sqrt(5))
+            self.arg = torch.nn.Parameter(linear)
         else:
-            self.register_parameter('linear', None)
-            self.func = _impl.l2_discrepancy
+            self.arg = torch.nn.Parameter(torch.Tensor())
 
-
-
-
-
-
-class L2Discrepancy(torch.nn.Module):
-    def __init__(self, in_channels, pseudometric=True):
-        super(L2Discrepancy, self).__init__()
-
-        self.in_channels = in_channels
-        self.pseudometric = pseudometric
-        
-        if pseudometric:
-            self.linear = torch.nn.Linear(in_channels, in_channels, bias=False)
-        else:
-            self.register_parameter('linear', None)
-            
-    def forward(self, times, path1, path2):
-        path = path1 - path2
-        if self.pseudometric:
-            path = self.linear(path)
-
-        times_diffs = times[1:] - times[:-1]
-        times_squared = times ** 2
-        times_cubed = times * times_squared
-        times_squared_diffs = times_squared[1:] - times_squared[:-1]
-        times_cubed_diffs = times_cubed[1:] - times_cubed[:-1]
-        path_diffs = path[..., 1:, :] - path[..., :-1, :]
-        m = path_diffs / times_diffs.unsqueeze(-1)
-        c = path[..., :-1, :] - times[:-1].unsqueeze(-1) * m
-
-        m_norm = m.norm(p=2, dim=-1)
-        m_dot_c = (m * c).sum(dim=-1)
-        c_norm = c.norm(p=2, dim=-1)
-
-        first_term = (m_norm ** 2 * times_cubed_diffs).sum(dim=-1) / 3
-        second_term = (m_dot_c * times_squared_diffs).sum(dim=-1)
-        third_term = (c_norm ** 2 * times_diffs).sum(dim=-1)
-
-        return first_term + second_term + third_term
-        
         
 class LogsignatureDiscrepancy(torch.nn.Module):
     """Calculates the p-logsignature distance between two paths."""

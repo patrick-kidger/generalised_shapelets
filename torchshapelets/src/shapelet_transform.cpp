@@ -5,6 +5,7 @@
 #include <stdexcept>  // std::invalid_argument
 #include <tuple>      // std::get, std::tie, std::tuple
 
+// TODO: set to false
 #define TORCHSHAPELETS_HAVE_DETAIL_ASSERTS true
 
 
@@ -349,7 +350,8 @@ namespace torchshapelets {
 
     torch::Tensor shapelet_transform(torch::Tensor times, torch::Tensor path, torch::Tensor lengths,
                                      torch::Tensor shapelets, int64_t max_length, int64_t num_samples,
-                                     const std::function<torch::Tensor(torch::Tensor, torch::Tensor, torch::Tensor)>& discrepancy_fn) {
+                                     const std::function<torch::Tensor(torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor)>& discrepancy_fn,
+                                     torch::Tensor discrepancy_arg) {
         if ((lengths.max() > max_length).item().to<bool>()) {
             throw std::invalid_argument("Shapelets have exceeded maximum length; please remember to call the "
                                         "`clip_length` method after each backward pass. (After optimiser.step())");
@@ -393,8 +395,9 @@ namespace torchshapelets {
         const auto num_shapelet_samples = shapelets.size(1);
         std::vector<torch::Tensor> discrepancies (num_shapelets);
 
-        #pragma omp parallel for default(none) shared(times, path, lengths, shapelets, num_samples, \
-                                                      device, discrepancies, discrepancy_fn, python_discrepancy_fn)
+        #pragma omp parallel for default(none) \
+                                 shared(times, path, lengths, shapelets, num_samples, device, discrepancies, \
+                                        discrepancy_fn, discrepancy_arg)
         for (int64_t shapelet_index = 0; shapelet_index < num_shapelets; ++shapelet_index) {
             auto length = lengths[shapelet_index];
             auto shapelet = shapelets[shapelet_index];
@@ -408,8 +411,8 @@ namespace torchshapelets {
                                 shapelet.narrow(/*dim=*/-2, /*start=*/1, /*length=*/shapelet.size(0) - 2),
                                 detail::len_index(shapelet, -1)};
 
-            auto min_fn = [times, path, length, shapelet_times_tuple, shapelet_tuple, python_discrepancy_fn,
-                           &discrepancy_fn] (torch::Tensor point) {
+            auto min_fn = [times, path, length, shapelet_times_tuple, shapelet_tuple, discrepancy_fn, discrepancy_arg]
+              (torch::Tensor point) {
                 // restricted path is of shape (..., restricted_length, in_channels)
                 std::tuple<torch::Tensor, torch::Tensor, torch::Tensor> restricted_times_tuple, restricted_path_tuple;
                 std::tie(restricted_times_tuple, restricted_path_tuple) = detail::restriction(times, path, point,
@@ -431,7 +434,7 @@ namespace torchshapelets {
                                                                           shapelet_tuple,
                                                                           std::get<1>(restricted_times_tuple));
 
-                return discrepancy_fn(mutual_times, knot_restricted_path, knot_shapelet);
+                return discrepancy_fn(mutual_times, knot_restricted_path, knot_shapelet, discrepancy_arg);
             };
             auto discrepancy = detail::continuous_min(times[0], times[-1] - length, min_fn, device,
                                                       num_samples);

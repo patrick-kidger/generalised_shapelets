@@ -6,7 +6,7 @@
 
 
 namespace torchshapelets {
-    torch::Tensor l2_discrepancy(torch::Tensor times, torch::Tensor path1, torch::Tensor path2);
+    torch::Tensor l2_discrepancy(torch::Tensor times, torch::Tensor path1, torch::Tensor path2, torch::Tensor linear);
 }  // namespace torchshapelets
 
 #endif //TORCHSHAPELETS_DISCREPANCIES_HPP

@@ -3,40 +3,24 @@
 #include <cstdint>    // int64_t
 #include <functional>  // std::function
 
-// TODO: remove pycapsule
-#include "pycapsule.hpp"
-
 namespace torchshapelets {
     namespace detail {
         torch::Tensor diff(torch::Tensor tensor) {
             return tensor.narrow(/*dim=*/0, /*start=*/1, /*length=*/tensor.size(0) - 1) -
                    tensor.narrow(/*dim=*/0, /*start=*/0, /*length=*/tensor.size(0) - 1);
         }
-
-// TODO: remove
-//        struct Partial {
-//            Partial(py::cpp_function fn, py::object args) : fn{fn}, args{args} {};
-//            py::cpp_function fn;
-//            py::object args;
-//            constexpr static auto capsule_name = "torchshapelets.Partial"
-//        };
     }
 
-//    py::object partial(py::cpp_function fn, py::object args) {
-//        return wrap_capsule<detail::Partial>(fn, args);
-//    }
-//
-//    std::function<torch::Tensor(torch::Tensor, torch::Tensor, torch::Tensor)> unpartial(py::object partial_capsule) {
-//        detail::Partial* partial = unwrap_capsule<detail::Partial*>(partial_capsule);
-//        return [] (torch::Tensor times, torch::Tensor path1, torch::Tensor path2) {
-//            return fn(times, path1, path2, *args);
-//        }
-//    }
-
-    torch::Tensor l2_discrepancy(torch::Tensor times, torch::Tensor path1, torch::Tensor path2) {
+    torch::Tensor l2_discrepancy(torch::Tensor times, torch::Tensor path1, torch::Tensor path2, torch::Tensor linear) {
         // times has shape (length,)
         // path1 and path2 have shape (..., length, channels)
+        // linear has shape (channels, channels), or should just be passed as an empty Tensor().
+
         auto path = path1 - path2;
+
+        if (linear.ndimension() == 2) {
+            path = torch::matmul(path, linear);
+        }
 
         auto times_diffs = detail::diff(times);
         auto times_squared = times * times;

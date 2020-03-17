@@ -72,9 +72,11 @@ class GeneralisedShapeletTransform(torch.nn.Module):
         # path is of shape (..., length, in_channels)
 
         if isinstance(self.discrepancy_fn, discrepancies.CppDiscrepancy):
-            discrepancy_fn = self.discrepancy_fn.func
+            discrepancy_fn = self.discrepancy_fn.fn
+            discrepancy_arg = self.discrepancy_fn.arg
         else:
-            discrepancy_fn = self.discrepancy_fn
+            discrepancy_fn = lambda times, path1, path2, args: self.discrepancy_fn(times, path1, path2)
+            discrepancy_arg = torch.Tensor()
 
         return _impl.shapelet_transform(times, path, self.lengths, self.shapelets, self.max_shapelet_length,
-                                        self.num_continuous_samples, discrepancy_fn)
+                                        self.num_continuous_samples, discrepancy_fn, discrepancy_arg)
