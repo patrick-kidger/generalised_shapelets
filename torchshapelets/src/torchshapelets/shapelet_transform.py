@@ -41,7 +41,7 @@ class GeneralisedShapeletTransform(torch.nn.Module):
         self.num_shapelets = num_shapelets
         self.num_shapelet_samples = num_shapelet_samples
         self.discrepancy_fn = discrepancy_fn
-        self.num_continuous_samples = num_continuous_samples
+        self.register_buffer('num_continuous_samples', torch.as_tensor(num_continuous_samples))
         self.max_shapelet_length = max_shapelet_length
         self.scale_length_gradients = scale_length_gradients
 

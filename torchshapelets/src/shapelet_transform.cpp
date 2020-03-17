@@ -30,12 +30,14 @@ namespace torchshapelets {
         };
 
         void assert_increasing(torch::Tensor sequence) {
-            auto prev_time = sequence[0];
-            for (int64_t i = 1; i < sequence.size(0); ++i) {
-                if ((sequence[i] < prev_time).item().to<bool>()) {
-                    throw std::invalid_argument("Not an increasing sequence.");
+            if (sequence.size(0) > 0) {
+                auto prev_time = sequence[0];
+                for (int64_t i = 1; i < sequence.size(0); ++i) {
+                    if ((sequence[i] < prev_time).item().to<bool>()) {
+                        throw std::invalid_argument("Not an increasing sequence.");
+                    }
+                    prev_time = sequence[i];
                 }
-                prev_time = sequence[i];
             }
         }
 
@@ -97,7 +99,7 @@ namespace torchshapelets {
                     throw std::invalid_argument("end must be within the interval specified by times.");
                 }
                 if ((start >= end).item().to<bool>()) {
-                    throw std::invalid_argument("start must be less than end.");
+                    throw std::invalid_argument("start must be strictly less than end.");
                 }
             }
 
@@ -254,11 +256,13 @@ namespace torchshapelets {
                 // TODO: This still doesn't test that the dimensions of start_path, middle_path and end_path are
                 //       compatible. (Although that should probably be caught by the torch::cat-s later though.)
                 assert_increasing(middle_times);
-                if ((end_times <= middle_times[-1]).item().to<bool>()) {
+                if (middle_times.size(0) > 0) {
+                    if ((end_times <= middle_times[-1]).item().to<bool>()) {
                     throw std::invalid_argument("Not an increasing sequence.");
-                }
-                if ((start_times >= middle_times[0]).item().to<bool>()) {
-                    throw std::invalid_argument("Not an increasing sequence.");
+                    }
+                    if ((start_times >= middle_times[0]).item().to<bool>()) {
+                        throw std::invalid_argument("Not an increasing sequence.");
+                    }
                 }
                 if (additional_times.ndimension() != 1) {
                     throw std::invalid_argument("additional_times must be one-dimensional.");
@@ -278,8 +282,8 @@ namespace torchshapelets {
             int64_t next_time_index = 0;
             auto prev_time = start_times;
             auto prev_path = start_path;
-            auto next_time = middle_times[0];
-            auto next_path = len_index(middle_path, 0);
+            auto next_time = (middle_times.size(0) > 0) ? middle_times[0] : end_times;
+            auto next_path = (middle_times.size(0) > 0) ? len_index(middle_path, 0) : end_path;
 
             std::vector<torch::Tensor> new_times;
             std::vector<torch::Tensor> new_path;
@@ -349,7 +353,7 @@ namespace torchshapelets {
     }  // namespace torchshapelets::detail
 
     torch::Tensor shapelet_transform(torch::Tensor times, torch::Tensor path, torch::Tensor lengths,
-                                     torch::Tensor shapelets, int64_t max_length, int64_t num_samples,
+                                     torch::Tensor shapelets, torch::Tensor max_length, int64_t num_samples,
                                      const std::function<torch::Tensor(torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor)>& discrepancy_fn,
                                      torch::Tensor discrepancy_arg) {
         if ((lengths.max() > max_length).item().to<bool>()) {
@@ -384,6 +388,12 @@ namespace torchshapelets {
         }
         if (lengths.size(0) != shapelets.size(0)) {
             throw std::invalid_argument("lengths and shapelets have different numbers of shapelets.");
+        }
+        if (lengths.size(0) < 3) {  // 3 is the smallest that avoids indexing errors
+            throw std::invalid_argument("The number of shapelets must be at least 3.");
+        }
+        if (num_samples < 3) {  // 3 is the smallest that avoids indexing errors
+            throw std::invalid_argument("num_samples must be at least 3.");
         }
 
         py::gil_scoped_release release;  // Needed to make Python-based discrepancy functions work
@@ -420,6 +430,7 @@ namespace torchshapelets {
                 std::get<0>(restricted_times_tuple) = std::get<0>(restricted_times_tuple) - point;
                 std::get<1>(restricted_times_tuple) = std::get<1>(restricted_times_tuple) - point;
                 std::get<2>(restricted_times_tuple) = std::get<2>(restricted_times_tuple) - point;
+
                 // normalise both the path and the shapelet to have knots at the same points as each other. Slice with
                 // [1:-1] because otherwise floating point inaccuracies mean that spurious errors can get thrown, and it
                 // doesn't matter anyway as they have the same start and endpoints.
@@ -427,9 +438,6 @@ namespace torchshapelets {
                 std::tie(mutual_times, knot_restricted_path) = detail::add_knots(restricted_times_tuple,
                                                                                  restricted_path_tuple,
                                                                                  std::get<1>(shapelet_times_tuple));
-
-
-
                 std::tie(mutual_times, knot_shapelet) = detail::add_knots(shapelet_times_tuple,
                                                                           shapelet_tuple,
                                                                           std::get<1>(restricted_times_tuple));
