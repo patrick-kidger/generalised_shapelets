@@ -10,24 +10,25 @@ class GeneralisedShapeletTransform(torch.nn.Module):
     Each shapelet that it is compared against will be a piecewise linear function.
     """
     def __init__(self, in_channels, num_shapelets, num_shapelet_samples, discrepancy_fn,  max_shapelet_length,
-                 num_continuous_samples, scale_length_gradients='auto'):
+                 num_continuous_samples=None, scale_length_gradients='auto'):
         """
         Arguments:
             in_channels: An integer specifying the number of input channels in the path it will be called with.
             num_shapelets: How many shapelets to compare the path against.
             num_shapelet_samples: How finely each shapelet will be discretised, i.e. how many knots it has.
-            discrepancy_fn: The function measuring the similarity or discrepancy between two paths. This function should
-                take three arguments, call them `times`, `path1`, `path2`. Then `times` and `path1` between them
-                describe the unique continuous piecwise affine path `f` such that f(times[i]) = path1[i] for all i,
-                whilst `times` and `path2` similarly define the unique continuous piecewise affine path `g` such that
-                g(times[i]) = path2[i]. `times` will be a 1D tensor of shape (length,), whilst `path1` will be a tensor
-                of shape (..., length, channels) and `path2` will be a tensor of shape (length, channels), where '...'
-                '...' represents some non-negative number of batch dimensions. It should return a tensor of shape (...,)
-                describing the similarity between `path1` and `path2`.
+            discrepancy_fn: The function measuring the similarity or discrepancy between a shapelet and a path. This
+                function should take three arguments, call them `times`, `path`, `shapelet`. `times` will be a 1D tensor
+                of shape (length,), whilst `path` will be a tensor of shape (..., length, channels) and `shapelet` will
+                be a tensor of shape (length, channels), where '...' represents some non-negative number of batch
+                dimensions. Then `times` and `path` between them describe the unique continuous piecwise affine path `f`
+                such that f(times[i]) = path1[i] for all i, whilst `times` and `shapelet` similarly define the unique
+                continuous piecewise affine path `g` such that g(times[i]) = shapelet[i].  It should return a tensor of
+                shape (...,) describing the similarity between `path` and `shapelet`.
             max_shapelet_length: The maximum length for a shapelet. (As if it grows too long then it cannot be compared
                 against.)
             num_continuous_samples: We compute a minimum over s in {start, start + 1/num_samples, start + 2/num_samples,
-                ..., end - 1/num_samples, end}.
+                ..., end - 1/num_samples, end}, where `start` and `end` are the endpoints of the times that this is
+                called with. Defaults to the same as the length of the number of times.
             scale_length_gradients: Shapelet lengths are often much larger than other parameters in models, so their
                 learning rates should be larger as well. This can either be done by setting parameter-specific learning
                 rates in the optimiser, but by default we apply it automatically. This may be disabled by setting this
@@ -41,7 +42,7 @@ class GeneralisedShapeletTransform(torch.nn.Module):
         self.num_shapelets = num_shapelets
         self.num_shapelet_samples = num_shapelet_samples
         self.discrepancy_fn = discrepancy_fn
-        self.num_continuous_samples = int(num_continuous_samples)
+        self.num_continuous_samples = int(num_continuous_samples) if num_continuous_samples is not None else None
         self.max_shapelet_length = max_shapelet_length
         self.scale_length_gradients = scale_length_gradients
 
@@ -97,8 +98,13 @@ class GeneralisedShapeletTransform(torch.nn.Module):
             discrepancy_arg = torch.Tensor()
             python_discrepancy_fn = True
 
+        if self.num_continuous_samples is None:
+            num_continuous_samples = len(times)
+        else:
+            num_continuous_samples = self.num_continuous_samples
+
         times = torch.as_tensor(times, dtype=path.dtype, device=path.device)
         max_shapelet_length = torch.as_tensor(self.max_shapelet_length, dtype=path.dtype, device=path.device)
         return _impl.shapelet_transform(times, path, self.lengths, self.shapelets, max_shapelet_length,
-                                        self.num_continuous_samples, discrepancy_fn, discrepancy_arg,
+                                        num_continuous_samples, discrepancy_fn, discrepancy_arg,
                                         python_discrepancy_fn)

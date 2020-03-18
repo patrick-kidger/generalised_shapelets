@@ -1,5 +1,8 @@
 import math
-import signatory
+try:
+    import signatory
+except ImportError:
+    signatory = None
 import torch
 
 from . import _impl
@@ -79,6 +82,12 @@ class LogsignatureDiscrepancy(torch.nn.Module):
             pseudometric: Whether to take a learnt linear transformation beforehand. Defaults to True.
         """
         super(LogsignatureDiscrepancy, self).__init__()
+
+        if signatory is None:
+            raise ImportError("Signatory must be installed to compute logsignature discrepancies. It can be found at "
+                              "`https://github.com/patrick-kidger/signatory`. See also the installation instructions "
+                              "for `torchshapelets` at "
+                              "`https://github.com/jambo6/generalised_shapelets/tree/master/torchshapelets`. ")
 
         self.in_channels = in_channels
         self.depth = depth
