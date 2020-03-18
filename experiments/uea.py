@@ -67,7 +67,6 @@ def get_data(dataset_name, device):
     y = np.concatenate((train_y, test_y), axis=0)
 
     lengths = torch.tensor([len(Xi[0]) for Xi in X])
-    final_index = lengths - 1
     maxlen = lengths.max()
     # X is now a numpy array of shape (batch, channel)
     # Each channel is a pandas.core.series.Series object of length corresponding to the length of the time series
@@ -79,7 +78,7 @@ def get_data(dataset_name, device):
     # This isn't perfect because of the padding, but good enough!
     X = common.normalise_data(X)
 
-    times = torch.linspace(0, X.size(1) - 1, X.size(1))
+    times = torch.linspace(0, X.size(1) - 1, X.size(1), dtype=X.dtype)
 
     # Now fix the labels to be integers from 0 upwards
     targets = co.OrderedDict()
@@ -123,43 +122,57 @@ def get_data(dataset_name, device):
 
     assert num_classes >= 2, "Have only {} classes.".format(num_classes)
 
-    return times, train_dataloader, val_dataloader, test_dataloader, num_classes, input_channels, maxlen
+    return times, train_dataloader, val_dataloader, test_dataloader, num_classes, input_channels
 
 
-def main(dataset_name,                        # dataset parameters
-         epochs=1000, device='cpu',           # training parameters
-         num_shapelets_per_class=3,           # model parameters
-         num_shapelet_samples=16,             #
-         discrepancy_fn='L2',                 #
-         max_shapelet_length_proportion=0.2,  #
-         num_continuous_samples=None):        #
+def main(dataset_name,                         # dataset parameters
+         epochs=1000, device='cpu',            # training parameters
+         num_shapelets_per_class=3,            # model parameters
+         num_shapelet_samples=None,            #
+         discrepancy_fn='L2',                  #
+         max_shapelet_length_proportion=None,  #
+         num_continuous_samples=None):         #
 
-    (times, train_dataloader, val_dataloader,
-     test_dataloader, num_classes, input_channels, maxlen) = get_data(dataset_name, device)
+    (times, train_dataloader, val_dataloader, test_dataloader, num_classes, input_channels) = get_data(dataset_name,
+                                                                                                       device)
 
+    assert times.is_floating_point(), "Whoops, times isn't floating point."
+
+    # Select some sensible options based on the length of the dataset
+    timespan = times[-1] - times[0]
+    if max_shapelet_length_proportion is None:
+        max_shapelet_length_proportion = min((10 / timespan).sqrt(), 1)
+    max_shapelet_length = timespan * max_shapelet_length_proportion
+    if num_shapelet_samples is None:
+        num_shapelet_samples = int(max_shapelet_length_proportion * times.size(0))
     if num_continuous_samples is None:
-        num_continuous_samples = maxlen
+        num_continuous_samples = times.size(0)
 
     if discrepancy_fn == 'L2':
-        discrepancy_fn = torchshapelets.L2Discrepancy(in_channels=input_channels, pseudometric=False)
+        discrepancy_fn = torchshapelets.L2Discrepancy(in_channels=input_channels, pseudometric=True)
     elif 'logsig' in discrepancy_fn:
         # expects e.g. 'logsig-4'
         depth = int(discrepancy_fn.split('-')[1])
         discrepancy_fn = torchshapelets.LogsignatureDiscrepancy(in_channels=input_channels, depth=depth)
 
+    num_shapelets = num_shapelets_per_class * num_classes
+
     model = common.LinearShapeletTransform(in_channels=input_channels,
                                            out_channels=num_classes,
-                                           num_shapelets=num_shapelets_per_class * num_classes,
+                                           num_shapelets=num_shapelets,
                                            num_shapelet_samples=num_shapelet_samples,
                                            discrepancy_fn=discrepancy_fn,
-                                           max_shapelet_length=max_shapelet_length_proportion * maxlen,
+                                           max_shapelet_length=max_shapelet_length,
                                            num_continuous_samples=num_continuous_samples).to(device)
+
+    sample_batch = common.get_sample_batch(train_dataloader, num_shapelets_per_class, num_shapelets)
+    model.set_shapelets(times, sample_batch)  # smart initialisation of shapelets
 
     if num_classes == 2:
         loss_fn = torch.nn.functional.binary_cross_entropy_with_logits
     else:
         loss_fn = torch.nn.functional.cross_entropy
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.005)
 
     history = common.train_loop(train_dataloader, val_dataloader, model, times, optimizer, loss_fn, epochs, num_classes)
     results = common.evaluate_model(train_dataloader, val_dataloader, test_dataloader, model, times, loss_fn, history,

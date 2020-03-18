@@ -3,6 +3,9 @@
 #include <cstdint>    // int64_t
 #include <functional>  // std::function
 
+#include "discrepancies.hpp"
+
+
 namespace torchshapelets {
     namespace detail {
         torch::Tensor diff(torch::Tensor tensor) {

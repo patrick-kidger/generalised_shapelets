@@ -1,3 +1,4 @@
+import collections as co
 import copy
 import math
 import torch
@@ -24,6 +25,26 @@ def dataloader(dataset, **kwargs):
         kwargs['batch_size'] = 32
     kwargs['batch_size'] = min(kwargs['batch_size'], len(dataset))
     return torch.utils.data.DataLoader(dataset, **kwargs)
+
+
+def get_sample_batch(dataloader, num_shapelets_per_class, num_shapelets):
+    batch_elems = []
+    y_seen = co.defaultdict(int)
+    while True:  # in case we need to iterate through the same dataloader multiple times to find the same samples again
+        for X, y in dataloader:
+            for Xi, yi in zip(X, y):
+                yi = int(yi)
+                if y_seen[yi] < num_shapelets_per_class:
+                    batch_elems.append(Xi)
+                    y_seen[yi] += 1
+                if len(batch_elems) == num_shapelets:
+                    return torch.stack(batch_elems, dim=0)
+        # len(y_seen) should now be the number of classes
+        if len(y_seen) * num_shapelets_per_class != num_shapelets:
+            raise RuntimeError("Could not get a sample batch: Have been told that there should {} shapelets per class, "
+                               "and {} shaplets in total, but only found {} classes.".format(num_shapelets_per_class,
+                                                                                             num_shapelets,
+                                                                                             len(y_seen)))
 
 
 def _count_parameters(model):
@@ -203,10 +224,13 @@ class LinearShapeletTransform(torch.nn.Module):
 
     def forward(self, times, X):
         shapelet_similarity = self.shapelet_transform(times, X)
-        out = self.linear(shapelet_similarity)
+        out = self.linear(shapelet_similarity.log())
         if out.size(-1) == 1:
             out.squeeze(-1)
         return out, shapelet_similarity, self.shapelet_transform.lengths, self.shapelet_transform.discrepancy_fn
 
     def clip_length(self):
         self.shapelet_transform.clip_length()
+
+    def set_shapelets(self, times, path):
+        self.shapelet_transform.reset_parameters(times, path)

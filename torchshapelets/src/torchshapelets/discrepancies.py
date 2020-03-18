@@ -6,6 +6,14 @@ from . import _impl
 
 
 class CppDiscrepancy(torch.nn.Module):
+    """Discrepancy functions can either be coded in Python or C++.
+
+    If they're done in C++ then they can be parallelised over, whereas if they are done in Python then the GIL implies
+    that there's some serialisation.
+
+    In order to facilitate this, C++ discrepancy functions should be subclasses of this class. They should have the
+    C++ function as a 'fn' attribute, and precisely one Tensor, that they get to control, as an 'arg' attribute.
+    """
     # Every instance of a subclass must have two attributes available:
     # A function 'fn' with signature (Tensor, Tensor, Tensor, tuple) -> Tensor
     # A tuple 'args'.
@@ -17,6 +25,33 @@ class CppDiscrepancy(torch.nn.Module):
 
 
 class L2Discrepancy(CppDiscrepancy):
+    """Computes the L2 discrepancy between two paths.
+
+    Should be initialised with some number of `in_channels`, and integer, and whether to be a `psuedometric`, a boolean.
+
+    Should then called with three arguments: `times`, `path1`, `path2`.
+
+    Let f be the unique continuous piecewise linear function such that
+    ```
+    f(times[i]) == path1[i] for all i
+    ```
+    and let g be the unique continuous piecewise linear function such that
+    ```
+    g(times[i]) == path2[i] for all i
+    ```
+    where `times` is a strictly increasing 1D tensor of shape (length,) for some  value `length`, and `path1` is a
+    tensor of shape (..., length, in_channels) and `path2` is a tensor of shape (length, in_channels). [So yes, `path2`
+    has no batch dimensions.]
+    Finally if `pseudometric` is False then let A = 1 (the scalar); if `pseudometric` is True let A_ij be a learnt
+    matrix of size (in_channels, in_channels).
+
+    Then this function computes
+    ```
+    sqrt( \int_{times[0]}^{times[-1]} || Af(t) - Ag(t) ||_2^2 dt )
+    ```
+    i.e. the L2 norm of Af - Ag.
+    Which will be a tensor of shape (...).
+    """
     fn = _impl.l2_discrepancy
 
     def __init__(self, in_channels, pseudometric=True):
@@ -94,4 +129,5 @@ class LogsignatureDiscrepancy(torch.nn.Module):
         if self.pseudometric:
             logsignature_diff = self.linear(logsignature_diff)
 
-        return logsignature_diff.norm(p=self.p, dim=-1)
+        out = logsignature_diff.norm(p=self.p, dim=-1)
+        return out

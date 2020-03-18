@@ -5,8 +5,7 @@
 #include <stdexcept>  // std::invalid_argument
 #include <tuple>      // std::get, std::tie, std::tuple
 
-// TODO: set to false
-#define TORCHSHAPELETS_HAVE_DETAIL_ASSERTS true
+#include "shapelet_transform.hpp"
 
 
 namespace torchshapelets {
@@ -16,6 +15,7 @@ namespace torchshapelets {
             was_omp_max_active_levels(omp_get_max_active_levels()), was_omp_in_parallel(omp_in_parallel())
             {
                 if (!was_omp_in_parallel) {
+                    // batching over shapelets + batching over the continuous min
                     omp_set_max_active_levels(2);
                 }
             }
@@ -72,37 +72,6 @@ namespace torchshapelets {
         std::tuple<std::tuple<torch::Tensor, torch::Tensor, torch::Tensor>,
                    std::tuple<torch::Tensor, torch::Tensor, torch::Tensor>>
         restriction(torch::Tensor times, torch::Tensor path, torch::Tensor start, torch::Tensor end) {
-            if (TORCHSHAPELETS_HAVE_DETAIL_ASSERTS) {
-                if (times.ndimension() != 1) {
-                throw std::invalid_argument("times must be a 1D tensor of shape (length,).");
-                }
-                if (path.ndimension() < 2) {
-                    throw std::invalid_argument("path must be a tensor of shape(..., length, channels).");
-                }
-                if (start.ndimension() != 0) {
-                    throw std::invalid_argument("start must be a scalar.");
-                }
-                if (end.ndimension() != 0) {
-                    throw std::invalid_argument("end must be a scalar.");
-                }
-                if (path.size(-2) != times.size(0)) {
-                    throw std::invalid_argument("times and path must have the same size length dimension.");
-                }
-                if (times.size(0) < 2) {
-                    throw std::invalid_argument("Length dimension must be of size at least 2 to define a path.");
-                }
-                assert_increasing(times);
-                if ((start < times[0]).item().to<bool>()) {
-                    throw std::invalid_argument("start must be within the interval specified by times.");
-                }
-                if ((end > times[-1]).item().to<bool>()) {
-                    throw std::invalid_argument("end must be within the interval specified by times.");
-                }
-                if ((start >= end).item().to<bool>()) {
-                    throw std::invalid_argument("start must be strictly less than end.");
-                }
-            }
-
             // >= for start and > for end is deliberate
             // this correctly handles the cases that start == times[i] or end == times[i] for some i.
             // TODO: Switch this from an iterative search to binary search
@@ -166,21 +135,6 @@ namespace torchshapelets {
         template <typename fn_type>
         torch::Tensor continuous_min(torch::Tensor start, torch::Tensor end, fn_type fn, torch::TensorOptions device,
                                      int64_t num_samples) {
-            if (TORCHSHAPELETS_HAVE_DETAIL_ASSERTS) {
-                if (start.ndimension() != 0) {
-                throw std::invalid_argument("start must be a scalar.");
-                }
-                if (end.ndimension() != 0) {
-                    throw std::invalid_argument("end must be a scalar.");
-                }
-                if ((start >= end).item().to<bool>()) {
-                    throw std::invalid_argument("start must be less than end.");
-                }
-                if (num_samples < 1) {
-                    throw std::invalid_argument("num_samples must be at least 2.");
-                }
-            }
-
             auto start_detached = start.detach().item();
             auto end_detached = end.detach().item();
 
@@ -204,161 +158,116 @@ namespace torchshapelets {
 
             return std::get<0>(torch::stack({fn(start), middle_min, fn(end)}, /*dim=*/0).min(/*dim=*/0));
         }
+    }  // namespace torchshapelets::detail
 
-        // Adds knots to a piecewise linear path, such that it doesn't change the function it represents.
-        //
-        // Arguments:
-        //     times, path: As `restriction`.
-        //     additional_times: Additional times to add knots to by linearly interpolating between the values already
-        //         given.
-        //
-        // Returns:
-        //     A 2-tuple of tensors. The first corresponds to times, and will be of shape
-        //     (times.size(0) + additional_times.size(0),). The second corresponds to the path, and will be of shape
-        //     (..., times.size(0) + additional_times.size(0), path.size(-1)).
-        //     Note that if additional_times and times have nontrivial intersection then this extra points will be
-        //     removed, and the returned tensors will actually be slightly smaller as a result.
-        std::tuple<torch::Tensor, torch::Tensor>
-        add_knots(std::tuple<torch::Tensor, torch::Tensor, torch::Tensor> times,
-                  std::tuple<torch::Tensor, torch::Tensor, torch::Tensor> path,
-                  torch::Tensor additional_times) {
-            torch::Tensor start_times, middle_times, end_times;  // written during the COVID-19 outbreak
-            torch::Tensor start_path, middle_path, end_path;
-            std::tie(start_times, middle_times, end_times) = times;
-            std::tie(start_path, middle_path, end_path) = path;
+    std::tuple<torch::Tensor, torch::Tensor>
+    unsafe_add_knots(std::tuple<torch::Tensor, torch::Tensor, torch::Tensor> times,
+                     std::tuple<torch::Tensor, torch::Tensor, torch::Tensor> path,
+                     torch::Tensor additional_times, bool keep_original_times) {
+        torch::Tensor start_times, middle_times, end_times;  // written during the COVID-19 outbreak
+        torch::Tensor start_path, middle_path, end_path;
+        std::tie(start_times, middle_times, end_times) = times;
+        std::tie(start_path, middle_path, end_path) = path;
 
-            if (TORCHSHAPELETS_HAVE_DETAIL_ASSERTS) {
-                if (start_times.ndimension() != 0) {
-                throw std::invalid_argument("times[0] must be zero-dimensional.");
-                }
-                if (middle_times.ndimension() != 1) {
-                    throw std::invalid_argument("times[1] must be one-dimensional.");
-                }
-                if (end_times.ndimension() != 0) {
-                    throw std::invalid_argument("times[2] must be zero-dimensional.");
-                }
-                if (start_path.ndimension() < 1) {
-                    throw std::invalid_argument("path[0] must be at least one-dimensional.");
-                }
-                if (middle_path.ndimension() < 2) {
-                    throw std::invalid_argument("path[1] must be at least two-dimensional.");
-                }
-                if (end_path.ndimension() < 1) {
-                    throw std::invalid_argument("path[2] must be at least one-dimensional.");
-                }
-                if (start_path.ndimension() != end_path.ndimension()) {
-                    throw std::invalid_argument("path[0] and path[2] must have the same number of dimensions.");
-                }
-                if (middle_path.ndimension() - 1 != end_path.ndimension()) {
-                    throw std::invalid_argument("path[0] and path[2] must have precisely one fewer dimension than "
-                                                "path[1].");
-                }
-                // TODO: This still doesn't test that the dimensions of start_path, middle_path and end_path are
-                //       compatible. (Although that should probably be caught by the torch::cat-s later though.)
-                assert_increasing(middle_times);
-                if (middle_times.size(0) > 0) {
-                    if ((end_times <= middle_times[-1]).item().to<bool>()) {
-                    throw std::invalid_argument("Not an increasing sequence.");
-                    }
-                    if ((start_times >= middle_times[0]).item().to<bool>()) {
-                        throw std::invalid_argument("Not an increasing sequence.");
-                    }
-                }
-                if (additional_times.ndimension() != 1) {
-                    throw std::invalid_argument("additional_times must be one-dimensional.");
-                }
-                if ((additional_times >= end_times).any().item().to<bool>()) {
-                    throw std::invalid_argument("additional times must be strictly within the interval specified by "
-                                                "times.");
-                }
-                if ((additional_times <= start_times).any().item().to<bool>()) {
-                    throw std::invalid_argument("additional times must be strictly within the interval specified by "
-                                                "times.");
-                }
-                assert_increasing(additional_times);
-            }
+        int64_t additional_time_index = 0;
+        int64_t next_time_index = 0;
+        auto prev_time = start_times;
+        auto prev_path = start_path;
+        auto next_time = (middle_times.size(0) > 0) ? middle_times[0] : end_times;
+        auto next_path = (middle_times.size(0) > 0) ? detail::len_index(middle_path, 0) : end_path;
 
-            int64_t additional_time_index = 0;
-            int64_t next_time_index = 0;
-            auto prev_time = start_times;
-            auto prev_path = start_path;
-            auto next_time = (middle_times.size(0) > 0) ? middle_times[0] : end_times;
-            auto next_path = (middle_times.size(0) > 0) ? len_index(middle_path, 0) : end_path;
-
-            std::vector<torch::Tensor> new_times;
-            std::vector<torch::Tensor> new_path;
-            // # + 2 because of start_times and end_times
-            new_times.reserve(2 + middle_times.size(0) + additional_times.size(0));
-            new_path.reserve(2 + middle_times.size(0) + additional_times.size(0));
+        std::vector<torch::Tensor> new_times;
+        std::vector<torch::Tensor> new_path;
+        // # + 2 because of start_times and end_times
+        std::vector<torch::Tensor>::size_type r_length;
+        if (keep_original_times) {
+            r_length = 2 + middle_times.size(0) + additional_times.size(0);
+        }
+        else {
+            r_length = additional_times.size(0);
+        }
+        new_times.reserve(r_length);
+        new_path.reserve(r_length);
+        if (keep_original_times) {
             new_times.push_back(start_times);
             new_path.push_back(start_path);
+        }
 
-            for (; additional_time_index < additional_times.size(0); ++additional_time_index) {
-                auto additional_time = additional_times[additional_time_index];
-                if ((additional_time > next_time).item().to<bool>()) {
-                    break;
-                }
-                if ((additional_time == next_time).item().to<bool>()) {
-                    // Note that this operation technically subtly breaks differentiability wrt time, because taking
-                    // uniques isn't a differentiable operation. Still, it doesn't do it too badly so this should be
-                    // fine.
-                    continue;
-                }
-
-                auto ratio = (additional_time - prev_time) / (next_time - prev_time);
-                auto path_at_additional_time = prev_path + ratio * (next_path - prev_path);
-                new_times.push_back(additional_time);
-                new_path.push_back(path_at_additional_time);
+        for (; additional_time_index < additional_times.size(0); ++additional_time_index) {
+            auto additional_time = additional_times[additional_time_index];
+            if ((additional_time > next_time).item().to<bool>()) {
+                break;
+            }
+            if (keep_original_times && (additional_time == next_time).item().to<bool>()) {
+                // Note that this operation technically subtly breaks differentiability wrt time, because taking
+                // uniques isn't a differentiable operation. Still, it doesn't do it too badly so this should be
+                // fine.
+                continue;
             }
 
-            for (; additional_time_index < additional_times.size(0); ++additional_time_index) {
-                auto additional_time = additional_times[additional_time_index];
-                while ((additional_time > next_time).item().to<bool>()) {
+            auto ratio = (additional_time - prev_time) / (next_time - prev_time);
+            auto path_at_additional_time = prev_path + ratio * (next_path - prev_path);
+            new_times.push_back(additional_time);
+            new_path.push_back(path_at_additional_time);
+        }
+
+        for (; additional_time_index < additional_times.size(0); ++additional_time_index) {
+            auto additional_time = additional_times[additional_time_index];
+            while ((additional_time > next_time).item().to<bool>()) {
+                if (keep_original_times) {
                     new_times.push_back(next_time);
                     new_path.push_back(next_path);
-                    prev_time = next_time;
-                    prev_path = next_path;
-                    ++next_time_index;
-                    if (next_time_index == middle_times.size(0)) {
-                        next_time = end_times;
-                        next_path = end_path;
-                    }
-                    else{
-                        next_time = middle_times[next_time_index];
-                        next_path = len_index(middle_path, next_time_index);
-                    }
                 }
-                if ((additional_time == next_time).item().to<bool>()) {
-                    // Note that this operation technically subtly breaks differentiability wrt time, because taking
-                    // uniques isn't a differentiable operation. Still, it doesn't do it too badly so this should be
-                    // fine.
-                    continue;
+                prev_time = next_time;
+                prev_path = next_path;
+                ++next_time_index;
+                if (next_time_index == middle_times.size(0)) {
+                    next_time = end_times;
+                    next_path = end_path;
                 }
-                auto ratio = (additional_time - prev_time) / (next_time - prev_time);
-                auto path_at_additional_time = prev_path + ratio * (next_path - prev_path);
-                new_times.push_back(additional_time);
-                new_path.push_back(path_at_additional_time);
+                else{
+                    next_time = middle_times[next_time_index];
+                    next_path = detail::len_index(middle_path, next_time_index);
+                }
             }
+            if (keep_original_times && (additional_time == next_time).item().to<bool>()) {
+                // Note that this operation technically subtly breaks differentiability wrt time, because taking
+                // uniques isn't a differentiable operation. Still, it doesn't do it too badly so this should be
+                // fine.
+                continue;
+            }
+            auto ratio = (additional_time - prev_time) / (next_time - prev_time);
+            auto path_at_additional_time = prev_path + ratio * (next_path - prev_path);
+            new_times.push_back(additional_time);
+            new_path.push_back(path_at_additional_time);
+        }
 
+        if (keep_original_times) {
             for (; next_time_index < middle_times.size(0); ++next_time_index) {
                 new_times.push_back(middle_times[next_time_index]);
-                new_path.push_back(len_index(middle_path, next_time_index));
+                new_path.push_back(detail::len_index(middle_path, next_time_index));
             }
             new_times.push_back(end_times);
             new_path.push_back(end_path);
-
-            return std::tuple<torch::Tensor, torch::Tensor> {torch::stack(new_times, /*dim=*/0),
-                                                             torch::stack(new_path, /*dim=*/-2)};
         }
-    }  // namespace torchshapelets::detail
 
-    torch::Tensor shapelet_transform(torch::Tensor times, torch::Tensor path, torch::Tensor lengths,
-                                     torch::Tensor shapelets, torch::Tensor max_length, int64_t num_samples,
-                                     const std::function<torch::Tensor(torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor)>& discrepancy_fn,
-                                     torch::Tensor discrepancy_arg) {
-        if ((lengths.max() > max_length).item().to<bool>()) {
-            throw std::invalid_argument("Shapelets have exceeded maximum length; please remember to call the "
-                                        "`clip_length` method after each backward pass. (After optimiser.step())");
+        return std::tuple<torch::Tensor, torch::Tensor> {torch::stack(new_times, /*dim=*/0),
+                                                         torch::stack(new_path, /*dim=*/-2)};
+    }
+
+
+    void check_inputs(torch::Tensor times, torch::Tensor path, torch::Tensor lengths, torch::Tensor max_length) {
+        if (!times.is_floating_point()) {
+            throw std::invalid_argument("times must be a floating point tensor.");
+        }
+        if (!path.is_floating_point()) {
+            throw std::invalid_argument("path must be a floating point tensor.");
+        }
+        if (!lengths.is_floating_point()) {
+            throw std::invalid_argument("lengths must be a floating point tensor.");
+        }
+        if (!max_length.is_floating_point()) {
+            throw std::invalid_argument("max_length must be a floating point tensor.");
         }
         if (times.ndimension() != 1) {
             throw std::invalid_argument("times must be a 1D tensor of shape (length,).");
@@ -369,28 +278,39 @@ namespace torchshapelets {
         if (lengths.ndimension() != 1) {
             throw std::invalid_argument("lengths must be a 1D tensor of shape (num_shapelets,).");
         }
-        if (shapelets.ndimension() != 3) {
-            throw std::invalid_argument("shapelets must be a 3D tensor of shape (num_shapelets, num_shapelet_samples, "
-                                        "channels).");
-        }
         if (times.size(0) < 2) {
             throw std::invalid_argument("times must be of size at least 2 to define a path.");
+        }
+        if (path.size(-2) != times.size(0)) {
+            throw std::invalid_argument("Path and times have different lengths.");
+        }
+        if ((lengths.max() > max_length).item().to<bool>()) {
+            throw std::invalid_argument("Shapelets have exceeded maximum length; please remember to call the "
+                                        "`clip_length` method after each backward pass. (After optimiser.step())");
         }
         detail::assert_increasing(times);
         if ((max_length > times[-1] - times[0]).item().to<bool>()) {
             throw std::invalid_argument("Time series is too short for shapelet.");
         }
+    }
+
+    torch::Tensor shapelet_transform(torch::Tensor times, torch::Tensor path, torch::Tensor lengths,
+                                     torch::Tensor shapelets, torch::Tensor max_length, const int64_t num_samples,
+                                     const std::function<torch::Tensor(torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor)>& discrepancy_fn,
+                                     torch::Tensor discrepancy_arg) {
+        check_inputs(times, path, lengths, max_length);
+        if (!shapelets.is_floating_point()) {
+            throw std::invalid_argument("shapelets must be a floating point tensor.");
+        }
+        if (shapelets.ndimension() != 3) {
+            throw std::invalid_argument("shapelets must be a 3D tensor of shape (num_shapelets, num_shapelet_samples, "
+                                        "channels).");
+        }
         if (path.size(-1) != shapelets.size(2)) {
             throw std::invalid_argument("Path and shapelets have different numbers of channels.");
         }
-        if (path.size(-2) != times.size(0)) {
-            throw std::invalid_argument("Path and times have different lengths.");
-        }
         if (lengths.size(0) != shapelets.size(0)) {
             throw std::invalid_argument("lengths and shapelets have different numbers of shapelets.");
-        }
-        if (lengths.size(0) < 3) {  // 3 is the smallest that avoids indexing errors
-            throw std::invalid_argument("The number of shapelets must be at least 3.");
         }
         if (num_samples < 3) {  // 3 is the smallest that avoids indexing errors
             throw std::invalid_argument("num_samples must be at least 3.");
@@ -406,8 +326,8 @@ namespace torchshapelets {
         std::vector<torch::Tensor> discrepancies (num_shapelets);
 
         #pragma omp parallel for default(none) \
-                                 shared(times, path, lengths, shapelets, num_samples, device, discrepancies, \
-                                        discrepancy_fn, discrepancy_arg)
+                                 shared(times, path, lengths, shapelets, device, discrepancies, discrepancy_arg, \
+                                        discrepancy_fn)
         for (int64_t shapelet_index = 0; shapelet_index < num_shapelets; ++shapelet_index) {
             auto length = lengths[shapelet_index];
             auto shapelet = shapelets[shapelet_index];
@@ -421,7 +341,15 @@ namespace torchshapelets {
                                 shapelet.narrow(/*dim=*/-2, /*start=*/1, /*length=*/shapelet.size(0) - 2),
                                 detail::len_index(shapelet, -1)};
 
-            auto min_fn = [times, path, length, shapelet_times_tuple, shapelet_tuple, discrepancy_fn, discrepancy_arg]
+            // Capturing discrepancy_fn by reference is very important.
+            // If you don't, _and_ it corresponds to a Python function that has been passed in, then you get
+            // nondeterministic segfaults.
+            // The reason (I think), is that discrepancy_fn is actually a pybind11-generated object which misbehaves
+            // when being copied. Both copies will claim ownership of some underlying bit of Python, so when one of them
+            // is done, the underlying resource gets freed too early.
+            // This explanation doesn't perfectly fit with this function sometimes running without issues, but this fix
+            // seems to work.
+            auto min_fn = [times, path, length, shapelet_times_tuple, shapelet_tuple, &discrepancy_fn, discrepancy_arg]
               (torch::Tensor point) {
                 // restricted path is of shape (..., restricted_length, in_channels)
                 std::tuple<torch::Tensor, torch::Tensor, torch::Tensor> restricted_times_tuple, restricted_path_tuple;
@@ -435,13 +363,14 @@ namespace torchshapelets {
                 // [1:-1] because otherwise floating point inaccuracies mean that spurious errors can get thrown, and it
                 // doesn't matter anyway as they have the same start and endpoints.
                 torch::Tensor mutual_times, knot_restricted_path, knot_shapelet;
-                std::tie(mutual_times, knot_restricted_path) = detail::add_knots(restricted_times_tuple,
-                                                                                 restricted_path_tuple,
-                                                                                 std::get<1>(shapelet_times_tuple));
-                std::tie(mutual_times, knot_shapelet) = detail::add_knots(shapelet_times_tuple,
-                                                                          shapelet_tuple,
-                                                                          std::get<1>(restricted_times_tuple));
-
+                std::tie(mutual_times, knot_restricted_path) = unsafe_add_knots(restricted_times_tuple,
+                                                                                restricted_path_tuple,
+                                                                                std::get<1>(shapelet_times_tuple),
+                                                                                /*keep_original_times=*/true);
+                std::tie(mutual_times, knot_shapelet) = unsafe_add_knots(shapelet_times_tuple,
+                                                                         shapelet_tuple,
+                                                                         std::get<1>(restricted_times_tuple),
+                                                                         /*keep_original_times=*/true);
                 return discrepancy_fn(mutual_times, knot_restricted_path, knot_shapelet, discrepancy_arg);
             };
             auto discrepancy = detail::continuous_min(times[0], times[-1] - length, min_fn, device,
