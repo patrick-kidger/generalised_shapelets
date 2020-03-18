@@ -1,6 +1,6 @@
 # torchshapelets
 
-A differentiable implementation of the generalised shapelet transform, using PyTorch.
+A differentiable implementation of the generalised shapelet transform, using PyTorch, parallelised via OpenMP.
 
 # What is the shapelet transform?
 It's a feature extraction method for time series, in which a time series is described by its similarity to a small 'shapelet'. Given lots of well-chosen shapelets, then you can now look at those similarities and conclude that "This time series is probably of class X, because it has a very high similarity to shapelet Y." (In practice of course you feed these features into a machine learning model, but the point is that these features are interpretable.)
@@ -13,7 +13,7 @@ Despite the name, it has nothing to do with wavelets.
 
 `pip install "git+https://github.com/jambo6/generalised_shapelets/#egg=torchshapelets&subdirectory=torchshapelets"`
 
-Make sure you include the quotation marks. Tested to work on Linux. If on other operating systems then you must have a C++ compiler available and known to `pip`.
+Make sure you include the quotation marks. Tested to work on Linux. If on other operating systems then you must have a C++ compiler available and known to `pip`. (If you're on a Linux system then this should already be the case.)
 
 If you want to compute logsignature discrepancies then install [Signatory](https://github.com/patrick-kidger/signatory) first. If that's not installed then `torchshapelets` will still work, but `LogsignatureDiscrepancy` will not be available.
 
@@ -23,7 +23,7 @@ Once installed, then `import torchshapelets` to get everything.
 
 The key class is `torchshapelets.GeneralisedShapeletTransform`, which computes the generalised shapelet transform.
 
-## Example:
+### Example:
 ```python
 import torch
 import torchshapelets
@@ -50,10 +50,15 @@ path = torch.rand(batch_size, time_sampling, in_channels)
 
 shapelet_similarity = transform(times, path)
 # This will now be a tensor of shape (batch_size, num_shapelets),
-# descrbing the similarity between each batch element and each shapelet.
+# describing the similarity between each batch element and each shapelet.
 ```
 
-## Full API
+### CPU vs GPU
+We generally recommend computing the shaplet transform on the CPU. It should work on the GPU, but the implementation isn't optimised for this case.
+
+(If you want to build this into a deep learning model which is mostly on the GPU, then that's fine - just pass the tensors from one to the other in the usual way for PyTorch.)
+
+### Full API
 Available objects are:
 ```python
 torchshapelets.GeneralisedShapeletTransform
