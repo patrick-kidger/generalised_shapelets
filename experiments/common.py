@@ -128,7 +128,7 @@ def train_loop(train_dataloader, val_dataloader, model, times, optimizer, loss_f
 
     epoch_per_metric = 10
     plateau_patience = 1  # this will be multiplied by epoch_per_metric for the actual patience
-    plateau_terminate = 100
+    plateau_terminate = 50
     similarity_coefficient = 0.1
     length_coefficient = 0.1
     pseudometric_coefficient = 0.1

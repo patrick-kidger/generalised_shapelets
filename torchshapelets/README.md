@@ -15,7 +15,7 @@ Despite the name, it has nothing to do with wavelets.
 
 Make sure you include the quotation marks. Tested to work on Linux. If on other operating systems then you must have a C++ compiler available and known to `pip`. (If you're on a Linux system then this should already be the case.)
 
-If you want to compute logsignature discrepancies then install [Signatory](https://github.com/patrick-kidger/signatory) first. If that's not installed then `torchshapelets` will still work, but `LogsignatureDiscrepancy` will not be available.
+If you want to compute logsignature discrepancies then install [Signatory](https://github.com/patrick-kidger/signatory) first. If that's not installed then `torchshapelets` will still work, but `torchshapelets.LogsignatureDiscrepancy` will not be available.
 
 # Usage
 
