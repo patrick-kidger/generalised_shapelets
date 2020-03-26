@@ -37,7 +37,7 @@ namespace torchshapelets {
     // Differentiably computes the generalised shapelet transform. See
     // shapelet_transform.py::GeneralisedShapeletTransform for documentation.
     torch::Tensor shapelet_transform(torch::Tensor times, torch::Tensor path, torch::Tensor lengths,
-                                     torch::Tensor shapelets, torch::Tensor max_length, int64_t num_samples,
+                                     torch::Tensor shapelets, torch::Tensor max_length, const int64_t num_samples,
                                      const std::function<torch::Tensor(torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor)>& discrepancy_fn,
                                      torch::Tensor discrepancy_arg);
 }  // namespace torchshapelets

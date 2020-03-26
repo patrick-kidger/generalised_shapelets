@@ -73,12 +73,15 @@ class L2Discrepancy(CppDiscrepancy):
         
 class LogsignatureDiscrepancy(torch.nn.Module):
     """Calculates the p-logsignature distance between two paths."""
-    def __init__(self, in_channels, depth, p=2, pseudometric=True):
+    def __init__(self, in_channels, depth, p=2, include_time=True, pseudometric=True):
         """
         Arguments:
             in_channels: The number of input channels of the path.
             depth: An integer describing the depth of the logsignature transform to take.
             p: A number in [1, \infty] specifying the parameter p of the distance. Defaults to 2.
+            include_time: Boolean. Whether to take the logsignature discrepancy of the time-augmented path or not.
+                Defaults to True. (Setting this to False produces a pseudometric rather similar in spirit to dynamic
+                time warping, in that it's reparameterisation invariant.)
             pseudometric: Whether to take a learnt linear transformation beforehand. Defaults to True.
         """
         super(LogsignatureDiscrepancy, self).__init__()
@@ -92,13 +95,19 @@ class LogsignatureDiscrepancy(torch.nn.Module):
         self.in_channels = in_channels
         self.depth = depth
         self.p = p
+        self.include_time = include_time
         self.pseudometric = pseudometric
 
         if pseudometric:
-            logsignature_channels = signatory.logsignature_channels(in_channels + 1, depth)  # +1 for time
+            channels = in_channels
+            if include_time:
+                channels += 1
+            logsignature_channels = signatory.logsignature_channels(channels, depth)
             self.linear = torch.nn.Linear(logsignature_channels, logsignature_channels, bias=False)
         else:
             self.register_parameter('linear', None)
+
+        self.logsignature = signatory.Logsignature(depth=depth)
         
     def forward(self, times, path1, path2):
         # times has shape (length,)
@@ -108,21 +117,22 @@ class LogsignatureDiscrepancy(torch.nn.Module):
         path1_batch_dims = path1.shape[:-2]
         path2_batch_dims = path2.shape[:-2]
 
-        # append time to both paths
-        time_channel1 = time_channel2 = times.unsqueeze(-1)
-        for dim in path1_batch_dims:
-            time_channel1 = time_channel1.unsqueeze(0).expand(dim, *time_channel1.shape)
-        for dim in path2_batch_dims:
-            time_channel2 = time_channel2.unsqueeze(0).expand(dim, *time_channel2.shape)
-        path1 = torch.cat([time_channel1, path1], dim=-1)
-        path2 = torch.cat([time_channel2, path2], dim=-1)
+        if self.include_time:
+            # append time to both paths
+            time_channel1 = time_channel2 = times.unsqueeze(-1)
+            for dim in path1_batch_dims:
+                time_channel1 = time_channel1.unsqueeze(0).expand(dim, *time_channel1.shape)
+            for dim in path2_batch_dims:
+                time_channel2 = time_channel2.unsqueeze(0).expand(dim, *time_channel2.shape)
+            path1 = torch.cat([time_channel1, path1], dim=-1)
+            path2 = torch.cat([time_channel2, path2], dim=-1)
 
         # Create a single batch dimension for compatibility with Signatory
         path1 = path1.view(-1, path1.size(-2), path1.size(-1))
         path2 = path2.view(-1, path2.size(-2), path2.size(-1))
 
-        logsignature1 = signatory.logsignature(path1, self.depth)
-        logsignature2 = signatory.logsignature(path2, self.depth)
+        logsignature1 = self.logsignature(path1)
+        logsignature2 = self.logsignature(path2)
 
         logsignature1 = logsignature1.view(*path1_batch_dims, logsignature1.size(-1))
         logsignature2 = logsignature2.view(*path2_batch_dims, logsignature2.size(-1))

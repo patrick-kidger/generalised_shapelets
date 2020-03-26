@@ -35,9 +35,9 @@ class GeneralisedShapeletTransform(torch.nn.Module):
                 parameter to 1 (i.e. no scaling), or set to a specific scaling value by passing that as a value. By
                 default a suitable scaling is inferred from the max_shapelet_length argument.
         """
-        
+
         super(GeneralisedShapeletTransform, self).__init__()
-        
+
         self.in_channels = in_channels
         self.num_shapelets = num_shapelets
         self.num_shapelet_samples = num_shapelet_samples
@@ -56,6 +56,11 @@ class GeneralisedShapeletTransform(torch.nn.Module):
         else:
             scale = scale_length_gradients
         self.lengths.register_hook(lambda grad: scale * grad)
+
+    def extra_repr(self):
+        return "in_channels={}, num_shapelets={}, num_shapelet_samples={}, num_continuous_samples={}, " \
+               "max_shapelet_length={}".format(self.in_channels, self.num_shapelets, self.num_shapelet_samples,
+                                               self.num_continuous_samples, self.max_shapelet_length)
 
     def reset_parameters(self, times=None, path=None):
         with torch.no_grad():
@@ -84,7 +89,7 @@ class GeneralisedShapeletTransform(torch.nn.Module):
         optimiser.step())"""
         with torch.no_grad():
             self.lengths.clamp_(0.01, self.max_shapelet_length)
-        
+
     def forward(self, times, path):
         # times is of shape (length,)
         # path is of shape (..., length, in_channels)
@@ -92,11 +97,9 @@ class GeneralisedShapeletTransform(torch.nn.Module):
         if isinstance(self.discrepancy_fn, discrepancies.CppDiscrepancy):
             discrepancy_fn = self.discrepancy_fn.fn
             discrepancy_arg = self.discrepancy_fn.arg
-            python_discrepancy_fn = False
         else:
             discrepancy_fn = lambda times, path1, path2, args: self.discrepancy_fn(times, path1, path2)
             discrepancy_arg = torch.Tensor()
-            python_discrepancy_fn = True
 
         if self.num_continuous_samples is None:
             num_continuous_samples = len(times)
@@ -106,5 +109,4 @@ class GeneralisedShapeletTransform(torch.nn.Module):
         times = torch.as_tensor(times, dtype=path.dtype, device=path.device)
         max_shapelet_length = torch.as_tensor(self.max_shapelet_length, dtype=path.dtype, device=path.device)
         return _impl.shapelet_transform(times, path, self.lengths, self.shapelets, max_shapelet_length,
-                                        num_continuous_samples, discrepancy_fn, discrepancy_arg,
-                                        python_discrepancy_fn)
+                                        num_continuous_samples, discrepancy_fn, discrepancy_arg)

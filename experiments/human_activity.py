@@ -1,8 +1,9 @@
 import pathlib
+import sklearn.model_selection
 import torch
+import torchshapelets
 
 import common
-import models
 
 
 here = pathlib.Path(__file__).resolve().parent
@@ -83,24 +84,113 @@ def get_data(device):
             y.append(activity_number - 1)
     X = torch.stack(X, dim=0)
     y = torch.tensor(y)
-    final_index = torch.tensor(199).repeat(y.size(0))
 
-    return common.split_data(X, y, final_index, device=device)
+    # 0.7/0.15/0.15 train/val/test split
+    train_X, testval_X, train_y, testval_y = sklearn.model_selection.train_test_split(X, y,
+                                                                                      train_size=0.7,
+                                                                                      random_state=0,
+                                                                                      shuffle=True,
+                                                                                      stratify=y)
+    test_X, val_X, test_y, val_y = sklearn.model_selection.train_test_split(testval_X, testval_y,
+                                                                            train_size=0.5,
+                                                                            random_state=1,
+                                                                            shuffle=True,
+                                                                            stratify=testval_y)
+
+    train_X = common.normalise_data(train_X, train_X)
+    val_X = common.normalise_data(val_X, train_X)
+    test_X = common.normalise_data(test_X, train_X)
+
+    train_X = train_X.to(device)
+    train_y = train_y.to(device)
+    val_X = val_X.to(device)
+    val_y = val_y.to(device)
+    test_X = test_X.to(device)
+    test_y = test_y.to(device)
+    times = torch.linspace(0, X.size(1) - 1, X.size(1), dtype=X.dtype, device=device)
+
+    train_dataset = torch.utils.data.TensorDataset(train_X, train_y)
+    val_dataset = torch.utils.data.TensorDataset(val_X, val_y)
+    test_dataset = torch.utils.data.TensorDataset(test_X, test_y)
+
+    train_dataloader = common.dataloader(train_dataset, batch_size=2048)
+    val_dataloader = common.dataloader(val_dataset, batch_size=2048)
+    test_dataloader = common.dataloader(test_dataset, batch_size=2048)
+
+    return times, train_dataloader, val_dataloader, test_dataloader
 
 
-def main(epochs=1000, device='cuda',  # training parameters
-         hidden_channels=32,          # model parameters
-         **kwargs):                   # kwargs passed on to cdeint
+def main(epochs=1000, device='cpu',            # training parameters
+         num_shapelets_per_class=2,            # model parameters
+         num_shapelet_samples=None,            #
+         discrepancy_fn='L2',                  #
+         max_shapelet_length_proportion=None,  #
+         num_continuous_samples=None,          #
+         ablation_init=True,                   # For ablation studies
+         ablation_log=True,                    #
+         ablation_pseudometric=True,           #
+         ablation_learntlengths=True,          #
+         ablation_similarreg=True,             #
+         ablation_lengthreg=True,              #
+         ablation_pseudoreg=True,              #
+         old_shapelets=False):                 # Whether to toggle off all of our innovations and use old-style
+                                               # shapelets.
 
     times, train_dataloader, val_dataloader, test_dataloader = get_data(device)
 
+    assert times.is_floating_point(), "Whoops, times isn't floating point."
 
+    if old_shapelets:
+        num_continuous_samples = times.size(0)
+
+        def discrepancy_fn(times, path, shapelet):
+            return ((path - shapelet) ** 2).sum(dim=(-1, -2))
+
+    # Select some sensible options based on the length of the dataset
+    timespan = times[-1] - times[0]
+    if max_shapelet_length_proportion is None:
+        max_shapelet_length_proportion = min((4 / timespan).sqrt(), 1)
+    max_shapelet_length = timespan * max_shapelet_length_proportion
+    if num_shapelet_samples is None:
+        num_shapelet_samples = int(max_shapelet_length_proportion * times.size(0))
+    if num_continuous_samples is None:
+        num_continuous_samples = times.size(0)
+
+    if discrepancy_fn == 'L2':
+        discrepancy_fn = torchshapelets.L2Discrepancy(in_channels=6, pseudometric=ablation_pseudometric)
+    elif 'logsig' in discrepancy_fn:
+        # expects e.g. 'logsig-4'
+        depth = int(discrepancy_fn.split('-')[1])
+        discrepancy_fn = torchshapelets.LogsignatureDiscrepancy(in_channels=6, depth=depth,
+                                                                pseudometric=ablation_pseudometric)
+
+    num_shapelets = num_shapelets_per_class * 6
+
+    model = common.LinearShapeletTransform(in_channels=6,
+                                           out_channels=6,
+                                           num_shapelets=num_shapelets,
+                                           num_shapelet_samples=num_shapelet_samples,
+                                           discrepancy_fn=discrepancy_fn,
+                                           max_shapelet_length=max_shapelet_length,
+                                           num_continuous_samples=num_continuous_samples,
+                                           ablation_log=ablation_log).to(device)
+
+    if old_shapelets:
+        del model.shapelet_transform.lengths
+        model.shapelet_transform.register_buffer('lengths', torch.full_like(model.shapelet_transform.lengths,
+                                                                            max_shapelet_length))
+    else:
+        if ablation_init:
+            sample_batch = common.get_sample_batch(train_dataloader, num_shapelets_per_class, num_shapelets)
+            model.set_shapelets(times, sample_batch)  # smart initialisation of shapelets
+        if ablation_learntlengths:
+            model.shapelet_transform.lengths.requires_grad_(False)
 
     loss_fn = torch.nn.functional.cross_entropy
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.005)
 
-    history = common.train_loop(train_dataloader, val_dataloader, model, times, optimizer, loss_fn, epochs,
-                                num_classes=6, kwargs=kwargs)
-    results = common.evaluate_model(train_dataloader, val_dataloader, test_dataloader, model, times, loss_fn,
-                                    history, num_classes=6, kwargs=kwargs)
+    history = common.train_loop(train_dataloader, val_dataloader, model, times, optimizer, loss_fn, epochs, 6,
+                                ablation_similarreg, ablation_lengthreg, ablation_pseudoreg)
+    results = common.evaluate_model(train_dataloader, val_dataloader, test_dataloader, model, times, loss_fn, history,
+                                    6)
     return results

@@ -1,18 +1,34 @@
 import collections as co
 import copy
+import json
 import math
+import numpy as np
+import os
+import pathlib
 import torch
 import tqdm
 import torchshapelets
 
 
-def normalise_data(X, eps=1e-5):
+here = pathlib.Path(__file__).resolve().parent
+
+
+class SqueezeEnd(torch.nn.Module):
+    def __init__(self, model):
+        super(SqueezeEnd, self).__init__()
+        self.model = model
+
+    def forward(self, *args, **kwargs):
+        return self.model(*args, **kwargs).squeeze(-1)
+
+
+def normalise_data(X, train_X):
     # X is assumed to be of shape (..., length, channel)
     out = []
-    for Xi in X.unbind(dim=-1):
-        mean = Xi.mean()
-        std = Xi.std()
-        out.append((Xi - mean) / (eps + std))
+    for Xi, train_Xi in zip(X.unbind(dim=-1), train_X.unbind(dim=-1)):
+        mean = train_Xi.mean()
+        std = train_Xi.std()
+        out.append((Xi - mean) / (1e-5 + std))
     return torch.stack(out, dim=-1)
 
 
@@ -110,7 +126,8 @@ def _evaluate_metrics(dataloader, model, times, loss_fn, num_classes):
         return _AttrDict(loss=total_loss, accuracy=total_accuracy)
 
 
-def train_loop(train_dataloader, val_dataloader, model, times, optimizer, loss_fn, epochs, num_classes):
+def train_loop(train_dataloader, val_dataloader, model, times, optimizer, loss_fn, epochs, num_classes,
+               ablation_similarreg, ablation_lengthreg, ablation_pseudoreg):
     """Standard training loop.
 
     Has a few simple bells and whistles:
@@ -136,54 +153,54 @@ def train_loop(train_dataloader, val_dataloader, model, times, optimizer, loss_f
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=plateau_patience, mode='max')
 
     tqdm_range = tqdm.tqdm(range(epochs))
-    try:
-        for epoch in tqdm_range:
+    for epoch in tqdm_range:
+        if breaking:
+            break
+        for batch in train_dataloader:
             if breaking:
                 break
-            for batch in train_dataloader:
-                if breaking:
-                    break
-                X, y = batch
-                pred_y, shapelet_similarity, shapelet_lengths, discrepancy_fn = model(times, X)
-                loss = loss_fn(pred_y, y)
+            X, y = batch
+            pred_y, shapelet_similarity, shapelet_lengths, discrepancy_fn = model(times, X)
+            loss = loss_fn(pred_y, y)
+            if ablation_similarreg:
                 loss = loss + similarity_coefficient * torchshapelets.similarity_regularisation(shapelet_similarity)
+            if ablation_lengthreg:
                 loss = loss + length_coefficient * torchshapelets.length_regularisation(shapelet_lengths)
+            if ablation_pseudoreg:
                 loss = loss + pseudometric_coefficient * torchshapelets.pseudometric_regularisation(discrepancy_fn)
-                loss.backward()
-                optimizer.step()
-                model.clip_length()
-                optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            model.clip_length()
+            optimizer.zero_grad()
 
-            if epoch % epoch_per_metric == 0 or epoch == epochs - 1:
-                model.eval()
-                train_metrics = _evaluate_metrics(train_dataloader, model, times, loss_fn, num_classes)
-                val_metrics = _evaluate_metrics(val_dataloader, model, times, loss_fn, num_classes)
-                model.train()
+        if epoch % epoch_per_metric == 0 or epoch == epochs - 1:
+            model.eval()
+            train_metrics = _evaluate_metrics(train_dataloader, model, times, loss_fn, num_classes)
+            val_metrics = _evaluate_metrics(val_dataloader, model, times, loss_fn, num_classes)
+            model.train()
 
-                if train_metrics.loss * 1.0001 < best_train_loss:
-                    best_train_loss = train_metrics.loss
-                    best_epoch = epoch
+            if train_metrics.loss * 1.0001 < best_train_loss:
+                best_train_loss = train_metrics.loss
+                best_epoch = epoch
 
-                if val_metrics.accuracy > best_val_accuracy:
-                    best_val_accuracy = val_metrics.accuracy
-                    del best_model  # so that we don't have three copies of a model simultaneously
-                    best_model = copy.deepcopy(model)
+            if val_metrics.accuracy > best_val_accuracy:
+                best_val_accuracy = val_metrics.accuracy
+                del best_model  # so that we don't have three copies of a model simultaneously
+                best_model = copy.deepcopy(model)
 
-                tqdm_range.write('Epoch: {}  Train loss: {:.3}  Train accuracy: {:.3}  Val loss: {:.3}  '
-                                 'Val accuracy: {:.3}'
-                                 ''.format(epoch, train_metrics.loss, train_metrics.accuracy, val_metrics.loss,
-                                           val_metrics.accuracy))
-                scheduler.step(val_metrics.accuracy)
-                history.append(_AttrDict(epoch=epoch, train_loss=train_metrics.loss,
-                                         train_accuracy=train_metrics.accuracy,
-                                         val_loss=val_metrics.loss, val_accuracy=val_metrics.accuracy))
+            tqdm_range.write('Epoch: {}  Train loss: {:.3}  Train accuracy: {:.3}  Val loss: {:.3}  '
+                             'Val accuracy: {:.3}'
+                             ''.format(epoch, train_metrics.loss, train_metrics.accuracy, val_metrics.loss,
+                                       val_metrics.accuracy))
+            scheduler.step(val_metrics.accuracy)
+            history.append(_AttrDict(epoch=epoch, train_loss=train_metrics.loss,
+                                     train_accuracy=train_metrics.accuracy,
+                                     val_loss=val_metrics.loss, val_accuracy=val_metrics.accuracy))
 
-                if epoch > best_epoch + plateau_terminate:
-                    tqdm_range.write('Breaking because of no improvement in training loss for {} epochs.'
-                                     ''.format(plateau_terminate))
-                    breaking = True
-    except KeyboardInterrupt:
-        tqdm_range.write('Breaking because of keyboard interrupt.')
+            if epoch > best_epoch + plateau_terminate:
+                tqdm_range.write('Breaking because of no improvement in training loss for {} epochs.'
+                                 ''.format(plateau_terminate))
+                breaking = True
 
     for parameter, best_parameter in zip(model.parameters(), best_model.parameters()):
         parameter.data = best_parameter.data
@@ -211,8 +228,10 @@ def evaluate_model(train_dataloader, val_dataloader, test_dataloader, model, tim
 
 class LinearShapeletTransform(torch.nn.Module):
     def __init__(self, in_channels, out_channels, num_shapelets, num_shapelet_samples, discrepancy_fn,
-                 max_shapelet_length, num_continuous_samples):
+                 max_shapelet_length, num_continuous_samples, ablation_log):
         super(LinearShapeletTransform, self).__init__()
+
+        self.ablation_log = ablation_log
 
         self.shapelet_transform = torchshapelets.GeneralisedShapeletTransform(in_channels=in_channels,
                                                                               num_shapelets=num_shapelets,
@@ -224,7 +243,9 @@ class LinearShapeletTransform(torch.nn.Module):
 
     def forward(self, times, X):
         shapelet_similarity = self.shapelet_transform(times, X)
-        out = self.linear(shapelet_similarity.log())
+        if self.ablation_log:
+            shapelet_similarity = (shapelet_similarity + 1e-5).log()
+        out = self.linear(shapelet_similarity)
         if out.size(-1) == 1:
             out.squeeze(-1)
         return out, shapelet_similarity, self.shapelet_transform.lengths, self.shapelet_transform.discrepancy_fn
@@ -234,3 +255,38 @@ class LinearShapeletTransform(torch.nn.Module):
 
     def set_shapelets(self, times, path):
         self.shapelet_transform.reset_parameters(times, path)
+
+    def extra_repr(self):
+        return "ablation_log={}".format(self.ablation_log)
+
+
+class _TensorEncoder(json.JSONEncoder):
+    def default(self, o):
+        if isinstance(o, (torch.Tensor, np.ndarray)):
+            return o.tolist()
+        else:
+            super(_TensorEncoder, self).default(o)
+
+
+def save_results(result_folder, result_subfolder, results):
+    base_loc = here / 'results' / result_folder
+    if not os.path.exists(base_loc):
+        os.mkdir(base_loc)
+    loc = base_loc / result_subfolder
+    if not os.path.exists(loc):
+        os.mkdir(loc)
+    num = -1
+    for filename in os.listdir(loc):
+        try:
+            num = max(num, int(filename))
+        except ValueError:
+            pass
+    result_to_save = results.copy()
+    del result_to_save['train_dataloader']
+    del result_to_save['val_dataloader']
+    del result_to_save['test_dataloader']
+    result_to_save['model'] = str(result_to_save['model'])
+
+    num += 1
+    with open(loc / str(num), 'w') as f:
+        json.dump(result_to_save, f, cls=_TensorEncoder)

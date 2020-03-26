@@ -205,7 +205,7 @@
 	
 	Then letting $\gamma, \delta > 0$ control the amount of each kind of regularisation, we propose to minimise
 	\newcommand{\objective}{&\frac{1}{N}\sum_{n = 1}^N \mathcal{L}(y_n, F^\theta(\sigma^A_{S_1}(f^n, w^{1, \rho, S_1}), \ldots, \sigma^A_{S_K}(f^n, w^{K, \rho, S_K})))\nonumber\\[-10pt]
-	&\hspace{15em} + \frac{\gamma}{K} \sum_{k = 1}^K \min_{n \in \{1, \ldots, N\}} \sigma^A_{S_k}(f^n, w^{k, \rho, S_k}) + \delta \sum_{k = 1}^K\mathcal{R}(S_k)}
+	&\hspace{15em} + \gamma \sum_{k = 1}^K \min_{n \in \{1, \ldots, N\}} \sigma^A_{S_k}(f^n, w^{k, \rho, S_k}) + \delta \sum_{k = 1}^K\mathcal{R}(S_k)}
 	\begin{align}
 	\objective \label{eq:objective}
 	\end{align}
