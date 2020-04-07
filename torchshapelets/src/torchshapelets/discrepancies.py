@@ -70,6 +70,9 @@ class L2Discrepancy(CppDiscrepancy):
         else:
             self.arg = torch.nn.Parameter(torch.Tensor())
 
+    def extra_repr(self):
+        return "in_channels={}, pseudometric={}".format(self.in_channels, self.pseudometric)
+
         
 class LogsignatureDiscrepancy(torch.nn.Module):
     """Calculates the p-logsignature distance between two paths."""
@@ -108,6 +111,13 @@ class LogsignatureDiscrepancy(torch.nn.Module):
             self.register_parameter('linear', None)
 
         self.logsignature = signatory.Logsignature(depth=depth)
+
+    def extra_repr(self):
+        return "in_channels={}, depth={}, p={}, include_time={}, pseudometric={}".format(self.in_channels,
+                                                                                         self.depth,
+                                                                                         self.p,
+                                                                                         self.include_time,
+                                                                                         self.pseudometric)
         
     def forward(self, times, path1, path2):
         # times has shape (length,)

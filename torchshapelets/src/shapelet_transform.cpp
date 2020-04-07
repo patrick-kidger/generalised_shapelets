@@ -133,12 +133,11 @@ namespace torchshapelets {
         // templates are the best way to get a zero-cost abstraction (at least according to:)
         // https://vittorioromeo.info/index/blog/passing_functions_to_functions.html
         template <typename fn_type>
-        torch::Tensor continuous_min(torch::Tensor start, torch::Tensor end, fn_type fn, torch::TensorOptions device,
-                                     int64_t num_samples) {
+        torch::Tensor continuous_min(torch::Tensor start, torch::Tensor end, fn_type fn, int64_t num_samples) {
             auto start_detached = start.detach().item();
             auto end_detached = end.detach().item();
 
-            auto points = torch::linspace(start_detached, end_detached, num_samples, device);
+            auto points = torch::linspace(start_detached, end_detached, num_samples, start.options());
 
             // We compute the minimum over the middle region separately, as there's good odds that this bit won't
             // require gradients. If I understand PyTorch's autograd well enough (and this really might be wrong on my
@@ -198,12 +197,6 @@ namespace torchshapelets {
             if ((additional_time > next_time).item().to<bool>()) {
                 break;
             }
-            if (keep_original_times && (additional_time == next_time).item().to<bool>()) {
-                // Note that this operation technically subtly breaks differentiability wrt time, because taking
-                // uniques isn't a differentiable operation. Still, it doesn't do it too badly so this should be
-                // fine.
-                continue;
-            }
 
             auto ratio = (additional_time - prev_time) / (next_time - prev_time);
             auto path_at_additional_time = prev_path + ratio * (next_path - prev_path);
@@ -229,12 +222,6 @@ namespace torchshapelets {
                     next_time = middle_times[next_time_index];
                     next_path = detail::len_index(middle_path, next_time_index);
                 }
-            }
-            if (keep_original_times && (additional_time == next_time).item().to<bool>()) {
-                // Note that this operation technically subtly breaks differentiability wrt time, because taking
-                // uniques isn't a differentiable operation. Still, it doesn't do it too badly so this should be
-                // fine.
-                continue;
             }
             auto ratio = (additional_time - prev_time) / (next_time - prev_time);
             auto path_at_additional_time = prev_path + ratio * (next_path - prev_path);
@@ -315,23 +302,23 @@ namespace torchshapelets {
         if (num_samples < 3) {  // 3 is the smallest that avoids indexing errors
             throw std::invalid_argument("num_samples must be at least 3.");
         }
+        if (shapelets.size(0) < 3) {  // 3 is the smallest that avoids indexing errors
+            throw std::invalid_argument("shapelets must be sampled at least 3 times.");
+        }
 
         py::gil_scoped_release release;  // Needed to make Python-based discrepancy functions work
         detail::omp_nested omp_nested_instance;
-
-        auto device = torch::device(times.device());  // Actually an instance of TensorOptions
 
         const auto num_shapelets = shapelets.size(0);
         const auto num_shapelet_samples = shapelets.size(1);
         std::vector<torch::Tensor> discrepancies (num_shapelets);
 
         #pragma omp parallel for default(none) \
-                                 shared(times, path, lengths, shapelets, device, discrepancies, discrepancy_arg, \
-                                        discrepancy_fn)
+                                 shared(times, path, lengths, shapelets, discrepancies, discrepancy_arg, discrepancy_fn)
         for (int64_t shapelet_index = 0; shapelet_index < num_shapelets; ++shapelet_index) {
             auto length = lengths[shapelet_index];
             auto shapelet = shapelets[shapelet_index];
-            auto shapelet_times = torch::linspace(0, length.detach().item(), num_shapelet_samples, device);
+            auto shapelet_times = torch::linspace(0, length.detach().item(), num_shapelet_samples, length.options());
             std::tuple<torch::Tensor, torch::Tensor, torch::Tensor>
                 shapelet_times_tuple {shapelet_times[0],
                                       shapelet_times.narrow(/*dim=*/0, /*start=*/1, /*length=*/shapelet_times.size(0) - 2),
@@ -371,10 +358,10 @@ namespace torchshapelets {
                                                                          shapelet_tuple,
                                                                          std::get<1>(restricted_times_tuple),
                                                                          /*keep_original_times=*/true);
+
                 return discrepancy_fn(mutual_times, knot_restricted_path, knot_shapelet, discrepancy_arg);
             };
-            auto discrepancy = detail::continuous_min(times[0], times[-1] - length, min_fn, device,
-                                                      num_samples);
+            auto discrepancy = detail::continuous_min(times[0], times[-1] - length, min_fn, num_samples);
             discrepancies[shapelet_index] = discrepancy;
         }
 

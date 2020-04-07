@@ -13,15 +13,6 @@ import torchshapelets
 here = pathlib.Path(__file__).resolve().parent
 
 
-class SqueezeEnd(torch.nn.Module):
-    def __init__(self, model):
-        super(SqueezeEnd, self).__init__()
-        self.model = model
-
-    def forward(self, *args, **kwargs):
-        return self.model(*args, **kwargs).squeeze(-1)
-
-
 def normalise_data(X, train_X):
     # X is assumed to be of shape (..., length, channel)
     out = []
@@ -54,7 +45,9 @@ def get_sample_batch(dataloader, num_shapelets_per_class, num_shapelets):
                     batch_elems.append(Xi)
                     y_seen[yi] += 1
                 if len(batch_elems) == num_shapelets:
-                    return torch.stack(batch_elems, dim=0)
+                    out = torch.stack(batch_elems, dim=0)
+                    out = out + 0.001 * torch.randn_like(out)
+                    return out
         # len(y_seen) should now be the number of classes
         if len(y_seen) * num_shapelets_per_class != num_shapelets:
             raise RuntimeError("Could not get a sample batch: Have been told that there should {} shapelets per class, "
@@ -104,6 +97,9 @@ def _compute_multiclass_accuracy(pred_y, true_y):
 
 
 class _AttrDict(dict):
+    def __setattr__(self, key, value):
+        self[key] = value
+
     def __getattr__(self, item):
         return self[item]
 
@@ -118,6 +114,8 @@ def _evaluate_metrics(dataloader, model, times, loss_fn, num_classes):
             X, y = batch
             batch_size = y.size(0)
             pred_y, _, _, _ = model(times, X)
+            if num_classes == 2:
+                y = y.to(pred_y.dtype)
             total_accuracy += accuracy_fn(pred_y, y) * batch_size
             total_loss += loss_fn(pred_y, y) * batch_size
             total_dataset_size += batch_size
@@ -146,9 +144,9 @@ def train_loop(train_dataloader, val_dataloader, model, times, optimizer, loss_f
     epoch_per_metric = 10
     plateau_patience = 1  # this will be multiplied by epoch_per_metric for the actual patience
     plateau_terminate = 50
-    similarity_coefficient = 0.1
-    length_coefficient = 0.1
-    pseudometric_coefficient = 0.1
+    similarity_coefficient = ablation_similarreg if isinstance(ablation_similarreg, float) else 0.0001
+    length_coefficient = ablation_lengthreg if isinstance(ablation_lengthreg, float) else 0.0001
+    pseudometric_coefficient = ablation_pseudoreg if isinstance(ablation_pseudoreg, float) else 0.0001
 
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=plateau_patience, mode='max')
 
@@ -161,6 +159,8 @@ def train_loop(train_dataloader, val_dataloader, model, times, optimizer, loss_f
                 break
             X, y = batch
             pred_y, shapelet_similarity, shapelet_lengths, discrepancy_fn = model(times, X)
+            if num_classes == 2:
+                y = y.to(pred_y.dtype)
             loss = loss_fn(pred_y, y)
             if ablation_similarreg:
                 loss = loss + similarity_coefficient * torchshapelets.similarity_regularisation(shapelet_similarity)
@@ -240,14 +240,18 @@ class LinearShapeletTransform(torch.nn.Module):
                                                                               max_shapelet_length=max_shapelet_length,
                                                                               num_continuous_samples=num_continuous_samples)
         self.linear = torch.nn.Linear(num_shapelets, out_channels)
+        self.linear.weight.register_hook(lambda grad: 100 * grad)
+        self.linear.bias.register_hook(lambda grad: 100 * grad)
 
     def forward(self, times, X):
         shapelet_similarity = self.shapelet_transform(times, X)
         if self.ablation_log:
-            shapelet_similarity = (shapelet_similarity + 1e-5).log()
-        out = self.linear(shapelet_similarity)
+            new_shapelet_similarity = (shapelet_similarity + 1e-5).log()
+        else:
+            new_shapelet_similarity = shapelet_similarity
+        out = self.linear(new_shapelet_similarity)
         if out.size(-1) == 1:
-            out.squeeze(-1)
+            out = out.squeeze(-1)
         return out, shapelet_similarity, self.shapelet_transform.lengths, self.shapelet_transform.discrepancy_fn
 
     def clip_length(self):

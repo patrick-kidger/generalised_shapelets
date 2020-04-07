@@ -1,4 +1,5 @@
 import collections as co
+import itertools as it
 import numpy as np
 import pathlib
 import sklearn.model_selection
@@ -19,7 +20,7 @@ def _pad(channel, maxlen):
     return out
 
 
-valid_dataset_names = {'ArticularyWordRecognition',
+valid_dataset_names = ('ArticularyWordRecognition',
                        'FaceDetection',
                        'NATOPS',
                        'AtrialFibrillation',
@@ -48,7 +49,45 @@ valid_dataset_names = {'ArticularyWordRecognition',
                        'StandWalkJump',
                        'EthanolConcentration',
                        'MotorImagery',
-                       'UWaveGestureLibrary'}
+                       'UWaveGestureLibrary')
+
+long_datasets = {'EigenWorms', 'MotorImagery', 'StandWalkJump', 'EthanolConcentration', 'Cricket', 'SelfRegulationSCP2'}
+
+large_datasets = {'InsectWingbeat', 'ElectricDevices', 'PenDigits', 'SpokenArabicDigits', 'FaceDetection',
+                  'PhonemeSpectra', 'LSST', 'UWaveGestureLibrary', 'CharacterTrajectories'}
+
+
+# Ordered by chanels * dataset size * num_classes * length ** 2, i.e. the cost of evaluating shaplets on them.
+datasets_by_cost = ('ERing',
+                    'RacketSports',
+                    'PenDigits',
+                    'BasicMotions',
+                    'Libras',
+                    'JapaneseVowels',
+                    'AtrialFibrillation',
+                    'FingerMovements',
+                    'NATOPS',
+                    'Epilepsy',
+                    'LSST',
+                    'Handwriting',
+                    'UWaveGestureLibrary',
+                    'StandWalkJump',
+                    'HandMovementDirection',
+                    'ArticularyWordRecognition',
+                    'SelfRegulationSCP1',
+                    'CharacterTrajectories',
+                    'SelfRegulationSCP2',
+                    'Heartbeat',
+                    'FaceDetection',
+                    'SpokenArabicDigits',
+                    'EthanolConcentration',
+                    'Cricket',
+                    'DuckDuckGeese',
+                    'PEMS-SF',
+                    'InsectWingbeat',
+                    'PhonemeSpectra',
+                    'MotorImagery',
+                    'EigenWorms')
 
 
 def get_data(dataset_name, missing_rate, device, noise_channels):
@@ -133,9 +172,9 @@ def get_data(dataset_name, missing_rate, device, noise_channels):
                                                                               shuffle=True,
                                                                               stratify=trainval_y)
 
-    train_X = common.normalise_data(train_X, train_X)
     val_X = common.normalise_data(val_X, train_X)
     test_X = common.normalise_data(test_X, train_X)
+    train_X = common.normalise_data(train_X, train_X)
 
     train_X = train_X.to(device)
     train_y = train_y.to(device)
@@ -160,24 +199,23 @@ def get_data(dataset_name, missing_rate, device, noise_channels):
     return times, train_dataloader, val_dataloader, test_dataloader, num_classes, input_channels
 
 
-def main(dataset_name, missing_rate,           # dataset parameters
-         result_folder, result_subfolder,      # saving parameters
-         noise_channels=0,                     # also a dataset parameter
-         epochs=100, device='cpu',             # training parameters
-         num_shapelets_per_class=3,            # model parameters
-         num_shapelet_samples=None,            #
-         discrepancy_fn='L2',                  #
-         max_shapelet_length_proportion=None,  #
-         num_continuous_samples=None,          #
-         ablation_init=True,                   # For ablation studies
-         ablation_log=True,                    #
-         ablation_pseudometric=True,           #
-         ablation_learntlengths=True,          #
-         ablation_similarreg=True,             #
-         ablation_lengthreg=True,              #
-         ablation_pseudoreg=True,              #
-         old_shapelets=False):                 # Whether to toggle off all of our innovations and use old-style
-                                               # shapelets.
+def main(dataset_name, missing_rate=0., noise_channels=0,  # dataset parameters
+         result_folder=None, result_subfolder=None,        # saving parameters
+         epochs=1000, device='cpu',                        # training parameters
+         num_shapelets_per_class=3,                        # model parameters
+         num_shapelet_samples=None,                        #
+         discrepancy_fn='L2',                              #
+         max_shapelet_length_proportion=1.0,               #
+         num_continuous_samples=None,                      #
+         ablation_init=True,                               # For ablation studies
+         ablation_log=True,                                #
+         ablation_pseudometric=True,                       #
+         ablation_learntlengths=True,                      #
+         ablation_similarreg=True,                         #
+         ablation_lengthreg=False,                         #
+         ablation_pseudoreg=False,                         #
+         old_shapelets=False):                             # Whether to toggle off all of our innovations and use
+                                                           # old-style shapelets.
 
     (times, train_dataloader, val_dataloader, test_dataloader, num_classes, input_channels) = get_data(dataset_name,
                                                                                                        missing_rate,
@@ -187,7 +225,15 @@ def main(dataset_name, missing_rate,           # dataset parameters
     assert times.is_floating_point(), "Whoops, times isn't floating point."
 
     if old_shapelets:
-        num_continuous_samples = times.size(0)
+        discrepancy_fn = 'L2_squared'
+        max_shapelet_length_proportion = 0.3
+        ablation_log = False
+        ablation_pseudometric = False
+        ablation_learntlengths = False
+        ablation_similarreg = False
+        ablation_lengthreg = False
+        ablation_pseudoreg = False
+        num_continuous_samples = None
 
     # Select some sensible options based on the length of the dataset
     timespan = times[-1] - times[0]
@@ -228,8 +274,13 @@ def main(dataset_name, missing_rate,           # dataset parameters
 
     num_shapelets = num_shapelets_per_class * num_classes
 
+    if num_classes == 2:
+        out_channels = 1
+    else:
+        out_channels = num_classes
+
     model = common.LinearShapeletTransform(in_channels=input_channels,
-                                           out_channels=num_classes,
+                                           out_channels=out_channels,
                                            num_shapelets=num_shapelets,
                                            num_shapelet_samples=num_shapelet_samples,
                                            discrepancy_fn=discrepancy_fn,
@@ -238,18 +289,16 @@ def main(dataset_name, missing_rate,           # dataset parameters
                                            ablation_log=ablation_log)
 
     if old_shapelets:
+        new_lengths = torch.full_like(model.shapelet_transform.lengths, max_shapelet_length)
         del model.shapelet_transform.lengths
-        model.shapelet_transform.register_buffer('lengths', torch.full_like(model.shapelet_transform.lengths,
-                                                                            max_shapelet_length))
-    else:
-        if ablation_init:
-            sample_batch = common.get_sample_batch(train_dataloader, num_shapelets_per_class, num_shapelets)
-            model.set_shapelets(times.to('cpu'), sample_batch.to('cpu'))  # smart initialisation of shapelets
-        if ablation_learntlengths:
-            model.shapelet_transform.lengths.requires_grad_(False)
+        model.shapelet_transform.register_buffer('lengths', new_lengths)
+    if ablation_init:
+        sample_batch = common.get_sample_batch(train_dataloader, num_shapelets_per_class, num_shapelets)
+        model.set_shapelets(times.to('cpu'), sample_batch.to('cpu'))  # smart initialisation of shapelets
+    if not ablation_learntlengths:
+        model.shapelet_transform.lengths.requires_grad_(False)
 
     if num_classes == 2:
-        model = common.SqueezeEnd(model)
         loss_fn = torch.nn.functional.binary_cross_entropy_with_logits
     else:
         loss_fn = torch.nn.functional.cross_entropy
@@ -260,55 +309,33 @@ def main(dataset_name, missing_rate,           # dataset parameters
                                 ablation_similarreg, ablation_lengthreg, ablation_pseudoreg)
     results = common.evaluate_model(train_dataloader, val_dataloader, test_dataloader, model, times, loss_fn, history,
                                     num_classes)
-
-    common.save_results(result_folder, result_subfolder, results)
+    results.noise_channels = noise_channels
+    results.num_shapelets_per_class = num_shapelets_per_class
+    results.num_shapelet_samples = num_shapelet_samples
+    results.max_shapelet_length_proportion = max_shapelet_length_proportion
+    results.ablation_init = ablation_init
+    results.ablation_log = ablation_log
+    results.ablation_pseudometric = ablation_pseudometric
+    results.ablation_learntlengths = ablation_learntlengths
+    results.ablation_similarreg = ablation_similarreg
+    results.ablation_lengthreg = ablation_lengthreg
+    results.ablation_pseudoreg = ablation_pseudoreg
+    results.old_shapelets = old_shapelets
+    if result_folder is not None:
+        common.save_results(result_folder, result_subfolder, results)
     return results
 
 
-def comparison_test(group=None):
-    if group is None:
-        valid_datasets = valid_dataset_names
-        invalid_datasets = ('EigenWorms', 'InsectWingbeat')
-        pseudometric = True
-    elif group == 'small':
-        valid_datasets = valid_dataset_names
-        invalid_datasets = ('EigenWorms', 'InsectWingbeat',  # super huge, omit always
-                            # Long length
-                            'Cricket', 'EthanolConcentration', 'MotorImagery', 'SelfRegulationSCP2', 'StandWalkJump',
-                            # Large dataset
-                            'CharacterTrajectories', 'FaceDetection', 'LSST', 'PenDigits', 'Phoneme',
-                            'SpokenArabicDigits')
-        pseudometric = False
-    elif group == 'longlength':
-        valid_datasets = ('Cricket', 'EthanolConcentration', 'MotorImagery', 'SelfRegulationSCP2', 'StandWalkJump')
-        invalid_datasets = ()
-        pseudometric = True
-    elif group == 'largedataset':
-        valid_datasets = ('CharacterTrajectories', 'FaceDetection', 'LSST', 'PenDigits', 'Phoneme',
-                          'SpokenArabicDigits')
-        invalid_datasets = ()
-        pseudometric = True
-    else:
-        raise ValueError
-    result_folder = 'comparison'
-    for dataset_name in valid_datasets:
-        if dataset_name in invalid_datasets:
-            continue
+def comparison_test():
+    result_folder = 'uea_comparison'
+    for dataset_name in datasets_by_cost:
+        pseudometric = dataset_name in large_datasets
         print("Starting comparison: L2, " + dataset_name)
         main(dataset_name,
              result_folder=result_folder,
              result_subfolder=dataset_name+'-L2',
              missing_rate=0.,
              discrepancy_fn='L2',
-             old_shapelets=False,
-             ablation_pseudometric=pseudometric)
-        print("Starting comparison: L2_squared, " + dataset_name)
-        main(dataset_name,
-             result_folder=result_folder,
-             result_subfolder=dataset_name + '-L2_squared',
-             missing_rate=0.,
-             num_shapelets_per_class=3,
-             discrepancy_fn='L2_squared',
              old_shapelets=False,
              ablation_pseudometric=pseudometric)
         print("Starting comparison: logsig-3, " + dataset_name)
@@ -328,22 +355,13 @@ def comparison_test(group=None):
              discrepancy_fn='L2_squared',
              old_shapelets=True,
              ablation_pseudometric=pseudometric)
-        print("Starting comparison: old-DTW, " + dataset_name)
-        main(dataset_name,
-             result_folder=result_folder,
-             result_subfolder=dataset_name + '-old-DTW',
-             missing_rate=0.,
-             num_shapelets_per_class=3,
-             discrepancy_fn='DTW',
-             old_shapelets=True,
-             ablation_pseudometric=pseudometric)
 
 
-standard_dataset_names = ('LSST', 'SpokenArabicDigits', 'FaceDetection')
+standard_dataset_names = ('StandWalkJump', 'PenDigits', 'LSST', 'PEMS-SF')
 
 
 def missing_rate_test():
-    result_folder = 'missingness'
+    result_folder = 'uea_missingness'
     for dataset_name in standard_dataset_names:
         for missing_rate in (0.3, 0.5, 0.7):
             result_subfolder = dataset_name + str(int(missing_rate * 100))
@@ -364,7 +382,7 @@ def missing_rate_test():
 
 
 def ablation_test():
-    result_folder = 'ablation'
+    result_folder = 'uea_ablation'
     for dataset_name in standard_dataset_names:
         print("Starting comparison: init-L2, " + dataset_name)
         main(dataset_name,
@@ -425,7 +443,7 @@ def ablation_test():
 
 
 def noise_test():
-    result_folder = 'noise'
+    result_folder = 'uea_noise'
     for dataset_name in standard_dataset_names:
         for noise_channels in (3, 9, 30):
             print("Starting comparison: L2, " + dataset_name + str(noise_channels))
