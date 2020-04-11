@@ -34,7 +34,15 @@ def dataloader(dataset, **kwargs):
     return torch.utils.data.DataLoader(dataset, **kwargs)
 
 
-def get_sample_batch(dataloader, num_shapelets_per_class, num_shapelets):
+class _AttrDict(dict):
+    def __setattr__(self, key, value):
+        self[key] = value
+
+    def __getattr__(self, item):
+        return self[item]
+
+
+def _get_sample_batch(dataloader, num_shapelets_per_class, num_shapelets):
     batch_elems = []
     y_seen = co.defaultdict(int)
     while True:  # in case we need to iterate through the same dataloader multiple times to find the same samples again
@@ -96,12 +104,73 @@ def _compute_multiclass_accuracy(pred_y, true_y):
     return proportion_correct
 
 
-class _AttrDict(dict):
-    def __setattr__(self, key, value):
-        self[key] = value
+def _get_discrepancy_fn(discrepancy_fn, input_channels, ablation_pseudometric):
+    if discrepancy_fn == 'L2':
+        discrepancy_fn = torchshapelets.L2Discrepancy(in_channels=input_channels, pseudometric=ablation_pseudometric)
+    elif discrepancy_fn == 'L2_squared':
+        discrepancy_fn = torchshapelets.L2DiscrepancySquared(in_channels=input_channels,
+                                                             pseudometric=ablation_pseudometric)
+    elif discrepancy_fn == 'piecewise_constant_L2_squared':
+        def discrepancy_fn(times, path, shapelet):
+            return ((path - shapelet) ** 2).sum(dim=(-1, -2))
+        discrepancy_fn.parameters = lambda: []
+    elif discrepancy_fn == 'DTW':
+        # Takes forever, not recommended
+        def discrepancy_fn(times, path, shapelet):
+            memo = [[torch.tensor(float('inf'), dtype=path.dtype)
+                     for _ in range(path.size(-2) + 1)]
+                    for _ in range(shapelet.size(-2) + 1)]
+            memo[0][0] = torch.tensor(0, dtype=path.dtype)
+            for i in range(path.size(-2)):
+                for j in range(shapelet.size(-2)):
+                    cost = (path[..., i, :] - shapelet[j, :]).norm(dim=-1)
+                    memo[i + 1][j + 1] = cost + torch.min(torch.min(memo[i][j + 1], memo[i + 1][j]), memo[i][j])
+            return memo[-1][-1]
+        discrepancy_fn.parameters = lambda: []
+    elif 'logsig' in discrepancy_fn:
+        # expects e.g. 'logsig-4'
+        split_desc = discrepancy_fn.split('-')
+        assert len(split_desc) == 2
+        assert split_desc[0] == 'logsig'
+        depth = int(split_desc[1])
+        discrepancy_fn = torchshapelets.LogsignatureDiscrepancy(in_channels=input_channels, depth=depth,
+                                                                pseudometric=ablation_pseudometric)
+    return discrepancy_fn
 
-    def __getattr__(self, item):
-        return self[item]
+
+class _LinearShapeletTransform(torch.nn.Module):
+    def __init__(self, in_channels, out_channels, num_shapelets, num_shapelet_samples, discrepancy_fn,
+                 max_shapelet_length, num_continuous_samples, log):
+        super(_LinearShapeletTransform, self).__init__()
+
+        self.shapelet_transform = torchshapelets.GeneralisedShapeletTransform(in_channels=in_channels,
+                                                                              num_shapelets=num_shapelets,
+                                                                              num_shapelet_samples=num_shapelet_samples,
+                                                                              discrepancy_fn=discrepancy_fn,
+                                                                              max_shapelet_length=max_shapelet_length,
+                                                                              num_continuous_samples=num_continuous_samples)
+        self.linear = torch.nn.Linear(num_shapelets, out_channels)
+        self.linear.weight.register_hook(lambda grad: 100 * grad)
+        self.linear.bias.register_hook(lambda grad: 100 * grad)
+
+        self.log = log
+
+    def forward(self, times, X):
+        shapelet_similarity = self.shapelet_transform(times, X)
+        if self.log:
+            log_shapelet_similarity = (shapelet_similarity + 1e-5).log()
+        else:
+            log_shapelet_similarity = shapelet_similarity
+        out = self.linear(log_shapelet_similarity)
+        if out.size(-1) == 1:
+            out = out.squeeze(-1)
+        return out, shapelet_similarity, self.shapelet_transform.lengths, self.shapelet_transform.discrepancy_fn
+
+    def clip_length(self):
+        self.shapelet_transform.clip_length()
+
+    def set_shapelets(self, times, path):
+        self.shapelet_transform.reset_parameters(times, path)
 
 
 def _evaluate_metrics(dataloader, model, times, loss_fn, num_classes):
@@ -124,8 +193,8 @@ def _evaluate_metrics(dataloader, model, times, loss_fn, num_classes):
         return _AttrDict(loss=total_loss, accuracy=total_accuracy)
 
 
-def train_loop(train_dataloader, val_dataloader, model, times, optimizer, loss_fn, epochs, num_classes,
-               ablation_similarreg, ablation_lengthreg, ablation_pseudoreg):
+def _train_loop(train_dataloader, val_dataloader, model, times, optimizer, loss_fn, epochs, num_classes,
+                ablation_similarreg):
     """Standard training loop.
 
     Has a few simple bells and whistles:
@@ -144,9 +213,7 @@ def train_loop(train_dataloader, val_dataloader, model, times, optimizer, loss_f
     epoch_per_metric = 10
     plateau_patience = 1  # this will be multiplied by epoch_per_metric for the actual patience
     plateau_terminate = 50
-    similarity_coefficient = ablation_similarreg if isinstance(ablation_similarreg, float) else 0.0001
-    length_coefficient = ablation_lengthreg if isinstance(ablation_lengthreg, float) else 0.0001
-    pseudometric_coefficient = ablation_pseudoreg if isinstance(ablation_pseudoreg, float) else 0.0001
+    similarity_coefficient = 0.0001
 
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=plateau_patience, mode='max')
 
@@ -164,10 +231,6 @@ def train_loop(train_dataloader, val_dataloader, model, times, optimizer, loss_f
             loss = loss_fn(pred_y, y)
             if ablation_similarreg:
                 loss = loss + similarity_coefficient * torchshapelets.similarity_regularisation(shapelet_similarity)
-            if ablation_lengthreg:
-                loss = loss + length_coefficient * torchshapelets.length_regularisation(shapelet_lengths)
-            if ablation_pseudoreg:
-                loss = loss + pseudometric_coefficient * torchshapelets.pseudometric_regularisation(discrepancy_fn)
             loss.backward()
             optimizer.step()
             model.clip_length()
@@ -207,7 +270,7 @@ def train_loop(train_dataloader, val_dataloader, model, times, optimizer, loss_f
     return history
 
 
-def evaluate_model(train_dataloader, val_dataloader, test_dataloader, model, times, loss_fn, history, num_classes):
+def _evaluate_model(train_dataloader, val_dataloader, test_dataloader, model, times, loss_fn, history, num_classes):
     model.eval()
     train_metrics = _evaluate_metrics(train_dataloader, model, times, loss_fn, num_classes)
     val_metrics = _evaluate_metrics(val_dataloader, model, times, loss_fn, num_classes)
@@ -224,44 +287,6 @@ def evaluate_model(train_dataloader, val_dataloader, test_dataloader, model, tim
                      train_metrics=train_metrics,
                      val_metrics=val_metrics,
                      test_metrics=test_metrics)
-
-
-class LinearShapeletTransform(torch.nn.Module):
-    def __init__(self, in_channels, out_channels, num_shapelets, num_shapelet_samples, discrepancy_fn,
-                 max_shapelet_length, num_continuous_samples, ablation_log):
-        super(LinearShapeletTransform, self).__init__()
-
-        self.ablation_log = ablation_log
-
-        self.shapelet_transform = torchshapelets.GeneralisedShapeletTransform(in_channels=in_channels,
-                                                                              num_shapelets=num_shapelets,
-                                                                              num_shapelet_samples=num_shapelet_samples,
-                                                                              discrepancy_fn=discrepancy_fn,
-                                                                              max_shapelet_length=max_shapelet_length,
-                                                                              num_continuous_samples=num_continuous_samples)
-        self.linear = torch.nn.Linear(num_shapelets, out_channels)
-        self.linear.weight.register_hook(lambda grad: 100 * grad)
-        self.linear.bias.register_hook(lambda grad: 100 * grad)
-
-    def forward(self, times, X):
-        shapelet_similarity = self.shapelet_transform(times, X)
-        if self.ablation_log:
-            new_shapelet_similarity = (shapelet_similarity + 1e-5).log()
-        else:
-            new_shapelet_similarity = shapelet_similarity
-        out = self.linear(new_shapelet_similarity)
-        if out.size(-1) == 1:
-            out = out.squeeze(-1)
-        return out, shapelet_similarity, self.shapelet_transform.lengths, self.shapelet_transform.discrepancy_fn
-
-    def clip_length(self):
-        self.shapelet_transform.clip_length()
-
-    def set_shapelets(self, times, path):
-        self.shapelet_transform.reset_parameters(times, path)
-
-    def extra_repr(self):
-        return "ablation_log={}".format(self.ablation_log)
 
 
 class _TensorEncoder(json.JSONEncoder):
@@ -294,3 +319,95 @@ def save_results(result_folder, result_subfolder, results):
     num += 1
     with open(loc / str(num), 'w') as f:
         json.dump(result_to_save, f, cls=_TensorEncoder)
+
+
+def main(times,
+         train_dataloader,
+         val_dataloader,
+         test_dataloader,
+         num_classes,
+         input_channels,
+         result_folder,
+         result_subfolder,
+         epochs,
+         num_shapelets_per_class,
+         num_shapelet_samples,
+         discrepancy_fn,
+         max_shapelet_length_proportion,
+         num_continuous_samples,
+         ablation_pseudometric,
+         ablation_learntlengths,
+         ablation_similarreg,
+         old_shapelets):
+
+    if old_shapelets:
+        discrepancy_fn = 'piecewise_constant_L2_squared'
+        max_shapelet_length_proportion = 0.3
+        ablation_pseudometric = False
+        ablation_learntlengths = False
+        ablation_similarreg = False
+        num_continuous_samples = None
+        log = False
+    else:
+        log = True
+
+    # Select some sensible options based on the length of the dataset
+    timespan = times[-1] - times[0]
+    if max_shapelet_length_proportion is None:
+        max_shapelet_length_proportion = min((10 / timespan).sqrt(), 1)
+    max_shapelet_length = timespan * max_shapelet_length_proportion
+    if num_shapelet_samples is None:
+        num_shapelet_samples = int(max_shapelet_length_proportion * times.size(0))
+    if num_continuous_samples is None:
+        num_continuous_samples = times.size(0)
+
+    discrepancy_fn = _get_discrepancy_fn(discrepancy_fn, input_channels, ablation_pseudometric)
+
+    num_shapelets = num_shapelets_per_class * num_classes
+
+    if num_classes == 2:
+        out_channels = 1
+    else:
+        out_channels = num_classes
+
+    model = _LinearShapeletTransform(in_channels=input_channels,
+                                     out_channels=out_channels,
+                                     num_shapelets=num_shapelets,
+                                     num_shapelet_samples=num_shapelet_samples,
+                                     discrepancy_fn=discrepancy_fn,
+                                     max_shapelet_length=max_shapelet_length,
+                                     num_continuous_samples=num_continuous_samples,
+                                     log=log)
+
+    if old_shapelets:
+        new_lengths = torch.full_like(model.shapelet_transform.lengths, max_shapelet_length)
+        del model.shapelet_transform.lengths
+        model.shapelet_transform.register_buffer('lengths', new_lengths)
+
+    sample_batch = _get_sample_batch(train_dataloader, num_shapelets_per_class, num_shapelets)
+    model.set_shapelets(times.to('cpu'), sample_batch.to('cpu'))  # smart initialisation of shapelets
+
+    if not ablation_learntlengths:
+        model.shapelet_transform.lengths.requires_grad_(False)
+
+    if num_classes == 2:
+        loss_fn = torch.nn.functional.binary_cross_entropy_with_logits
+    else:
+        loss_fn = torch.nn.functional.cross_entropy
+
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.005)
+
+    history = _train_loop(train_dataloader, val_dataloader, model, times, optimizer, loss_fn, epochs, num_classes,
+                          ablation_similarreg)
+    results = _evaluate_model(train_dataloader, val_dataloader, test_dataloader, model, times, loss_fn, history,
+                              num_classes)
+    results.num_shapelets_per_class = num_shapelets_per_class
+    results.num_shapelet_samples = num_shapelet_samples
+    results.max_shapelet_length_proportion = max_shapelet_length_proportion
+    results.ablation_pseudometric = ablation_pseudometric
+    results.ablation_learntlengths = ablation_learntlengths
+    results.ablation_similarreg = ablation_similarreg
+    results.old_shapelets = old_shapelets
+    if result_folder is not None:
+        save_results(result_folder, result_subfolder, results)
+    return results

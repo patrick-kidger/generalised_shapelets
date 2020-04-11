@@ -1,11 +1,9 @@
 import collections as co
-import itertools as it
 import numpy as np
 import pathlib
 import sklearn.model_selection
 import sktime.utils.load_data
 import torch
-import torchshapelets
 
 import common
 
@@ -90,7 +88,7 @@ datasets_by_cost = ('ERing',
                     'EigenWorms')
 
 
-def get_data(dataset_name, missing_rate, device, noise_channels):
+def get_data(dataset_name, missing_rate, noise_channels):
     assert dataset_name in valid_dataset_names, "Must specify a valid dataset name."
 
     base_filename = here / 'data' / 'UEA' / 'Multivariate_ts' / dataset_name / dataset_name
@@ -110,13 +108,12 @@ def get_data(dataset_name, missing_rate, device, noise_channels):
 
     if noise_channels != 0:
         generator = torch.Generator().manual_seed(45678)
-        noise_X = torch.randn(all_X.size(0), all_X.size(1), noise_channels, dtype=all_X.dtype, device=all_X.device,
-                              generator=generator)
+        noise_X = torch.randn(all_X.size(0), all_X.size(1), noise_channels, dtype=all_X.dtype, generator=generator)
         all_X = torch.cat([all_X, noise_X], dim=2)
 
-    times = torch.linspace(0, all_X.size(1) - 1, all_X.size(1), dtype=all_X.dtype, device=device)
+    times = torch.linspace(0, all_X.size(1) - 1, all_X.size(1), dtype=all_X.dtype)
 
-    # Handle missingness
+    # Handle missingness: remove values and replace them with the linear interpolation of the non-missing points.
     if missing_rate > 0:
         generator = torch.Generator().manual_seed(56789)
         for batch_index in range(all_X.size(0)):
@@ -151,6 +148,10 @@ def get_data(dataset_name, missing_rate, device, noise_channels):
                     next_time = times[next_unremoved_point]
                     time = times[removed_point]
                     ratio = (time - prev_time) / (next_time - prev_time)
+                    if torch.isnan(prev_stream).any():
+                        raise ValueError
+                    if torch.isnan(next_stream).any():
+                        raise RuntimeError
                     stream[removed_point] = prev_stream + ratio * (next_stream - prev_stream)
 
     # Now fix the labels to be integers from 0 upwards
@@ -176,13 +177,6 @@ def get_data(dataset_name, missing_rate, device, noise_channels):
     test_X = common.normalise_data(test_X, train_X)
     train_X = common.normalise_data(train_X, train_X)
 
-    train_X = train_X.to(device)
-    train_y = train_y.to(device)
-    val_X = val_X.to(device)
-    val_y = val_y.to(device)
-    test_X = test_X.to(device)
-    test_y = test_y.to(device)
-
     train_dataset = torch.utils.data.TensorDataset(train_X, train_y)
     val_dataset = torch.utils.data.TensorDataset(val_X, val_y)
     test_dataset = torch.utils.data.TensorDataset(test_X, test_y)
@@ -199,266 +193,131 @@ def get_data(dataset_name, missing_rate, device, noise_channels):
     return times, train_dataloader, val_dataloader, test_dataloader, num_classes, input_channels
 
 
-def main(dataset_name, missing_rate=0., noise_channels=0,  # dataset parameters
-         result_folder=None, result_subfolder=None,        # saving parameters
-         epochs=1000, device='cpu',                        # training parameters
-         num_shapelets_per_class=3,                        # model parameters
-         num_shapelet_samples=None,                        #
-         discrepancy_fn='L2',                              #
-         max_shapelet_length_proportion=1.0,               #
-         num_continuous_samples=None,                      #
-         ablation_init=True,                               # For ablation studies
-         ablation_log=True,                                #
-         ablation_pseudometric=True,                       #
-         ablation_learntlengths=True,                      #
-         ablation_similarreg=True,                         #
-         ablation_lengthreg=False,                         #
-         ablation_pseudoreg=False,                         #
-         old_shapelets=False):                             # Whether to toggle off all of our innovations and use
-                                                           # old-style shapelets.
+def main(dataset_name,                        # dataset parameters
+         missing_rate=0.,                     #
+         noise_channels=0,                    #
+         result_folder=None,                  # saving parameters
+         result_subfolder=None,               #
+         epochs=1000,                         # training parameters
+         num_shapelets_per_class=3,           # model parameters
+         num_shapelet_samples=None,           #
+         discrepancy_fn='L2',                 #
+         max_shapelet_length_proportion=1.0,  #
+         num_continuous_samples=None,         #
+         ablation_pseudometric=True,          # For ablation studies
+         ablation_learntlengths=True,         #
+         ablation_similarreg=True,            #
+         old_shapelets=False):                # Whether to toggle off all of our innovations and use old-style shapelets
 
-    (times, train_dataloader, val_dataloader, test_dataloader, num_classes, input_channels) = get_data(dataset_name,
-                                                                                                       missing_rate,
-                                                                                                       device,
-                                                                                                       noise_channels)
+    times, train_dataloader, val_dataloader, test_dataloader, num_classes, input_channels = get_data(dataset_name,
+                                                                                                     missing_rate,
+                                                                                                     noise_channels)
 
-    assert times.is_floating_point(), "Whoops, times isn't floating point."
-
-    if old_shapelets:
-        discrepancy_fn = 'L2_squared'
-        max_shapelet_length_proportion = 0.3
-        ablation_log = False
-        ablation_pseudometric = False
-        ablation_learntlengths = False
-        ablation_similarreg = False
-        ablation_lengthreg = False
-        ablation_pseudoreg = False
-        num_continuous_samples = None
-
-    # Select some sensible options based on the length of the dataset
-    timespan = times[-1] - times[0]
-    if max_shapelet_length_proportion is None:
-        max_shapelet_length_proportion = min((10 / timespan).sqrt(), 1)
-    max_shapelet_length = timespan * max_shapelet_length_proportion
-    if num_shapelet_samples is None:
-        num_shapelet_samples = int(max_shapelet_length_proportion * times.size(0))
-    if num_continuous_samples is None:
-        num_continuous_samples = times.size(0)
-
-    if discrepancy_fn == 'L2':
-        discrepancy_fn = torchshapelets.L2Discrepancy(in_channels=input_channels, pseudometric=ablation_pseudometric)
-    elif discrepancy_fn == 'L2_squared':
-        def discrepancy_fn(times, path, shapelet):
-            return ((path - shapelet) ** 2).sum(dim=(-1, -2))
-        discrepancy_fn.parameters = lambda: []
-    elif discrepancy_fn == 'DTW':
-        def discrepancy_fn(times, path, shapelet):
-            memo = [[torch.tensor(float('inf'), dtype=path.dtype, device=path.device)
-                     for _ in range(path.size(-2) + 1)]
-                    for _ in range(shapelet.size(-2) + 1)]
-            memo[0][0] = torch.tensor(0, dtype=path.dtype, device=path.device)
-            for i in range(path.size(-2)):
-                for j in range(shapelet.size(-2)):
-                    cost = (path[..., i, :] - shapelet[j, :]).norm(dim=-1)
-                    memo[i + 1][j + 1] = cost + torch.min(torch.min(memo[i][j + 1], memo[i + 1][j]), memo[i][j])
-            return memo[-1][-1]
-        discrepancy_fn.parameters = lambda: []
-    elif 'logsig' in discrepancy_fn:
-        # expects e.g. 'logsig-4'
-        split_desc = discrepancy_fn.split('-')
-        assert len(split_desc) == 2
-        assert split_desc[0] == 'logsig'
-        depth = int(split_desc[1])
-        discrepancy_fn = torchshapelets.LogsignatureDiscrepancy(in_channels=input_channels, depth=depth,
-                                                                pseudometric=ablation_pseudometric)
-
-    num_shapelets = num_shapelets_per_class * num_classes
-
-    if num_classes == 2:
-        out_channels = 1
-    else:
-        out_channels = num_classes
-
-    model = common.LinearShapeletTransform(in_channels=input_channels,
-                                           out_channels=out_channels,
-                                           num_shapelets=num_shapelets,
-                                           num_shapelet_samples=num_shapelet_samples,
-                                           discrepancy_fn=discrepancy_fn,
-                                           max_shapelet_length=max_shapelet_length,
-                                           num_continuous_samples=num_continuous_samples,
-                                           ablation_log=ablation_log)
-
-    if old_shapelets:
-        new_lengths = torch.full_like(model.shapelet_transform.lengths, max_shapelet_length)
-        del model.shapelet_transform.lengths
-        model.shapelet_transform.register_buffer('lengths', new_lengths)
-    if ablation_init:
-        sample_batch = common.get_sample_batch(train_dataloader, num_shapelets_per_class, num_shapelets)
-        model.set_shapelets(times.to('cpu'), sample_batch.to('cpu'))  # smart initialisation of shapelets
-    if not ablation_learntlengths:
-        model.shapelet_transform.lengths.requires_grad_(False)
-
-    if num_classes == 2:
-        loss_fn = torch.nn.functional.binary_cross_entropy_with_logits
-    else:
-        loss_fn = torch.nn.functional.cross_entropy
-    model = model.to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.005)
-
-    history = common.train_loop(train_dataloader, val_dataloader, model, times, optimizer, loss_fn, epochs, num_classes,
-                                ablation_similarreg, ablation_lengthreg, ablation_pseudoreg)
-    results = common.evaluate_model(train_dataloader, val_dataloader, test_dataloader, model, times, loss_fn, history,
-                                    num_classes)
-    results.noise_channels = noise_channels
-    results.num_shapelets_per_class = num_shapelets_per_class
-    results.num_shapelet_samples = num_shapelet_samples
-    results.max_shapelet_length_proportion = max_shapelet_length_proportion
-    results.ablation_init = ablation_init
-    results.ablation_log = ablation_log
-    results.ablation_pseudometric = ablation_pseudometric
-    results.ablation_learntlengths = ablation_learntlengths
-    results.ablation_similarreg = ablation_similarreg
-    results.ablation_lengthreg = ablation_lengthreg
-    results.ablation_pseudoreg = ablation_pseudoreg
-    results.old_shapelets = old_shapelets
-    if result_folder is not None:
-        common.save_results(result_folder, result_subfolder, results)
-    return results
+    return common.main(times,
+                       train_dataloader,
+                       val_dataloader,
+                       test_dataloader,
+                       num_classes,
+                       input_channels,
+                       result_folder,
+                       result_subfolder,
+                       epochs,
+                       num_shapelets_per_class,
+                       num_shapelet_samples,
+                       discrepancy_fn,
+                       max_shapelet_length_proportion,
+                       num_continuous_samples,
+                       ablation_pseudometric,
+                       ablation_learntlengths,
+                       ablation_similarreg,
+                       old_shapelets)
 
 
 def comparison_test():
     result_folder = 'uea_comparison'
+    # Note that the most expensive datasets really will take a phenomenally long time to do, so be prepared to control-C
+    # this at some point.
     for dataset_name in datasets_by_cost:
         pseudometric = dataset_name in large_datasets
         print("Starting comparison: L2, " + dataset_name)
         main(dataset_name,
              result_folder=result_folder,
              result_subfolder=dataset_name+'-L2',
-             missing_rate=0.,
              discrepancy_fn='L2',
-             old_shapelets=False,
+             ablation_pseudometric=pseudometric)
+        print("Starting comparison: L2_squared, " + dataset_name)
+        main(dataset_name,
+             result_folder=result_folder,
+             result_subfolder=dataset_name + '-L2',
+             discrepancy_fn='L2_squared',
              ablation_pseudometric=pseudometric)
         print("Starting comparison: logsig-3, " + dataset_name)
         main(dataset_name,
              result_folder=result_folder,
              result_subfolder=dataset_name + '-logsig-3',
-             missing_rate=0.,
              discrepancy_fn='logsig-3',
-             old_shapelets=False,
              ablation_pseudometric=pseudometric)
         print("Starting comparison: old-L2_squared, " + dataset_name)
         main(dataset_name,
              result_folder=result_folder,
              result_subfolder=dataset_name + '-old-L2_squared',
-             missing_rate=0.,
-             num_shapelets_per_class=3,
              discrepancy_fn='L2_squared',
-             old_shapelets=True,
-             ablation_pseudometric=pseudometric)
+             ablation_pseudometric=pseudometric,
+             old_shapelets=True)
 
 
-standard_dataset_names = ('StandWalkJump', 'PenDigits', 'LSST', 'PEMS-SF')
+standard_dataset_names = ('JapaneseVowels', 'BasicMotions', 'FingerMovements')
 
 
 def missing_rate_test():
     result_folder = 'uea_missingness'
     for dataset_name in standard_dataset_names:
-        for missing_rate in (0.3, 0.5, 0.7):
+        for missing_rate in (0.1, 0.3, 0.5):
             result_subfolder = dataset_name + str(int(missing_rate * 100))
-            print("Starting comparison: L2, " + result_subfolder)
-            main(dataset_name,
-                 result_folder=result_folder,
-                 result_subfolder=result_subfolder + '-L2',
-                 missing_rate=missing_rate,
-                 discrepancy_fn='L2',
-                 old_shapelets=False)
-            print("Starting comparison: logsig-3, " + result_subfolder)
-            main(dataset_name,
-                 result_folder=result_folder,
-                 result_subfolder=result_subfolder + '-logsig-3',
-                 missing_rate=missing_rate,
-                 discrepancy_fn='logsig-3',
-                 old_shapelets=False)
-
-
-def ablation_test():
-    result_folder = 'uea_ablation'
-    for dataset_name in standard_dataset_names:
-        print("Starting comparison: init-L2, " + dataset_name)
-        main(dataset_name,
-             result_folder=result_folder,
-             result_subfolder=dataset_name + '-init-L2',
-             missing_rate=0.,
-             discrepancy_fn='L2',
-             ablation_init=False)
-        print("Starting comparison: init-logsig-3, " + dataset_name)
-        main(dataset_name,
-             result_folder=result_folder,
-             result_subfolder=dataset_name + '-init-logsig-3',
-             missing_rate=0.,
-             discrepancy_fn='logsig-3',
-             ablation_init=False)
-        print("Starting comparison: log-L2, " + dataset_name)
-        main(dataset_name,
-             result_folder=result_folder,
-             result_subfolder=dataset_name + '-log-L2',
-             missing_rate=0.,
-             discrepancy_fn='L2',
-             ablation_log=False)
-        print("Starting comparison: log-logsig-3, " + dataset_name)
-        main(dataset_name,
-             result_folder=result_folder,
-             result_subfolder=dataset_name + '-log-logsig-3',
-             missing_rate=0.,
-             discrepancy_fn='logsig-3',
-             ablation_log=False)
-        print("Starting comparison: pseudometric-L2, " + dataset_name)
-        main(dataset_name,
-             result_folder=result_folder,
-             result_subfolder=dataset_name + '-pseudometric-L2',
-             missing_rate=0.,
-             discrepancy_fn='L2',
-             ablation_pseudometric=False)
-        print("Starting comparison: pseudometric-logsig-3, " + dataset_name)
-        main(dataset_name,
-             result_folder=result_folder,
-             result_subfolder=dataset_name + '-pseudometric-logsig-3',
-             missing_rate=0.,
-             discrepancy_fn='logsig-3',
-             ablation_pseudometric=False)
-        print("Starting comparison: learntlengths-L2, " + dataset_name)
-        main(dataset_name,
-             result_folder=result_folder,
-             result_subfolder=dataset_name + '-learntlengths-L2',
-             missing_rate=0.,
-             discrepancy_fn='L2',
-             ablation_learntlengths=False)
-        print("Starting comparison: learntlengths-logsig-3, " + dataset_name)
-        main(dataset_name,
-             result_folder=result_folder,
-             result_subfolder=dataset_name + '-learntlengths-logsig-3',
-             missing_rate=0.,
-             discrepancy_fn='logsig-3',
-             ablation_learntlengths=False)
+            for discrepancy_fn in ('L2', 'L2_squared', 'logsig-3'):
+                run_subfolder = result_subfolder + '-' + discrepancy_fn
+                print("Starting comparison: " + run_subfolder)
+                main(dataset_name,
+                     result_folder=result_folder,
+                     result_subfolder=run_subfolder,
+                     missing_rate=missing_rate,
+                     discrepancy_fn=discrepancy_fn)
 
 
 def noise_test():
     result_folder = 'uea_noise'
     for dataset_name in standard_dataset_names:
         for noise_channels in (3, 9, 30):
-            print("Starting comparison: L2, " + dataset_name + str(noise_channels))
-            main(dataset_name,
-                 noise_channels=noise_channels,
-                 result_folder=result_folder,
-                 result_subfolder=dataset_name + str(noise_channels) + '-L2',
-                 missing_rate=0.,
-                 discrepancy_fn='L2',
-                 ablation_init=False)
-            print("Starting comparison: logsig-3, " + dataset_name + str(noise_channels))
-            main(dataset_name,
-                 noise_channels=noise_channels,
-                 result_folder=result_folder,
-                 result_subfolder=dataset_name + str(noise_channels) + '-logsig-3',
-                 missing_rate=0.,
-                 discrepancy_fn='logsig-3',
-                 ablation_init=False)
+            result_subfolder = dataset_name + str(noise_channels)
+            for discrepancy_fn in ('L2',):
+                for pseudometric in (True, False):
+                    run_subfolder = result_subfolder + '-' + discrepancy_fn + '-' + str(pseudometric)
+                    print("Starting comparison: " + run_subfolder)
+                    main(dataset_name,
+                         noise_channels=noise_channels,
+                         result_folder=result_folder,
+                         result_subfolder=run_subfolder,
+                         discrepancy_fn=discrepancy_fn,
+                         ablation_pseudometric=pseudometric)
+                run_subfolder = result_subfolder + '-old-' + discrepancy_fn
+                print("Starting comparison: " + run_subfolder)
+                main(dataset_name,
+                     noise_channels=noise_channels,
+                     result_folder=result_folder,
+                     result_subfolder=run_subfolder,
+                     discrepancy_fn=discrepancy_fn,
+                     old_shapelets=True)
+
+
+def length_test():
+    result_folder = 'uea_length'
+    for dataset_name in standard_dataset_names:
+        for discrepancy_fn in ('L2',):
+            for learnt_lengths in (True, False):
+                run_subfolder = dataset_name + '-' + discrepancy_fn + str(learnt_lengths)
+                print("Starting comparison: " + run_subfolder)
+                main(dataset_name,
+                     result_folder=result_folder,
+                     result_subfolder=run_subfolder,
+                     discrepancy_fn=discrepancy_fn,
+                     ablation_learntlengths=learnt_lengths)

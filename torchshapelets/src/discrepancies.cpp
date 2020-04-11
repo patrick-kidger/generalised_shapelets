@@ -8,6 +8,11 @@
 
 namespace torchshapelets {
     torch::Tensor l2_discrepancy(torch::Tensor times, torch::Tensor path1, torch::Tensor path2, torch::Tensor linear) {
+        return l2_discrepancy_squared(times, path1, path2, linear).sqrt();
+    }
+
+    torch::Tensor l2_discrepancy_squared(torch::Tensor times, torch::Tensor path1, torch::Tensor path2,
+                                         torch::Tensor linear) {
         // times has shape (length,)
         // path1 and path2 have shape (..., length, channels)
         // linear has shape (channels, channels), or should just be passed as an empty Tensor().
@@ -29,7 +34,6 @@ namespace torchshapelets {
         auto second_term = (next_path * prev_path).sum(/*dim=*/-1);  // sum down channel dim
         auto combine = (first_term + second_term) * (next_times - prev_times);
         auto out = combine.sum(/*dim=*/-1);  // sum down length dim
-        out = out.relu();  // In principle floating point errors could result in something slightly negative here?
-        return out.sqrt();
+        return out.relu();  // In principle floating point errors could result in something slightly negative here?
     }
 }  // namespace torchshapelets

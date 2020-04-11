@@ -73,6 +73,26 @@ class L2Discrepancy(CppDiscrepancy):
     def extra_repr(self):
         return "in_channels={}, pseudometric={}".format(self.in_channels, self.pseudometric)
 
+
+class L2DiscrepancySquared(CppDiscrepancy):
+    fn = _impl.l2_discrepancy_squared
+
+    def __init__(self, in_channels, pseudometric=True):
+        super(L2DiscrepancySquared, self).__init__()
+
+        self.in_channels = in_channels
+        self.pseudometric = pseudometric
+
+        if pseudometric:
+            linear = torch.empty(in_channels, in_channels, requires_grad=True)
+            torch.nn.init.kaiming_uniform_(linear, a=math.sqrt(5))
+            self.arg = torch.nn.Parameter(linear)
+        else:
+            self.arg = torch.nn.Parameter(torch.Tensor())
+
+    def extra_repr(self):
+        return "in_channels={}, pseudometric={}".format(self.in_channels, self.pseudometric)
+
         
 class LogsignatureDiscrepancy(torch.nn.Module):
     """Calculates the p-logsignature distance between two paths."""

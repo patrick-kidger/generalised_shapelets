@@ -54,27 +54,29 @@ shapelet_similarity = transform(times, path)
 ```
 
 ### CPU vs GPU
-We generally recommend computing the shaplet transform on the CPU. It should work on the GPU, but the implementation isn't optimised for this case.
+This is specifically written to operate on the CPU, and will probably crash if you try to run it on the GPU.
 
-(If you want to build this into a deep learning model which is mostly on the GPU, then that's fine - just pass the tensors from one to the other in the usual way for PyTorch.)
+That this is the case is just an implementation limitation - computing shapelets is a massively parallel and therefore GPU-friendly operation, with the potential to parallelise over batch, over different shapelets, and over the continuous-minimum operation. But there's no easy way to write this parallelisation using just PyTorch (for the general case of irregularly sampled data), so this would need a custom GPU kernel.
+
+If you do want to build this into a deep learning model which is mostly on the GPU, then that is doable by passing the tensors between the CPU and GPU in the usual way for PyTorch.
 
 ### Full API
 Available objects are:
 ```python
 torchshapelets.GeneralisedShapeletTransform
 
+torchshapelets.CppDiscrepancy
 torchshapelets.L2Discrepancy
+torchshapelets.L2DiscrepancySquared
 torchshapelets.LogsignatureDiscrepancy
 
 torchshapelets.similarity_regularisation
-torchshapelets.length_regularisation
-torchshapelets.pseudometric_regularisation
 ```
 In brief: a discrepancy function such as `L2Discrepancy` or `LogsignatureDiscrepancy` describes how to compute the similarity between a shapelet, and a small piece of a path of equal length.
 
 This is then an argument to the `GeneralisedShapeletTransform`. This is then capable of computing the the discrepancy between a full path and a shapelet, for each shapelet, in a parallelisable manner.
 
-The regularisation options will help ensure that the shapelets that are learnt are in fact interpretable (rather than just being random-looking).
+The regularisation will help ensure that the shapelets that are learnt are in fact interpretable (rather than just being random-looking).
 
 Check their docstrings and the paper TODO for more details.
 

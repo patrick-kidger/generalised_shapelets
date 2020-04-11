@@ -4,7 +4,6 @@ import pathlib
 import sklearn.model_selection
 import sktime.utils.load_data
 import torch
-import torchshapelets
 
 import common
 
@@ -170,6 +169,7 @@ electric_device_datasets = ('CinCECGtorso', 'ECG200', 'ECG5000', 'ECGFiveDays', 
 irregular_length_datasets = {'PickupGestureWiimoteZ', 'ShakeGestureWiimoteZ', 'GesturePebbleZ1', 'GesturePebbleZ2',
                              'AllGestureWiimoteX', 'AllGestureWiimoteY', 'AllGestureWiimoteZ', 'PLAID'}
 
+# Possibly others as well? We didn't go far enough down the list to run into any others though.
 missing_data_datasets = {'DodgerLoopGame', 'DodgerLoopWeekend'}
 
 # Ordered by dataset size * num_classes * length ** 2, i.e. the cost of evaluating shaplets on them.
@@ -303,7 +303,7 @@ datasets_by_cost = ('Chinatown',
                     'NonInvasiveFetalECGThorax2')
 
 
-def get_data(dataset_name, device):
+def get_data(dataset_name):
     assert dataset_name in valid_dataset_names, "Must specify a valid dataset name."
 
     base_filename = here / 'data' / 'UCR' / 'Univariate_ts' / dataset_name / dataset_name
@@ -321,7 +321,7 @@ def get_data(dataset_name, device):
     all_X = torch.stack([torch.stack([_pad(channel, maxlen) for channel in batch], dim=0) for batch in all_X], dim=0)
     all_X = all_X.transpose(-1, -2)
 
-    times = torch.linspace(0, all_X.size(1) - 1, all_X.size(1), dtype=all_X.dtype, device=device)
+    times = torch.linspace(0, all_X.size(1) - 1, all_X.size(1), dtype=all_X.dtype)
 
     # Now fix the labels to be integers from 0 upwards
     targets = co.OrderedDict()
@@ -331,8 +331,6 @@ def get_data(dataset_name, device):
             targets[yi] = counter
             counter += 1
     all_y = torch.tensor([targets[yi] for yi in all_y])
-
-    missing_data = torch.isnan(all_X).any()
 
     # use original train/test splits
     trainval_X, test_X = all_X[:amount_train], all_X[amount_train:]
@@ -367,13 +365,6 @@ def get_data(dataset_name, device):
     test_X = common.normalise_data(test_X, train_X)
     train_X = common.normalise_data(train_X, train_X)
 
-    train_X = train_X.to(device)
-    train_y = train_y.to(device)
-    val_X = val_X.to(device)
-    val_y = val_y.to(device)
-    test_X = test_X.to(device)
-    test_y = test_y.to(device)
-
     train_dataset = torch.utils.data.TensorDataset(train_X, train_y)
     val_dataset = torch.utils.data.TensorDataset(val_X, val_y)
     test_dataset = torch.utils.data.TensorDataset(test_X, test_y)
@@ -386,132 +377,55 @@ def get_data(dataset_name, device):
 
     assert num_classes >= 2, "Have only {} classes.".format(num_classes)
 
-    return times, train_dataloader, val_dataloader, test_dataloader, num_classes, missing_data
+    return times, train_dataloader, val_dataloader, test_dataloader, num_classes
 
 
-def main(dataset_name,                         # dataset parameters
-         result_folder=None, result_subfolder=None,      # saving parameters
-         epochs=1000, device='cpu',            # training parameters
-         num_shapelets_per_class=4,            # model parameters
-         num_shapelet_samples=None,            #
-         discrepancy_fn='L2',                  #
-         max_shapelet_length_proportion=1.0,   #
-         num_continuous_samples=None,          #
-         ablation_init=True,                   # For ablation studies
-         ablation_log=True,                    #
-         ablation_pseudometric=True,           #
-         ablation_learntlengths=True,          #
-         ablation_similarreg=True,             #
-         ablation_lengthreg=False,             #
-         ablation_pseudoreg=False,             #
-         old_shapelets=False):                 # Whether to toggle off all of our innovations and use old-style
-                                               # shapelets.
+def main(dataset_name,                        # dataset parameters
+         result_folder=None,                  # saving parameters
+         result_subfolder=None,               #
+         epochs=1000,                         # training parameters
+         num_shapelets_per_class=4,           # model parameters
+         num_shapelet_samples=None,           #
+         discrepancy_fn='L2',                 #
+         max_shapelet_length_proportion=1.0,  #
+         num_continuous_samples=None,         #
+         ablation_pseudometric=True,          # For ablation studies
+         ablation_learntlengths=True,         #
+         ablation_similarreg=True,            #
+         old_shapelets=False):                # Whether to toggle off all of our innovations and use old-style shapelets
 
-    (times, train_dataloader, val_dataloader, test_dataloader, num_classes, missing_data) = get_data(dataset_name,
-                                                                                                     device)
-
+    times, train_dataloader, val_dataloader, test_dataloader, num_classes = get_data(dataset_name)
     input_channels = 1
 
-    assert times.is_floating_point(), "Whoops, times isn't floating point."
-
-    if old_shapelets:
-        discrepancy_fn = 'L2_squared'
-        max_shapelet_length_proportion = 0.3
-        ablation_log = False
-        ablation_pseudometric = False
-        ablation_learntlengths = False
-        ablation_similarreg = False
-        ablation_lengthreg = False
-        ablation_pseudoreg = False
-        num_continuous_samples = None
-
-    # Select some sensible options based on the length of the dataset
-    timespan = times[-1] - times[0]
-    if max_shapelet_length_proportion is None:
-        max_shapelet_length_proportion = min((10 / timespan).sqrt(), 1)
-    max_shapelet_length = timespan * max_shapelet_length_proportion
-    if num_shapelet_samples is None:
-        num_shapelet_samples = int(max_shapelet_length_proportion * times.size(0))
-    if num_continuous_samples is None:
-        num_continuous_samples = times.size(0)
-
-    if discrepancy_fn == 'L2':
-        discrepancy_fn = torchshapelets.L2Discrepancy(in_channels=input_channels, pseudometric=ablation_pseudometric)
-    elif discrepancy_fn == 'L2_squared':
-        def discrepancy_fn(times, path, shapelet):
-            # Note that this treats the inputs as piecewise constant, not piecewise linear.
-            return ((path - shapelet) ** 2).sum(dim=(-1, -2))
-        discrepancy_fn.parameters = lambda: []
-    elif 'logsig' in discrepancy_fn:
-        # expects e.g. 'logsig-4'
-        split_desc = discrepancy_fn.split('-')
-        assert len(split_desc) == 2
-        assert split_desc[0] == 'logsig'
-        depth = int(split_desc[1])
-        discrepancy_fn = torchshapelets.LogsignatureDiscrepancy(in_channels=input_channels, depth=depth,
-                                                                pseudometric=ablation_pseudometric)
-
-    num_shapelets = num_shapelets_per_class * num_classes
-
-    if num_classes == 2:
-        out_channels = 1
-    else:
-        out_channels = num_classes
-
-    model = common.LinearShapeletTransform(in_channels=input_channels,
-                                           out_channels=out_channels,
-                                           num_shapelets=num_shapelets,
-                                           num_shapelet_samples=num_shapelet_samples,
-                                           discrepancy_fn=discrepancy_fn,
-                                           max_shapelet_length=max_shapelet_length,
-                                           num_continuous_samples=num_continuous_samples,
-                                           ablation_log=ablation_log)
-
-    if old_shapelets:
-        new_lengths = torch.full_like(model.shapelet_transform.lengths, max_shapelet_length)
-        del model.shapelet_transform.lengths
-        model.shapelet_transform.register_buffer('lengths', new_lengths)
-    if ablation_init:
-        sample_batch = common.get_sample_batch(train_dataloader, num_shapelets_per_class, num_shapelets)
-        model.set_shapelets(times.to('cpu'), sample_batch.to('cpu'))  # smart initialisation of shapelets
-    if not ablation_learntlengths:
-        model.shapelet_transform.lengths.requires_grad_(False)
-
-    if num_classes == 2:
-        loss_fn = torch.nn.functional.binary_cross_entropy_with_logits
-    else:
-        loss_fn = torch.nn.functional.cross_entropy
-
-    model = model.to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.005)
-
-    history = common.train_loop(train_dataloader, val_dataloader, model, times, optimizer, loss_fn, epochs, num_classes,
-                                ablation_similarreg, ablation_lengthreg, ablation_pseudoreg)
-    results = common.evaluate_model(train_dataloader, val_dataloader, test_dataloader, model, times, loss_fn, history,
-                                    num_classes)
-    results.num_shapelets_per_class = num_shapelets_per_class
-    results.num_shapelet_samples = num_shapelet_samples
-    results.max_shapelet_length_proportion = max_shapelet_length_proportion
-    results.ablation_init = ablation_init
-    results.ablation_log = ablation_log
-    results.ablation_pseudometric = ablation_pseudometric
-    results.ablation_learntlengths = ablation_learntlengths
-    results.ablation_similarreg = ablation_similarreg
-    results.ablation_lengthreg = ablation_lengthreg
-    results.ablation_pseudoreg = ablation_pseudoreg
-    results.old_shapelets = old_shapelets
-    if result_folder is not None:
-        common.save_results(result_folder, result_subfolder, results)
-    return results
+    return common.main(times,
+                       train_dataloader,
+                       val_dataloader,
+                       test_dataloader,
+                       num_classes,
+                       input_channels,
+                       result_folder,
+                       result_subfolder,
+                       epochs,
+                       num_shapelets_per_class,
+                       num_shapelet_samples,
+                       discrepancy_fn,
+                       max_shapelet_length_proportion,
+                       num_continuous_samples,
+                       ablation_pseudometric,
+                       ablation_learntlengths,
+                       ablation_similarreg,
+                       old_shapelets)
 
 
 def comparison_test():
     pseudometric = False  # meaningless in one dimension
     result_folder = 'ucr_comparison'
+    # Note that the most expensive datasets really will take a phenomenally long time to do, so be prepared to control-C
+    # this at some point.
     for dataset_name in datasets_by_cost:
         # We're actually perfectly capable of handling irregular lengths, but they're a pain to batch over.
-        # Similarly we can handle missing data (see the UEA experiment), but for simplicity we leave them out of our
-        # large-scale study.
+        # Similarly we can handle missing data (see the UEA experiment), but for simplicity we leave them out of this
+        # study
         if dataset_name in irregular_length_datasets | missing_data_datasets:
             continue
         print("Starting comparison: L2, " + dataset_name)
@@ -519,20 +433,23 @@ def comparison_test():
              result_folder=result_folder,
              result_subfolder=dataset_name+'-L2',
              discrepancy_fn='L2',
-             old_shapelets=False,
+             ablation_pseudometric=pseudometric)
+        print("Starting comparison: L2_squared, " + dataset_name)
+        main(dataset_name,
+             result_folder=result_folder,
+             result_subfolder=dataset_name + '-L2_squared',
+             discrepancy_fn='L2_squared',
              ablation_pseudometric=pseudometric)
         print("Starting comparison: logsig-3, " + dataset_name)
         main(dataset_name,
              result_folder=result_folder,
              result_subfolder=dataset_name + '-logsig-3',
              discrepancy_fn='logsig-3',
-             old_shapelets=False,
              ablation_pseudometric=pseudometric)
         print("Starting comparison: old-L2_squared, " + dataset_name)
         main(dataset_name,
              result_folder=result_folder,
              result_subfolder=dataset_name + '-old-L2_squared',
-             num_shapelets_per_class=3,
              discrepancy_fn='L2_squared',
              old_shapelets=True,
              ablation_pseudometric=pseudometric)

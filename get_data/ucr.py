@@ -8,7 +8,13 @@ here = pathlib.Path(__file__).resolve().parent
 
 
 def main():
-    base_loc = str(here / '../experiments/data/UCR')
+    base_base_loc = str(here / '../experiments/data')
+    if not os.path.exists(base_base_loc):
+        raise RuntimeError("data directory does not exist. Please create a directory called 'data' in the 'experiments'"
+                           " directory. (We're going to put a lot of data there, so we don't make it automatically - "
+                           "thus giving you the opportunity to make it a symlink rather than a normal directory, so "
+                           "that the data can be stored elsewhere if you wish.)")
+    base_loc = base_base_loc + '/UCR'
     loc = base_loc + '/Univariate2018_ts.zip'
     if os.path.exists(loc):
         return

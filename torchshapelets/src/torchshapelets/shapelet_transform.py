@@ -94,6 +94,11 @@ class GeneralisedShapeletTransform(torch.nn.Module):
         # times is of shape (length,)
         # path is of shape (..., length, in_channels)
 
+        if not torch.isfinite(path).any():
+            # Done in Python as there's no torch::isfinite in the C++
+            # We explicitly check this because otherwise the error message that results is perfectly unhelpful.
+            raise ValueError('path cannot have non-finite values.')
+
         if isinstance(self.discrepancy_fn, discrepancies.CppDiscrepancy):
             discrepancy_fn = self.discrepancy_fn.fn
             discrepancy_arg = self.discrepancy_fn.arg

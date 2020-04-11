@@ -29,6 +29,9 @@ namespace torchshapelets {
     // i.e. the L2 norm of Af - Ag.
     // Which will be a tensor of shape (...).
     torch::Tensor l2_discrepancy(torch::Tensor times, torch::Tensor path1, torch::Tensor path2, torch::Tensor linear);
+
+    torch::Tensor l2_discrepancy_squared(torch::Tensor times, torch::Tensor path1, torch::Tensor path2,
+                                         torch::Tensor linear);
 }  // namespace torchshapelets
 
 #endif //TORCHSHAPELETS_DISCREPANCIES_HPP
