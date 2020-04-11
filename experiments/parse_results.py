@@ -2,25 +2,22 @@ import collections as co
 import json
 import os
 import pathlib
+import statistics
 import sys
 
 
 here = pathlib.Path(__file__).resolve().parent
 
 
-def get(filename):
-    with open(filename, 'r') as f:
-        content = json.load(f)
-    return content['test_metrics']['accuracy']
+def get(foldername):
+    for filename in os.listdir(foldername):
+        with open(foldername / filename, 'r') as f:
+            content = json.load(f)
+        yield content['test_metrics']['accuracy']
 
 
-def main(dataset):
-    if dataset == 'uea':
-        dataset_folder = here / 'results' / 'uea_comparison'
-    elif dataset == 'ucr':
-        dataset_folder = here / 'results' / 'ucr_comparison'
-    else:
-        raise ValueError
+def main(dataset_folder):
+    dataset_folder = here / 'results' / dataset_folder
 
     results = {}
     for foldername in os.listdir(dataset_folder):
@@ -29,13 +26,12 @@ def main(dataset):
         regularisation = foldername_split[1]
         if dataset_name not in results:
             results[dataset_name] = {}
-        results[dataset_name][regularisation] = get(dataset_folder / foldername / '0')
+        results[dataset_name][regularisation] = statistics.mean(get(dataset_folder / foldername))
 
-    for dataset_name, result in results.copy().items():
-        if len(result) != 4:
-            del results[dataset_name]
-        else:
-            headings = list(result.keys())
+    headings = co.OrderedDict()  # Used as an ordered set here
+    for result in results.values():
+        for key in result:
+            headings[key] = None
 
     results = co.OrderedDict(sorted(results.items(), key=lambda x: x[0]))
 
@@ -52,7 +48,7 @@ def main(dataset):
     for dataset_name, result in results.items():
         print('{{:{}}}'.format(dataset_column_width).format(dataset_name), end='')
         for heading in headings:
-            print('| {{:{}.3f}} '.format(column_width).format(result[heading]), end='')
+            print('| {{:{}.3f}} '.format(column_width).format(result.get(heading, float('nan'))), end='')
         print('')
     print('-' * dataset_column_width, end='')
     for _ in headings:
@@ -60,7 +56,7 @@ def main(dataset):
     print('')
     print('{{:{}}}'.format(dataset_column_width).format('Wins'), end='')
 
-    wins = co.defaultdict(int)
+    wins = {k: 0 for k in headings}
     for dataset_name, result in results.items():
         max_regularisation_name = None
         max_regularisation_value = -1.

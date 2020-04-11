@@ -138,6 +138,7 @@ def get_data(dataset_name, missing_rate, noise_channels):
                         next_unremoved_point = removed_point + 1
                     next_removed_point = removed_point
                     next_unremoved_points.append(next_unremoved_point)
+                next_unremoved_points = reversed(next_unremoved_points)
                 for prev_unremoved_point, removed_point, next_unremoved_point in zip(prev_unremoved_points,
                                                                                      removed_points,
                                                                                      next_unremoved_points):
@@ -148,10 +149,6 @@ def get_data(dataset_name, missing_rate, noise_channels):
                     next_time = times[next_unremoved_point]
                     time = times[removed_point]
                     ratio = (time - prev_time) / (next_time - prev_time)
-                    if torch.isnan(prev_stream).any():
-                        raise ValueError
-                    if torch.isnan(next_stream).any():
-                        raise RuntimeError
                     stream[removed_point] = prev_stream + ratio * (next_stream - prev_stream)
 
     # Now fix the labels to be integers from 0 upwards
@@ -220,7 +217,7 @@ def main(dataset_name,                        # dataset parameters
                        num_classes,
                        input_channels,
                        result_folder,
-                       result_subfolder,
+                       dataset_name + '-' + result_subfolder,
                        epochs,
                        num_shapelets_per_class,
                        num_shapelet_samples,
@@ -242,25 +239,25 @@ def comparison_test():
         print("Starting comparison: L2, " + dataset_name)
         main(dataset_name,
              result_folder=result_folder,
-             result_subfolder=dataset_name+'-L2',
+             result_subfolder='L2',
              discrepancy_fn='L2',
              ablation_pseudometric=pseudometric)
         print("Starting comparison: L2_squared, " + dataset_name)
         main(dataset_name,
              result_folder=result_folder,
-             result_subfolder=dataset_name + '-L2',
+             result_subfolder='L2',
              discrepancy_fn='L2_squared',
              ablation_pseudometric=pseudometric)
         print("Starting comparison: logsig-3, " + dataset_name)
         main(dataset_name,
              result_folder=result_folder,
-             result_subfolder=dataset_name + '-logsig-3',
+             result_subfolder='logsig-3',
              discrepancy_fn='logsig-3',
              ablation_pseudometric=pseudometric)
         print("Starting comparison: old-L2_squared, " + dataset_name)
         main(dataset_name,
              result_folder=result_folder,
-             result_subfolder=dataset_name + '-old-L2_squared',
+             result_subfolder='old-L2_squared',
              discrepancy_fn='L2_squared',
              ablation_pseudometric=pseudometric,
              old_shapelets=True)
@@ -273,7 +270,7 @@ def missing_rate_test():
     result_folder = 'uea_missingness'
     for dataset_name in standard_dataset_names:
         for missing_rate in (0.1, 0.3, 0.5):
-            result_subfolder = dataset_name + str(int(missing_rate * 100))
+            result_subfolder = str(int(missing_rate * 100))
             for discrepancy_fn in ('L2', 'L2_squared', 'logsig-3'):
                 run_subfolder = result_subfolder + '-' + discrepancy_fn
                 print("Starting comparison: " + run_subfolder)
@@ -288,7 +285,7 @@ def noise_test():
     result_folder = 'uea_noise'
     for dataset_name in standard_dataset_names:
         for noise_channels in (3, 9, 30):
-            result_subfolder = dataset_name + str(noise_channels)
+            result_subfolder = str(noise_channels)
             for discrepancy_fn in ('L2',):
                 for pseudometric in (True, False):
                     run_subfolder = result_subfolder + '-' + discrepancy_fn + '-' + str(pseudometric)
@@ -314,7 +311,7 @@ def length_test():
     for dataset_name in standard_dataset_names:
         for discrepancy_fn in ('L2',):
             for learnt_lengths in (True, False):
-                run_subfolder = dataset_name + '-' + discrepancy_fn + str(learnt_lengths)
+                run_subfolder = discrepancy_fn + str(learnt_lengths)
                 print("Starting comparison: " + run_subfolder)
                 main(dataset_name,
                      result_folder=result_folder,

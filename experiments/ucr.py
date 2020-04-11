@@ -404,7 +404,7 @@ def main(dataset_name,                        # dataset parameters
                        num_classes,
                        input_channels,
                        result_folder,
-                       result_subfolder,
+                       dataset_name + '-' + result_subfolder,
                        epochs,
                        num_shapelets_per_class,
                        num_shapelet_samples,
@@ -431,25 +431,25 @@ def comparison_test():
         print("Starting comparison: L2, " + dataset_name)
         main(dataset_name,
              result_folder=result_folder,
-             result_subfolder=dataset_name+'-L2',
+             result_subfolder='L2',
              discrepancy_fn='L2',
              ablation_pseudometric=pseudometric)
         print("Starting comparison: L2_squared, " + dataset_name)
         main(dataset_name,
              result_folder=result_folder,
-             result_subfolder=dataset_name + '-L2_squared',
+             result_subfolder='L2_squared',
              discrepancy_fn='L2_squared',
              ablation_pseudometric=pseudometric)
         print("Starting comparison: logsig-3, " + dataset_name)
         main(dataset_name,
              result_folder=result_folder,
-             result_subfolder=dataset_name + '-logsig-3',
+             result_subfolder='logsig-3',
              discrepancy_fn='logsig-3',
              ablation_pseudometric=pseudometric)
         print("Starting comparison: old-L2_squared, " + dataset_name)
         main(dataset_name,
              result_folder=result_folder,
-             result_subfolder=dataset_name + '-old-L2_squared',
+             result_subfolder='old-L2_squared',
              discrepancy_fn='L2_squared',
              old_shapelets=True,
              ablation_pseudometric=pseudometric)
