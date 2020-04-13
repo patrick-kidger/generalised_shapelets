@@ -140,7 +140,7 @@ def _get_discrepancy_fn(discrepancy_fn, input_channels, ablation_pseudometric):
 
 class _LinearShapeletTransform(torch.nn.Module):
     def __init__(self, in_channels, out_channels, num_shapelets, num_shapelet_samples, discrepancy_fn,
-                 max_shapelet_length, num_continuous_samples, log):
+                 max_shapelet_length, lengths_per_shapelet, num_continuous_samples, log):
         super(_LinearShapeletTransform, self).__init__()
 
         self.shapelet_transform = torchshapelets.GeneralisedShapeletTransform(in_channels=in_channels,
@@ -148,6 +148,7 @@ class _LinearShapeletTransform(torch.nn.Module):
                                                                               num_shapelet_samples=num_shapelet_samples,
                                                                               discrepancy_fn=discrepancy_fn,
                                                                               max_shapelet_length=max_shapelet_length,
+                                                                              lengths_per_shapelet=lengths_per_shapelet,
                                                                               num_continuous_samples=num_continuous_samples)
         self.linear = torch.nn.Linear(num_shapelets, out_channels)
         self.linear.weight.register_hook(lambda grad: 100 * grad)
@@ -334,6 +335,7 @@ def main(times,
          num_shapelet_samples,
          discrepancy_fn,
          max_shapelet_length_proportion,
+         lengths_per_shapelet,
          num_continuous_samples,
          ablation_pseudometric,
          ablation_learntlengths,
@@ -376,6 +378,7 @@ def main(times,
                                      num_shapelet_samples=num_shapelet_samples,
                                      discrepancy_fn=discrepancy_fn,
                                      max_shapelet_length=max_shapelet_length,
+                                     lengths_per_shapelet=lengths_per_shapelet,
                                      num_continuous_samples=num_continuous_samples,
                                      log=log)
 
