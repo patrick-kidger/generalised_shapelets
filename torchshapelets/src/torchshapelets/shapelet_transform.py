@@ -10,7 +10,7 @@ class GeneralisedShapeletTransform(torch.nn.Module):
     Each shapelet that it is compared against will be a piecewise linear function.
     """
     def __init__(self, in_channels, num_shapelets, num_shapelet_samples, discrepancy_fn,  max_shapelet_length,
-                 num_continuous_samples=None, scale_length_gradients='auto'):
+                 lengths_per_shapelet=1, num_continuous_samples=None, scale_length_gradients='auto'):
         """
         Arguments:
             in_channels: An integer specifying the number of input channels in the path it will be called with.
@@ -26,6 +26,7 @@ class GeneralisedShapeletTransform(torch.nn.Module):
                 shape (...,) describing the similarity between `path` and `shapelet`.
             max_shapelet_length: The maximum length for a shapelet. (As if it grows too long then it cannot be compared
                 against.)
+            lengths_per_shapelet: The number of lengths that each shapelet is compared against.
             num_continuous_samples: We compute a minimum over s in {start, start + 1/num_samples, start + 2/num_samples,
                 ..., end - 1/num_samples, end}, where `start` and `end` are the endpoints of the times that this is
                 called with. Defaults to the same as the length of the number of times.
@@ -44,9 +45,10 @@ class GeneralisedShapeletTransform(torch.nn.Module):
         self.discrepancy_fn = discrepancy_fn
         self.num_continuous_samples = int(num_continuous_samples) if num_continuous_samples is not None else None
         self.max_shapelet_length = max_shapelet_length
+        self.lengths_per_shapelet = lengths_per_shapelet
         self.scale_length_gradients = scale_length_gradients
 
-        self.lengths = torch.nn.Parameter(torch.empty(num_shapelets))
+        self.lengths = torch.nn.Parameter(torch.empty(num_shapelets * lengths_per_shapelet))
         self.shapelets = torch.nn.Parameter(torch.empty(num_shapelets, num_shapelet_samples, in_channels))
 
         self.reset_parameters()
@@ -59,8 +61,11 @@ class GeneralisedShapeletTransform(torch.nn.Module):
 
     def extra_repr(self):
         return "in_channels={}, num_shapelets={}, num_shapelet_samples={}, num_continuous_samples={}, " \
-               "max_shapelet_length={}".format(self.in_channels, self.num_shapelets, self.num_shapelet_samples,
-                                               self.num_continuous_samples, self.max_shapelet_length)
+               "lengths_per_shapelet={}, max_shapelet_length={}".format(self.in_channels, self.num_shapelets,
+                                                                        self.num_shapelet_samples,
+                                                                        self.num_continuous_samples,
+                                                                        self.lengths_per_shapelet,
+                                                                        self.max_shapelet_length)
 
     def reset_parameters(self, times=None, path=None):
         with torch.no_grad():
@@ -74,10 +79,12 @@ class GeneralisedShapeletTransform(torch.nn.Module):
                                                "length, channels)"
                 assert path.size(0) == self.num_shapelets
 
-                _impl.check_inputs(times, path, self.lengths, self.max_shapelet_length)
-                start_times = times[0] + torch.rand_like(self.lengths) * (times[-1] - times[0] - self.lengths)
+                lengths = self.lengths[:self.num_shapelets]
 
-                for start_time, length, shapelet, path_elem in zip(start_times, self.lengths, self.shapelets, path):
+                _impl.check_inputs(times, path, lengths, self.max_shapelet_length)
+                start_times = times[0] + torch.rand_like(lengths) * (times[-1] - times[0] - lengths)
+
+                for start_time, length, shapelet, path_elem in zip(start_times, lengths, self.shapelets, path):
                     shapelet_times = torch.linspace(start_time, start_time + length, self.num_shapelet_samples)
                     shapelet.copy_(_impl.unsafe_add_knots((times[0], times[1:-1], times[-1]),
                                                           (path_elem[0], path_elem[1:-1], path_elem[-1]),
@@ -113,5 +120,6 @@ class GeneralisedShapeletTransform(torch.nn.Module):
 
         times = torch.as_tensor(times, dtype=path.dtype, device=path.device)
         max_shapelet_length = torch.as_tensor(self.max_shapelet_length, dtype=path.dtype, device=path.device)
-        return _impl.shapelet_transform(times, path, self.lengths, self.shapelets, max_shapelet_length,
+        shapelets_repeated = self.shapelets.repeat(self.lengths_per_shapelet, 1, 1)
+        return _impl.shapelet_transform(times, path, self.lengths, shapelets_repeated, max_shapelet_length,
                                         num_continuous_samples, discrepancy_fn, discrepancy_arg)

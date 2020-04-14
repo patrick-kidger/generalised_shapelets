@@ -194,12 +194,13 @@ def main(dataset_name,                        # dataset parameters
          missing_rate=0.,                     #
          noise_channels=0,                    #
          result_folder=None,                  # saving parameters
-         result_subfolder=None,               #
+         result_subfolder='',                 #
          epochs=1000,                         # training parameters
          num_shapelets_per_class=3,           # model parameters
          num_shapelet_samples=None,           #
          discrepancy_fn='L2',                 #
          max_shapelet_length_proportion=1.0,  #
+         lengths_per_shapelet=1,              #
          num_continuous_samples=None,         #
          ablation_pseudometric=True,          # For ablation studies
          ablation_learntlengths=True,         #
@@ -223,6 +224,7 @@ def main(dataset_name,                        # dataset parameters
                        num_shapelet_samples,
                        discrepancy_fn,
                        max_shapelet_length_proportion,
+                       lengths_per_shapelet,
                        num_continuous_samples,
                        ablation_pseudometric,
                        ablation_learntlengths,
