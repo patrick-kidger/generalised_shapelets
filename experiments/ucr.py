@@ -411,7 +411,7 @@ def main(dataset_name,                        # dataset parameters
                        num_shapelet_samples,
                        discrepancy_fn,
                        max_shapelet_length_proportion,
-                       lengths_per_shapelet,
+                       # lengths_per_shapelet,
                        num_continuous_samples,
                        ablation_pseudometric,
                        ablation_learntlengths,
@@ -458,4 +458,4 @@ def comparison_test():
 
 
 if __name__ == '__main__':
-    main('Coffee', result_folder='./results', result_subfolder='coffee', epochs=10)
+    main('Coffee', result_folder='./results', result_subfolder='coffee', epochs=10, discrepancy_fn='logsig-3')
