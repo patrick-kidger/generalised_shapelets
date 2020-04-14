@@ -1,9 +1,9 @@
-from definitions import *
+from jamesshapelets.definitions import *
 import torch
 import numpy as np
 import signatory
-from src.data.make_dataset import UcrDataset
-from src.features.signatures.augmentations import AddTime
+from jamesshapelets.src.data.make_dataset import UcrDataset
+from jamesshapelets.src.features.signatures.augmentations import AddTime
 
 
 class IntervalSignature():

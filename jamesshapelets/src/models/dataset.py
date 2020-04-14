@@ -1,9 +1,9 @@
 from torch.utils.data import Dataset
 import torch
 import signatory
-from jamesshapelets.data.make_dataset import UcrDataset
-from jamesshapelets.features.functions import pytorch_rolling
-from jamesshapelets.features.signatures.augmentations import apply_augmentation_list
+from jamesshapelets.src.data.make_dataset import UcrDataset
+from jamesshapelets.src.features.functions import pytorch_rolling
+from jamesshapelets.src.features.signatures.augmentations import apply_augmentation_list
 
 
 class ShapeletDataset(Dataset):

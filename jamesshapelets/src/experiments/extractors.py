@@ -1,7 +1,7 @@
 """
 Methods for extracting data once an experiment has been run.
 """
-from definitions import *
+from jamesshapelets.definitions import *
 
 
 class ExperimentToFrame():

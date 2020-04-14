@@ -68,8 +68,8 @@ class ShapeletNet(nn.Module):
 
 
 if __name__ == '__main__':
-    from jamesshapelets.data.make_dataset import UcrDataset
-    from jamesshapelets.models.dataset import SigletDataset, PointsDataset
+    from jamesshapelets.src.data.make_dataset import UcrDataset
+    from jamesshapelets.src.models.dataset import SigletDataset, PointsDataset
     from torch.utils.data import DataLoader
     import numpy as np
     import matplotlib.pyplot as plt

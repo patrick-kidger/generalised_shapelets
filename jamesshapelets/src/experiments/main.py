@@ -12,12 +12,12 @@ from torch import nn, optim
 from torch.utils.data import DataLoader
 from ignite.engine import Engine, Events, create_supervised_trainer, create_supervised_evaluator
 from ignite.metrics import Accuracy
-from jamesshapelets.experiments.setup import create_fso, basic_gridsearch
-from jamesshapelets.data.dicts import learning_ts_shapelets
-from jamesshapelets.data.make_dataset import UcrDataset
-from jamesshapelets.models.model import ShapeletNet
-from jamesshapelets.models.dataset import PointsDataset, SigletDataset
-from jamesshapelets.experiments.utils import ignite_accuracy_transform
+from jamesshapelets.src.experiments.setup import create_fso, basic_gridsearch
+from jamesshapelets.src.data.dicts import learning_ts_shapelets
+from jamesshapelets.src.data.make_dataset import UcrDataset
+from jamesshapelets.src.models.model import ShapeletNet
+from jamesshapelets.src.models.dataset import PointsDataset, SigletDataset
+from jamesshapelets.src.experiments.utils import ignite_accuracy_transform
 
 import logging
 logging.getLogger("ignite").setLevel(logging.WARNING)

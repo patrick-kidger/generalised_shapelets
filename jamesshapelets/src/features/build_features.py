@@ -1,4 +1,4 @@
-from src.features.signatures.augmentations import *
+from jamesshapelets.src.features.signatures.augmentations import *
 
 
 # Dictionary of augmentations
