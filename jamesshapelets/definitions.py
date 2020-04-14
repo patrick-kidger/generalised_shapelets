@@ -7,7 +7,7 @@ from definitions import *
 from pathlib import Path
 
 ROOT_DIR = '/'.join(str(Path(__file__).resolve().parents[0]).split('/')[:-1])
-DATA_DIR = ROOT_DIR + '/experiments/data'
+DATA_DIR = ROOT_DIR + '/data'
 MODELS_DIR = ROOT_DIR + '/models'
 
 IS_HAVOK = False
@@ -16,6 +16,7 @@ if ROOT_DIR == '/home/morrill/Documents/generalised_shapelets':
 
 if IS_HAVOK:
     DATA_DIR = '/scratch/morrill/generalised_shapelets/data'
+    MODELS_DIR = ROOT_DIR + '/models/havok_models'
 
 # Packages/functions used everywhere
 from jamesshapelets.omni.decorators import *

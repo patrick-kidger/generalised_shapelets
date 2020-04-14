@@ -76,9 +76,9 @@ if __name__ == '__main__':
     from sklearn.metrics import accuracy_score
 
     # Params
-    ds_name = 'Coffee'
+    ds_name = 'TwoLeadECG'
     window_size = 30
-    depth = None
+    depth = 5
     n_iters = 1000
 
     print(ds_name)
@@ -87,7 +87,7 @@ if __name__ == '__main__':
     ucr_train, ucr_test = UcrDataset(ds_name=ds_name).get_original_train_test()
     n_classes = ucr_train.n_classes
     n_outputs = n_classes if n_classes > 2 else n_classes - 1
-    train_ds, test_ds = [SigletDataset(x.data, x.labels, window_size=window_size, depth=5, ds_length=x.size(1), num_window_size=5) for x in (ucr_train, ucr_test)]
+    train_ds, test_ds = [SigletDataset(x.data, x.labels, depth=depth, ds_length=x.size(1), num_window_sizes=5) for x in (ucr_train, ucr_test)]
     # train_ds, test_ds = [PointsDataset(x.data, x.labels, window_size=window_size) for x in (ucr_train, ucr_test)]
     train_dl = DataLoader(train_ds, batch_size=32)
 

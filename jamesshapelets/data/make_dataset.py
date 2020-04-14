@@ -60,10 +60,7 @@ def get_dataset(ds_name, multivariate=False):
     """
     # Get save_dir
     uv_mv = 'multivariate' if multivariate else 'univariate'
-    save_dir = DATA_DIR + '/UCR/Univariate_ts/' + ds_name
-
-    # Load
-    train_data = load_pickle(save_dir + '/')
+    save_dir = DATA_DIR + '/interim/{}/{}'.format(uv_mv, ds_name)
 
     # Load
     data = load_pickle(save_dir + '/data.pkl')

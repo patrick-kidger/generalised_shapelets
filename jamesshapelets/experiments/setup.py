@@ -3,7 +3,7 @@ setup.py
 ================================================
 Various method used in setting up and running sacred experiments.
 """
-from definitions import *
+from jamesshapelets.definitions import *
 import os, shutil
 from pprint import pprint
 from sacred.observers import FileStorageObserver

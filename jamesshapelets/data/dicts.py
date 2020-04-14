@@ -1,7 +1,7 @@
 """
 Some dicts containing useful bits of information
 """
-from definitions import *
+from jamesshapelets.definitions import *
 
 
 # Some removals

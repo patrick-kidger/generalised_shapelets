@@ -4,7 +4,7 @@ main.py
 Main experiment runner. The aim is for everything to be run through this file with different model configurations
 imported via config
 """
-from definitions import *
+from jamesshapelets.definitions import *
 from sacred import Experiment
 
 import torch
@@ -12,12 +12,12 @@ from torch import nn, optim
 from torch.utils.data import DataLoader
 from ignite.engine import Engine, Events, create_supervised_trainer, create_supervised_evaluator
 from ignite.metrics import Accuracy
-from sklearn.metrics import accuracy_score, roc_auc_score
-from src.experiments.setup import create_fso, basic_gridsearch
-from src.data.make_dataset import UcrDataset
-from src.models.model import ShapeletNet
-from src.models.dataset import PointsDataset, SigletDataset
-from src.experiments.utils import ignite_accuracy_transform
+from jamesshapelets.experiments.setup import create_fso, basic_gridsearch
+from jamesshapelets.data.dicts import learning_ts_shapelets
+from jamesshapelets.data.make_dataset import UcrDataset
+from jamesshapelets.models.model import ShapeletNet
+from jamesshapelets.models.dataset import PointsDataset, SigletDataset
+from jamesshapelets.experiments.utils import ignite_accuracy_transform
 
 import logging
 logging.getLogger("ignite").setLevel(logging.WARNING)
@@ -26,7 +26,7 @@ import warnings
 warnings.simplefilter('ignore', UserWarning)
 
 # Experiment setup
-ex_name = 'test'
+ex_name = 'learning_ts_datasets'
 ex = Experiment(ex_name)
 save_dir = MODELS_DIR + '/experiments/{}'.format(ex_name)
 
@@ -37,6 +37,9 @@ def my_config():
     path_data = 'points'
     num_shapelets = 10
     window_size = 40
+    aug_list = ['addtime']
+    num_window_sizes = 5
+    depth = 5
     discriminator = 'l2'
     max_epochs = 1000
     lr = 1e-2
@@ -44,7 +47,7 @@ def my_config():
 
 # Main run file
 @ex.main
-def main(_run, ds_name, path_tfm, num_shapelets, window_size, discriminator, max_epochs, lr):
+def main(_run, ds_name, path_tfm, num_shapelets, window_size, num_window_sizes, aug_list, depth, discriminator, max_epochs, lr):
     # Add in save_dir
     _run.save_dir = save_dir + '/' + _run._id
 
@@ -54,7 +57,7 @@ def main(_run, ds_name, path_tfm, num_shapelets, window_size, discriminator, max
         train_ds, test_ds = [PointsDataset(x.data, x.labels, window_size=window_size) for x in (ucr_train, ucr_test)]
     elif path_tfm == 'signature':
         train_ds, test_ds = [
-            SigletDataset(x.data, x.labels, window_size=window_size, depth=5, aug_list=['addtime'], ds_length=x.size(1), num_window_size=5) for x in (ucr_train, ucr_test)
+            SigletDataset(x.data, x.labels, depth=depth, aug_list=aug_list, ds_length=x.size(1), num_window_sizes=num_window_sizes) for x in (ucr_train, ucr_test)
         ]
     n_classes = ucr_train.n_classes
     n_outputs = n_classes - 1 if n_classes == 2 else n_classes
@@ -83,6 +86,14 @@ def main(_run, ds_name, path_tfm, num_shapelets, window_size, discriminator, max
         }
     )
 
+    # Validation history
+    validation_history = {
+        'acc.train': [],
+        'acc.test': [],
+        'loss.train': [],
+        'epoch': []
+    }
+
     @trainer.on(Events.EPOCH_COMPLETED)
     def evaluate(trainer):
         epoch = trainer.state.epoch
@@ -95,17 +106,37 @@ def main(_run, ds_name, path_tfm, num_shapelets, window_size, discriminator, max
             print('Train loss: {} - Train acc: {:.2f}%'.format(trainer.state.output, 100 * train_acc))
             print('Acc Test: {:.2f}%'.format(100 * test_acc))
 
+            validation_history['acc.train'].append(train_acc)
+            validation_history['acc.test'].append(test_acc)
+            validation_history['loss.train'].append(trainer.state.output)
+            validation_history['epoch'].append(epoch)
+
+    # Time it
+    start = time.time()
     trainer.run(train_dl, max_epochs=max_epochs)
+    elapsed = time.time() - start
+
+    _run.log_scalar(elapsed, 'training_time')
+    _run.log_scalar(validation_history['acc.train'][-1], 'acc.train')
+    _run.log_scalar(validation_history['acc.test'][-1], 'acc.test')
+    _run.log_scalar(validation_history['loss.train'][-1], 'loss.train')
+
+    save_pickle(validation_history, save_dir + '/validation_history.pkl')
 
 
 if __name__ == '__main__':
     param_grid = {
-        'ds_name': ['Coffee'],
+        'ds_name': ['Coffee', 'TwoLeadECG'],
         'path_tfm': ['signature'],
-        'num_shapelets': [100],
-        'window_size': [40],
+
+        'num_shapelets': [50],
+        'num_window_sizes': [5],
+        'max_window': [100],
+        'depth': [5],
+
         'discriminator': ['linear'],
-        'max_epochs': [1000],
+
+        'max_epochs': [100],
         'lr': [1e-1],
     }
 
