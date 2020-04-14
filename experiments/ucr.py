@@ -453,3 +453,7 @@ def comparison_test():
              discrepancy_fn='L2_squared',
              old_shapelets=True,
              ablation_pseudometric=pseudometric)
+
+
+if __name__ == '__main__':
+    main('Coffee', result_folder='./results', result_subfolder='coffee', epochs=10)
