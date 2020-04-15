@@ -9,6 +9,7 @@ from sklearn.cluster import KMeans
 
 class PatrickDiscriminator(torch.nn.Module):
     def __init__(self, shapelet_len, mode):
+        assert mode in range(1, 10)
         super(PatrickDiscriminator, self).__init__()
         self.shapelet_len = shapelet_len
         self.mode = mode
