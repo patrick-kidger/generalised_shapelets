@@ -150,7 +150,7 @@ class _LinearShapeletTransform(torch.nn.Module):
                                                                               max_shapelet_length=max_shapelet_length,
                                                                               lengths_per_shapelet=lengths_per_shapelet,
                                                                               num_continuous_samples=num_continuous_samples)
-        self.linear = torch.nn.Linear(num_shapelets, out_channels)
+        self.linear = torch.nn.Linear(num_shapelets * lengths_per_shapelet, out_channels)
         self.linear.weight.register_hook(lambda grad: 100 * grad)
         self.linear.bias.register_hook(lambda grad: 100 * grad)
 
