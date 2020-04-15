@@ -7,6 +7,30 @@ from sklearn.cluster import KMeans
 # device = torch.device("cuda:3" if use_cuda else "cpu")
 
 
+class PatrickDiscriminator(torch.nn.Module):
+    def __init__(self, shapelet_len, mode):
+        super(PatrickDiscriminator, self).__init__()
+        self.shapelet_len = shapelet_len
+        self.mode = mode
+        self.vector = torch.nn.Parameter(torch.randn(shapelet_len))
+
+    def forward(self, diffs):
+        vector = self.vector if self.mode in (1, 2, 3, 4, 5) else self.vector ** 2
+        if self.mode == 1:  # very nearly james' version. He adds a bias as well.
+            diffs = diffs.abs()
+            diffs = (vector * diffs).sum(dim=-1)
+        elif self.mode in (2, 3, 6, 8):
+            diffs = (vector * diffs).sum(dim=-1)
+            diffs = diffs.abs()
+        elif self.mode in (4, 5, 7, 9):
+            diffs = (vector * diffs).sum(dim=-1)
+            diffs = diffs ** 2
+        diffs, _ = diffs.min(dim=1)
+        if self.mode in (3, 5):
+            diffs = diffs.log()
+        return diffs
+
+
 class ShapeletNet(nn.Module):
     """ Generic model for shapelet learning. """
     def __init__(self, num_shapelets, shapelet_len, num_outputs, init_data=None, discriminator='l2'):
@@ -37,6 +61,9 @@ class ShapeletNet(nn.Module):
             self.discriminator = nn.Sequential(
                 nn.Linear(self.shapelet_len, 1),
             )
+        elif 'patrick' in discriminator:
+            mode = int(discriminator[len('patrick'):])
+            self.discriminator = PatrickDiscriminator(self.shapelet_len, mode)
 
         # Classifier on the min value of the discriminator
         self.classifier = nn.Linear(self.num_shapelets, num_outputs, bias=False)
@@ -58,14 +85,17 @@ class ShapeletNet(nn.Module):
 
         # Compute the difference
         diffs = x.unsqueeze(2) - shapelets
-        diffs = torch.abs(diffs)
+        if isinstance(self.discriminator, PatrickDiscriminator):
+            min_discrim = self.discriminator(diffs)
+        else:
+            diffs = torch.abs(diffs)
 
-        # Get min discrimination
-        discrim = self.discriminator(diffs).squeeze(-1)
-        min_discrim, _ = discrim.min(dim=1)
+            # Get min discrimination
+            discrim = self.discriminator(diffs).squeeze(-1)
+            min_discrim, _ = discrim.min(dim=1)
 
-        # Additional bits
-        # min_discrim = torch.log(min_discrim + 1e-5)
+            # Additional bits
+            # min_discrim = torch.log(min_discrim + 1e-5)
 
         # Apply the classifier
         predictions = self.classifier(min_discrim)
