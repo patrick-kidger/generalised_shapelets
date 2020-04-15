@@ -1,0 +1,26 @@
+INFO - learning_ts_datasets - Running command 'main'
+INFO - learning_ts_datasets - Started run with ID "1"
+EPOCH: [50]
+Train loss: 2.6212642192840576 - Train acc: 30.00%
+Acc Test: 11.53%
+EPOCH: [100]
+Train loss: 2.5981366634368896 - Train acc: 30.67%
+Acc Test: 12.00%
+EPOCH: [150]
+Train loss: 2.5934255123138428 - Train acc: 32.67%
+Acc Test: 12.71%
+EPOCH: [200]
+Train loss: 2.5874173641204834 - Train acc: 32.67%
+Acc Test: 12.24%
+EPOCH: [250]
+Train loss: 2.581247091293335 - Train acc: 34.00%
+Acc Test: 11.88%
+EPOCH: [300]
+Train loss: 2.5810658931732178 - Train acc: 33.33%
+Acc Test: 11.88%
+EPOCH: [350]
+Train loss: 2.5808959007263184 - Train acc: 34.00%
+Acc Test: 12.00%
+EPOCH: [400]
+Train loss: 2.5808377265930176 - Train acc: 34.00%
+Acc Test: 12.24%

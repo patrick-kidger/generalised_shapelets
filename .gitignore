@@ -14,3 +14,4 @@ docs/_templates
 **/.mypy_cache/
 
 /env
+/jamesshapelets/data

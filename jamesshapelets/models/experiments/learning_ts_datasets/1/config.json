@@ -1,0 +1,17 @@
+{
+  "aug_list": null,
+  "depth": 3,
+  "discriminator": "linear",
+  "ds_name": "Handwriting",
+  "lr": 0.01,
+  "max_epochs": 1000,
+  "max_window": 200,
+  "min_window": 5,
+  "multivariate": true,
+  "num_shapelets": 10,
+  "num_window_sizes": 10,
+  "path_data": "points",
+  "path_tfm": "signature",
+  "seed": 808792801,
+  "window_size": 40
+}

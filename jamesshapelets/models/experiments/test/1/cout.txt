@@ -1,0 +1,6 @@
+EPOCH: [50]
+Train loss: 1.2709707021713257 - Train acc: 36.67%
+Acc Test: 26.67%
+EPOCH: [100]
+Train loss: 1.2812914848327637 - Train acc: 40.00%
+Acc Test: 33.33%

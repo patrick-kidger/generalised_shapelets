@@ -7,7 +7,6 @@ imported via config
 from jamesshapelets.definitions import *
 from sacred import Experiment
 
-import numpy as np
 import torch
 from torch import nn, optim
 from torch.utils.data import DataLoader
@@ -32,12 +31,8 @@ ex = Experiment(ex_name)
 save_dir = MODELS_DIR + '/experiments/{}'.format(ex_name)
 
 # CUDA
-def get_freest_gpu():
-    os.system('nvidia-smi -q -d Memory |grep -A4 GPU|grep Free >tmp')
-    memory_available = [int(x.split()[2]) for x in open('tmp', 'r').readlines()]
-    return np.argmax(memory_available)
 use_cuda = torch.cuda.is_available()
-device = torch.device('cuda:{}'.format(get_freest_gpu())) if torch.cuda.is_available() else torch.device('cpu')
+device = torch.device("cuda:3" if use_cuda else "cpu")
 
 
 # Configuration, setup parameters that can vary here
@@ -104,13 +99,8 @@ def main(_run,
         discriminator=discriminator,
     )
     model.to(device)
-    loss_fn = nn.BCEWithLogitsLoss() if ucr_train.n_classes == 2 else nn.CrossEntropyLoss()
+    loss_fn = nn.BCELoss() if ucr_train.n_classes == 2 else nn.CrossEntropyLoss()
     optimizer = optim.Adam(params=model.parameters(), lr=lr)
-    # optimizer = optim.Adam(params=[
-    #     {'params': model.shapelets_.parameters()},
-    #     {'params': model.discriminator.parameters()},
-    #     {'params': model.classifier.parameters(), 'weight_decay': 0.1}
-    # ], lr=lr)
 
     # Setup
     trainer = create_supervised_trainer(model=model, optimizer=optimizer, loss_fn=loss_fn, device=device)
@@ -133,7 +123,7 @@ def main(_run,
     @trainer.on(Events.EPOCH_COMPLETED)
     def evaluate(trainer):
         epoch = trainer.state.epoch
-        if epoch % 100 == 0:
+        if epoch % 50 == 0:
             evaluator.run(train_dl)
             train_acc = evaluator.state.metrics['acc']
             evaluator.run(test_dl)
@@ -163,12 +153,13 @@ def main(_run,
 if __name__ == '__main__':
     config = {
         # 'ds_name': learning_ts_shapelets,
-        'ds_name': ['SonyAIBORobotSurface1'],
-        'multivariate': [False],
+        'ds_name': ['Handwriting'],
+        # 'ds_name': ['Coffee'],
+        'multivariate': [True],
         'path_tfm': ['signature'],
-        'aug_list': [['addtime']],
+        'aug_list': [None],
 
-        'num_shapelets': [8],
+        'num_shapelets': [10],
         'num_window_sizes': [10],
         'min_window': [5],
         'max_window': [200],
@@ -176,7 +167,7 @@ if __name__ == '__main__':
 
         'discriminator': ['linear'],
 
-        'max_epochs': [5000],
+        'max_epochs': [1000],
         'lr': [1e-2],
     }
 

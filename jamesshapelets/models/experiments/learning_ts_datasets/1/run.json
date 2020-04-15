@@ -1,0 +1,98 @@
+{
+  "artifacts": [],
+  "command": "main",
+  "experiment": {
+    "base_dir": "/Users/jambo/Documents/PhD/code/actual/generalised_shapelets/jamesshapelets/src/experiments",
+    "dependencies": [
+      "dill==0.3.1.1",
+      "joblib==0.14.1",
+      "numpy==1.18.2",
+      "pandas==1.0.3",
+      "pytorch-ignite==0.3.0",
+      "sacred==0.8.1",
+      "torch==1.3.1"
+    ],
+    "mainfile": "main.py",
+    "name": "learning_ts_datasets",
+    "repositories": [
+      {
+        "commit": "903c72749e4741cd2465d55b6536c89fa14d320b",
+        "dirty": true,
+        "url": "https://github.com/jambo6/generalised_shapelets"
+      },
+      {
+        "commit": "903c72749e4741cd2465d55b6536c89fa14d320b",
+        "dirty": true,
+        "url": "https://github.com/jambo6/generalised_shapelets"
+      },
+      {
+        "commit": "903c72749e4741cd2465d55b6536c89fa14d320b",
+        "dirty": true,
+        "url": "https://github.com/jambo6/generalised_shapelets"
+      },
+      {
+        "commit": "903c72749e4741cd2465d55b6536c89fa14d320b",
+        "dirty": true,
+        "url": "https://github.com/jambo6/generalised_shapelets"
+      }
+    ],
+    "sources": [
+      [
+        "__init__.py",
+        "_sources/__init___d41d8cd98f00b204e9800998ecf8427e.py"
+      ],
+      [
+        "main.py",
+        "_sources/main_b9b93529a51f1053124187f546ad4686.py"
+      ],
+      [
+        "setup.py",
+        "_sources/setup_0e98d685846a2d366bb4f6f55fa10ea3.py"
+      ],
+      [
+        "utils.py",
+        "_sources/utils_7f49667850ce64ab7ebb1b750c1d749b.py"
+      ]
+    ]
+  },
+  "heartbeat": "2020-04-15T09:44:03.488650",
+  "host": {
+    "ENV": {},
+    "cpu": "Intel(R) Core(TM) i7-4870HQ CPU @ 2.50GHz",
+    "hostname": "dhcp-163-1-81-69.maths.ox.ac.uk",
+    "os": [
+      "Darwin",
+      "Darwin-19.4.0-x86_64-i386-64bit"
+    ],
+    "python_version": "3.7.0"
+  },
+  "meta": {
+    "command": "main",
+    "options": {
+      "--beat-interval": null,
+      "--capture": null,
+      "--comment": null,
+      "--debug": false,
+      "--enforce_clean": false,
+      "--file_storage": null,
+      "--force": false,
+      "--help": false,
+      "--loglevel": null,
+      "--mongo_db": null,
+      "--name": null,
+      "--pdb": false,
+      "--print-config": false,
+      "--priority": null,
+      "--queue": false,
+      "--s3": null,
+      "--sql": null,
+      "--tiny_db": null,
+      "--unobserved": false
+    }
+  },
+  "resources": [],
+  "result": null,
+  "start_time": "2020-04-15T09:41:44.995422",
+  "status": "INTERRUPTED",
+  "stop_time": "2020-04-15T09:44:03.493499"
+}

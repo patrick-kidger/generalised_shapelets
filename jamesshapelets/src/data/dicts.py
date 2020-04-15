@@ -38,18 +38,18 @@ ds_names = {
 }
 
 learning_ts_shapelets = [
-    'Adiac',
-    'Beef',
-    'BeetleFly',
-    'BirdChicken',
-    'ChlorineConcentration',
-    'Coffee',
-    'DiatomSizeReduction',
-    'DP_Little',
-    'DP_Middle',
-    'DP_Thumb',
+    # 'Adiac',
+    # 'Beef',
+    # 'BeetleFly',
+    # 'BirdChicken',
+    # 'ChlorineConcentration',
+    # 'Coffee',
+    # 'DiatomSizeReduction',
+    # 'DP_Little',
+    # 'DP_Middle',
+    # 'DP_Thumb',
     'ECGFiveDays',
-    'FaceFour',
+    # 'FaceFour',
     'GunPoint',
     'ItalyPowerDemand',
     'Lightning7',
@@ -67,3 +67,4 @@ learning_ts_shapelets = [
     'Trace',
     'TwoLeadECG'
 ]
+

@@ -1,9 +1,15 @@
 from torch.utils.data import Dataset
 import torch
 import signatory
+from sklearn.preprocessing import StandardScaler
 from jamesshapelets.src.data.make_dataset import UcrDataset
 from jamesshapelets.src.features.functions import pytorch_rolling
 from jamesshapelets.src.features.signatures.augmentations import apply_augmentation_list
+
+# CUDA
+use_cuda = torch.cuda.is_available()
+use_cuda = False
+device = torch.device("cuda" if use_cuda else "cpu")
 
 
 class ShapeletDataset(Dataset):
@@ -25,6 +31,9 @@ class ShapeletDataset(Dataset):
 
         self.data = self._init_data(data)
         self.shapelet_len = self.data.size(2)
+
+        if len(labels.unique()) == 2:
+            self.labels = labels.unsqueeze(1)
 
     def roll_data(self, data, window_size):
         return pytorch_rolling(data, dimension=1, window_size=window_size)
@@ -61,21 +70,28 @@ class SigletDataset(ShapeletDataset):
     it is reshaped to [N * (L-W), W, C], the log-signature is applied, and a final reshape gives a tensor of shape
     [N, L-W, SIG_DIM].
     """
-    def __init__(self, data, labels, depth, aug_list=['addtime'], ds_length=None, num_window_sizes=None, max_window_size=100):
+    def __init__(self, data, labels, depth, aug_list=['addtime'], ds_length=None, num_window_sizes=None, max_window_size=100,
+                 max_window=100, min_window=2):
         self.depth = depth
         self.aug_list = aug_list
         self.ds_length = ds_length
         self.num_window_sizes = num_window_sizes
-        self.max_window = max_window_size
+        self.max_window_size = max_window_size
+        self.min_window = min_window
+        self.max_window = max_window
         super(SigletDataset, self).__init__(data, labels)
-
 
     def _init_data(self, data):
         # To store signatures over all window sizes
         window_signatures = []
 
         # Window sizes to compute signatures of
-        window_sizes = [int(x) for x in torch.linspace(3, min(100, self.ds_length), steps=5)]
+        window_sizes = [int(x) for x in torch.linspace(self.min_window, min(self.max_window, self.ds_length), steps=5)]
+        # window_sizes, n = [], 2
+        # while 2**n <= self.ds_length:
+        #     window_sizes.append(2**n)
+        #     n += 1
+        window_sizes = [20]
 
         # Compute for each and concat
         for window_size in window_sizes:
@@ -86,19 +102,23 @@ class SigletDataset(ShapeletDataset):
             data_tricked = data_rolled.reshape(-1, data.size(2), window_size).transpose(1, 2)
 
             # Any augmentations
-            data_augs = apply_augmentation_list(data_tricked, aug_list=self.aug_list)
+            data_augs = data_tricked
+            if self.aug_list is not None:
+                data_augs = apply_augmentation_list(data_tricked, aug_list=self.aug_list)
 
             # Compute the signatures
-            signatures = signatory.logsignature(data_augs, depth=self.depth)
+            signatures = signatory.logsignature(data_augs.to(device), depth=self.depth)
+            # signatures = signatory.signature(data_augs.to(device), depth=self.depth)
 
             # Reshape to [N, L-W, F] and return
             signatures_untricked = signatures.reshape(data_rolled.size(0), data_rolled.size(1), -1)
             window_signatures.append(signatures_untricked)
 
-        return torch.cat(window_signatures, axis=1)
+        all_signatures = torch.cat(window_signatures, axis=1)
+
+        return all_signatures
 
 
 if __name__ == '__main__':
-    dataset = UcrDataset(ds_name='GunPoint')
-    SigletDataset(dataset.data, dataset.labels, 40, depth=4)
+    dataset = UcrDataset(ds_name='Coffee')
 

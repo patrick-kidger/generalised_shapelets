@@ -1,0 +1,17 @@
+{
+  "aug_list": [
+    "addtime"
+  ],
+  "depth": 5,
+  "discriminator": "linear",
+  "ds_name": "Beef",
+  "lr": 0.1,
+  "max_epochs": 100,
+  "max_window": 1000,
+  "num_shapelets": 50,
+  "num_window_sizes": 5,
+  "path_data": "points",
+  "path_tfm": "signature",
+  "seed": 154291183,
+  "window_size": 40
+}

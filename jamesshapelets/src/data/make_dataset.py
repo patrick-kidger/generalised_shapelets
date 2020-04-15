@@ -5,11 +5,12 @@ from jamesshapelets.definitions import *
 import numpy as np
 from copy import deepcopy
 from torch.utils.data import Dataset
+from jamesshapelets.src.features.scaling import TrickScaler
 
 
 class UcrDataset(Dataset):
     """ Simple structure for working with UCR time-series data. """
-    def __init__(self, ds_name, multivariate=False):
+    def __init__(self, ds_name, multivariate=False, scaling='stdsc'):
         """
         Args:
             ds_name (str): Name of the dataset to be loaded.
@@ -20,6 +21,9 @@ class UcrDataset(Dataset):
 
         # Get the data and labels
         self.data, self.labels, self.original_idxs, self.info, self.n_classes = get_dataset(ds_name, multivariate=multivariate)
+
+        if scaling is not None:
+            self.data = TrickScaler(scaler=scaling).fit_transform(self.data)
 
     def __len__(self):
         return len(self.data)

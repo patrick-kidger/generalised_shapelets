@@ -15,7 +15,7 @@ if ROOT_DIR == '/home/morrill/Documents/generalised_shapelets/jamesshapelets':
     IS_HAVOK = True
 
 if IS_HAVOK:
-    DATA_DIR = '/scratch/morrill/generalised_shapelets/data'
+    DATA_DIR = '/scratch/morrill/generalised_shapelets/data/jamesdata/data'
     MODELS_DIR = ROOT_DIR + '/models/havok_models'
 
 # Packages/functions used everywhere

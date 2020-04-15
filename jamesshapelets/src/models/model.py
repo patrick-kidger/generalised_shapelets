@@ -2,6 +2,10 @@ import torch
 from torch import nn, optim
 from sklearn.cluster import KMeans
 
+# # CUDA
+# use_cuda = torch.cuda.is_available()
+# device = torch.device("cuda:3" if use_cuda else "cpu")
+
 
 class ShapeletNet(nn.Module):
     """ Generic model for shapelet learning. """
@@ -12,10 +16,11 @@ class ShapeletNet(nn.Module):
         self.num_outputs = num_outputs
 
         # Setup shapelets
+        self.shapelet_init_val = nn.Parameter(torch.ones(1, 1), requires_grad=False)
         self.shapelets_ = nn.Linear(1, self.num_shapelets * self.shapelet_len, bias=False)
         if init_data is not None:
             self._init_shapelets(init_data)
-        self.shapelets = lambda: self.shapelets_(torch.ones(1, 1)).view(self.num_shapelets, self.shapelet_len)
+        self.shapelets = lambda: self.shapelets_(self.shapelet_init_val).view(self.num_shapelets, self.shapelet_len)
 
         # Discriminator for evaluating similarity
         if discriminator == 'l1':
@@ -34,14 +39,12 @@ class ShapeletNet(nn.Module):
             )
 
         # Classifier on the min value of the discriminator
-        self.classifier = nn.Sequential(
-            nn.Linear(self.num_shapelets, num_outputs),
-            nn.Sigmoid()
-        )
+        self.classifier = nn.Linear(self.num_shapelets, num_outputs, bias=False)
 
     def _init_shapelets(self, data):
         """ Shapelet initialisation using k-means clustering. """
         # Compute centroids
+        data = data.to('cpu')
         kmeans = KMeans(n_clusters=self.num_shapelets)
         kmeans.fit(data.reshape(-1, data.size(2)))
         cluster_centers = kmeans.cluster_centers_
@@ -54,11 +57,15 @@ class ShapeletNet(nn.Module):
         shapelets = self.shapelets()
 
         # Compute the difference
-        diffs = (x.unsqueeze(2) - shapelets)
+        diffs = x.unsqueeze(2) - shapelets
+        diffs = torch.abs(diffs)
 
         # Get min discrimination
-        discrim = self.discriminator(torch.abs(diffs)).squeeze(-1)
+        discrim = self.discriminator(diffs).squeeze(-1)
         min_discrim, _ = discrim.min(dim=1)
+
+        # Additional bits
+        # min_discrim = torch.log(min_discrim + 1e-5)
 
         # Apply the classifier
         predictions = self.classifier(min_discrim)
@@ -76,7 +83,7 @@ if __name__ == '__main__':
     from sklearn.metrics import accuracy_score
 
     # Params
-    ds_name = 'TwoLeadECG'
+    ds_name = 'ECGFiveDays'
     window_size = 30
     depth = 5
     n_iters = 1000
@@ -96,6 +103,7 @@ if __name__ == '__main__':
 
     # Setup
     model = ShapeletNet(num_shapelets=num_shapelets, shapelet_len=shapelet_len, num_outputs=n_outputs, init_data=train_ds.data, discriminator='linear')
+    model.to(device)
     criterion = nn.CrossEntropyLoss() if n_classes > 2 else nn.BCELoss()
     optimizer = optim.Adam(params=model.parameters(), lr=0.1)
 
@@ -104,6 +112,7 @@ if __name__ == '__main__':
         losses = []
         model.train()
         for i, (data, labels) in enumerate(train_dl):
+            data, labels = data.to(device), labels.to(device)
             optimizer.zero_grad()
             preds = model(data)
             loss = criterion(preds, labels)
@@ -116,7 +125,7 @@ if __name__ == '__main__':
             # Validate
             model.eval()
             with torch.no_grad():
-                data, labels = test_ds.data, test_ds.labels
+                data, labels = test_ds.data.to(device), test_ds.labels.to(device)
                 #
                 if len(np.unique(labels)) > 2:
                     preds = torch.argmax(model(data), axis=1)
