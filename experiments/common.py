@@ -104,29 +104,10 @@ def _compute_multiclass_accuracy(pred_y, true_y):
     return proportion_correct
 
 
-def _get_discrepancy_fn(discrepancy_fn, input_channels, ablation_pseudometric):
+def _get_discrepancy_fn(discrepancy_fn, input_channels, ablation_pseudometric, metric_type):
     if discrepancy_fn == 'L2':
-        discrepancy_fn = torchshapelets.L2Discrepancy(in_channels=input_channels, pseudometric=ablation_pseudometric)
-    elif discrepancy_fn == 'L2_squared':
-        discrepancy_fn = torchshapelets.L2DiscrepancySquared(in_channels=input_channels,
-                                                             pseudometric=ablation_pseudometric)
-    elif discrepancy_fn == 'piecewise_constant_L2_squared':
-        def discrepancy_fn(times, path, shapelet):
-            return ((path - shapelet) ** 2).sum(dim=(-1, -2))
-        discrepancy_fn.parameters = lambda: []
-    elif discrepancy_fn == 'DTW':
-        # Takes forever, not recommended
-        def discrepancy_fn(times, path, shapelet):
-            memo = [[torch.tensor(float('inf'), dtype=path.dtype)
-                     for _ in range(path.size(-2) + 1)]
-                    for _ in range(shapelet.size(-2) + 1)]
-            memo[0][0] = torch.tensor(0, dtype=path.dtype)
-            for i in range(path.size(-2)):
-                for j in range(shapelet.size(-2)):
-                    cost = (path[..., i, :] - shapelet[j, :]).norm(dim=-1)
-                    memo[i + 1][j + 1] = cost + torch.min(torch.min(memo[i][j + 1], memo[i + 1][j]), memo[i][j])
-            return memo[-1][-1]
-        discrepancy_fn.parameters = lambda: []
+        discrepancy_fn = torchshapelets.L2Discrepancy(in_channels=input_channels, pseudometric=ablation_pseudometric,
+                                                      metric_type=metric_type)
     elif 'logsig' in discrepancy_fn:
         # expects e.g. 'logsig-4'
         split_desc = discrepancy_fn.split('-')
@@ -134,7 +115,12 @@ def _get_discrepancy_fn(discrepancy_fn, input_channels, ablation_pseudometric):
         assert split_desc[0] == 'logsig'
         depth = int(split_desc[1])
         discrepancy_fn = torchshapelets.LogsignatureDiscrepancy(in_channels=input_channels, depth=depth,
-                                                                pseudometric=ablation_pseudometric)
+                                                                pseudometric=ablation_pseudometric,
+                                                                metric_type=metric_type)
+    elif discrepancy_fn == 'piecewise_constant_L2_squared':
+        def discrepancy_fn(times, path, shapelet):
+            return ((path - shapelet) ** 2).sum(dim=(-1, -2))
+        discrepancy_fn.parameters = lambda: []
     return discrepancy_fn
 
 
@@ -171,7 +157,8 @@ class _LinearShapeletTransform(torch.nn.Module):
         self.shapelet_transform.clip_length()
 
     def set_shapelets(self, times, path):
-        self.shapelet_transform.reset_parameters(times, path)
+        data = self.shapelet_transform.extract_random_shapelets(times, path)
+        self.shapelet_transform.set_shapelets(data)
 
 
 def _evaluate_metrics(dataloader, model, times, loss_fn, num_classes):
@@ -337,6 +324,7 @@ def main(times,
          max_shapelet_length_proportion,
          lengths_per_shapelet,
          num_continuous_samples,
+         metric_type,
          ablation_pseudometric,
          ablation_learntlengths,
          ablation_similarreg,
@@ -363,7 +351,7 @@ def main(times,
     if num_continuous_samples is None:
         num_continuous_samples = times.size(0)
 
-    discrepancy_fn = _get_discrepancy_fn(discrepancy_fn, input_channels, ablation_pseudometric)
+    discrepancy_fn = _get_discrepancy_fn(discrepancy_fn, input_channels, ablation_pseudometric, metric_type)
 
     num_shapelets = num_shapelets_per_class * num_classes
 

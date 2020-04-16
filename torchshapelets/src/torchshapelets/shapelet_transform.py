@@ -67,29 +67,35 @@ class GeneralisedShapeletTransform(torch.nn.Module):
                                                                         self.lengths_per_shapelet,
                                                                         self.max_shapelet_length)
 
-    def reset_parameters(self, times=None, path=None):
+    def extract_random_shapelets(self, times, path):
+        assert path.ndimension() == 3, "path must be a 3 dimensional tensor of shape (num_shapelets, length, channels)"
+        assert path.size(0) == self.num_shapelets, "path must be a 3 dimensional tensor of shape (num_shapelets, " \
+                                                   "length, channels)"
+
+        lengths = self.lengths[:self.num_shapelets]
+
+        _impl.check_inputs(times, path, lengths, self.max_shapelet_length)
+        start_times = times[0] + torch.rand_like(lengths) * (times[-1] - times[0] - lengths)
+
+        data = []
+        for start_time, length, path_elem in zip(start_times, lengths, path):
+            start_time = start_time.item()
+            length = length.item()
+            shapelet_times = torch.linspace(start_time, start_time + length, self.num_shapelet_samples)
+            data.append(_impl.unsafe_add_knots((times[0], times[1:-1], times[-1]),
+                                               (path_elem[0], path_elem[1:-1], path_elem[-1]),
+                                               shapelet_times,
+                                               False)[1])
+        return torch.stack(data)
+
+    def set_shapelets(self, data):
+        with torch.no_grad():
+            self.shapelets.copy_(data)
+
+    def reset_parameters(self):
         with torch.no_grad():
             self.lengths.uniform_(self.max_shapelet_length / 2, self.max_shapelet_length)
-            if times is None:
-                assert path is None, "Both times and path must be either None or not None."
-                self.shapelets.uniform_(-1, 1)
-            else:
-                assert path is not None, "Both times and path must be either None or not None."
-                assert path.ndimension() == 3, "path must be a 3 dimensional tensor of shape (num_shapelets, " \
-                                               "length, channels)"
-                assert path.size(0) == self.num_shapelets
-
-                lengths = self.lengths[:self.num_shapelets]
-
-                _impl.check_inputs(times, path, lengths, self.max_shapelet_length)
-                start_times = times[0] + torch.rand_like(lengths) * (times[-1] - times[0] - lengths)
-
-                for start_time, length, shapelet, path_elem in zip(start_times, lengths, self.shapelets, path):
-                    shapelet_times = torch.linspace(start_time, start_time + length, self.num_shapelet_samples)
-                    shapelet.copy_(_impl.unsafe_add_knots((times[0], times[1:-1], times[-1]),
-                                                          (path_elem[0], path_elem[1:-1], path_elem[-1]),
-                                                          shapelet_times,
-                                                          False)[1])
+            self.shapelets.uniform_(-1, 1)
 
     def clip_length(self):
         """Clips the length of the shapelets to valid values. Should be called after every backward pass. (i.e. after

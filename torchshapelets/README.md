@@ -66,8 +66,7 @@ Available objects are:
 torchshapelets.GeneralisedShapeletTransform
 
 torchshapelets.CppDiscrepancy
-torchshapelets.L2Discrepancy
-torchshapelets.L2DiscrepancySquared
+torchshapelets.L2Discrepanc
 torchshapelets.LogsignatureDiscrepancy
 
 torchshapelets.similarity_regularisation

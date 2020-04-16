@@ -1,6 +1,6 @@
 import torch  # must be imported before anything from torchshapelets
 
-from .discrepancies import CppDiscrepancy, L2Discrepancy, L2DiscrepancySquared, LogsignatureDiscrepancy
+from .discrepancies import CppDiscrepancy, L2Discrepancy, LogsignatureDiscrepancy
 from .regularisation import similarity_regularisation
 from .shapelet_transform import GeneralisedShapeletTransform
 

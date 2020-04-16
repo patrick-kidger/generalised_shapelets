@@ -43,6 +43,7 @@ def main(result_folder=None,                  # saving parameters
          max_shapelet_length_proportion=1.0,  #
          lengths_per_shapelet=1,              #
          num_continuous_samples=None,         #
+         metric_type='general',               #
          ablation_pseudometric=True,          # For ablation studies
          ablation_learntlengths=True,         #
          ablation_similarreg=True,            #
@@ -68,6 +69,7 @@ def main(result_folder=None,                  # saving parameters
                        max_shapelet_length_proportion,
                        lengths_per_shapelet,
                        num_continuous_samples,
+                       metric_type,
                        ablation_pseudometric,
                        ablation_learntlengths,
                        ablation_similarreg,
