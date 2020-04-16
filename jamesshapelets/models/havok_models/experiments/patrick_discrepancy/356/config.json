@@ -1,0 +1,19 @@
+{
+  "aug_list": [
+    "addtime"
+  ],
+  "depth": 3,
+  "discriminator": "patrick6",
+  "ds_name": "MedicalImages",
+  "lr": 0.1,
+  "max_epochs": 1000,
+  "max_window": 200,
+  "min_window": 5,
+  "multivariate": false,
+  "num_shapelets": 8,
+  "num_window_sizes": 10,
+  "path_data": "points",
+  "path_tfm": "signature",
+  "seed": 509566392,
+  "window_size": 40
+}

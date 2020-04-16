@@ -27,7 +27,7 @@ import warnings
 warnings.simplefilter('ignore', UserWarning)
 
 # Experiment setup
-ex_name = 'learning_ts_datasets'
+ex_name = 'patrick_discrepancy'
 ex = Experiment(ex_name)
 save_dir = MODELS_DIR + '/experiments/{}'.format(ex_name)
 
@@ -153,9 +153,10 @@ def main(_run,
     elapsed = time.time() - start
 
     _run.log_scalar(elapsed, 'training_time')
-    _run.log_scalar(validation_history['acc.train'][-1], 'acc.train')
-    _run.log_scalar(validation_history['acc.test'][-1], 'acc.test')
-    _run.log_scalar(validation_history['loss.train'][-1], 'loss.train')
+    _run.log_scalar('acc.train', validation_history['acc.train'][-1])
+    _run.log_scalar('acc.test', validation_history['acc.test'][-1])
+    _run.log_scalar('loss.train', validation_history['loss.train'][-1])
+    _run.log_scalar('acc.test.best', max(validation_history['acc.test']))
 
     save_pickle(validation_history, save_dir + '/validation_history.pkl')
 
@@ -163,7 +164,7 @@ def main(_run,
 if __name__ == '__main__':
     config = {
         # 'ds_name': learning_ts_shapelets,
-        'ds_name': ['SonyAIBORobotSurface1'],
+        'ds_name': ['SonyAIBORobotSurface1', 'Coffee', 'MoteStrain', 'Chinatown', 'ECGFiveDays', 'MedicalImages'],
         'multivariate': [False],
         'path_tfm': ['signature'],
         'aug_list': [['addtime']],
@@ -174,10 +175,13 @@ if __name__ == '__main__':
         'max_window': [200],
         'depth': [3],
 
-        'discriminator': ['linear'],
+        'discriminator': [
+            # 'patrick{}'.format(str(x)) for x in range(1, 10)
+            'patrick1'
+    ],
 
-        'max_epochs': [5000],
-        'lr': [1e-2],
+        'max_epochs': [1000],
+        'lr': [1e-1],
     }
 
     # Create FSO (this creates a folder to log information into).

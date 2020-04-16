@@ -1,0 +1,57 @@
+{
+  "json://0.5": {
+    "steps": [
+      0
+    ],
+    "timestamps": [
+      "2020-04-16T09:42:13.604823"
+    ],
+    "values": [
+      "acc.train"
+    ]
+  },
+  "json://0.5391373801916933": {
+    "steps": [
+      0
+    ],
+    "timestamps": [
+      "2020-04-16T09:42:13.604828"
+    ],
+    "values": [
+      "acc.test"
+    ]
+  },
+  "json://0.8138977635782748": {
+    "steps": [
+      0
+    ],
+    "timestamps": [
+      "2020-04-16T09:42:13.604838"
+    ],
+    "values": [
+      "acc.test.best"
+    ]
+  },
+  "json://2.298267364501953": {
+    "steps": [
+      0
+    ],
+    "timestamps": [
+      "2020-04-16T09:42:13.604784"
+    ],
+    "values": [
+      "training_time"
+    ]
+  },
+  "json://NaN": {
+    "steps": [
+      0
+    ],
+    "timestamps": [
+      "2020-04-16T09:42:13.604833"
+    ],
+    "values": [
+      "loss.train"
+    ]
+  }
+}

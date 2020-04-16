@@ -43,7 +43,7 @@ class ExperimentToFrame():
         # Create a frame for each run
         for run_num in os.listdir(self.ex_dir):
             # Ignore _sources folder
-            if run_num == '_sources':
+            if run_num in ['_sources', '.ipynb_checkpoints']:
                 continue
 
             # Get config and metrics
@@ -51,6 +51,7 @@ class ExperimentToFrame():
             metrics = self.get_metrics(str(run_num))
 
             # Create a df from the information and add to dataframes
+            config = {str(k): str(v) for k, v in config.items()}
             df_config = pd.DataFrame.from_dict(config, orient='index').T
             df_metrics = pd.DataFrame.from_dict(metrics, orient='index').T
             df = pd.concat([df_config, df_metrics], axis=1)
@@ -68,8 +69,12 @@ class ExperimentToFrame():
         cols_front = ['ds_name']
         df = df[cols_front + [x for x in df.columns if x not in cols_front]]
 
+        # Apply numeric
+        df = df.apply(lambda x: pd.to_numeric(x, errors='ignore'), axis=1)
+
         return df
 
 
 if __name__ == '__main__':
-    df = ExperimentToFrame(MODELS_DIR + '/experiments/basic_order').generate_frame()
+    df = ExperimentToFrame('../jamesshapelets/models/havok_models/experiments/patrick_discrepancy').generate_frame()
+

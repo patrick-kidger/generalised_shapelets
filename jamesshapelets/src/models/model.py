@@ -20,6 +20,7 @@ class PatrickDiscriminator(torch.nn.Module):
         if self.mode == 1:  # very nearly james' version. He adds a bias as well.
             diffs = diffs.abs()
             diffs = (vector * diffs).sum(dim=-1)
+            diffs.abs()
         elif self.mode in (2, 3, 6, 8):
             diffs = (vector * diffs).sum(dim=-1)
             diffs = diffs.abs()

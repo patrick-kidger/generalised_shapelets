@@ -1,0 +1,33 @@
+INFO - patrick_discrepancy - Running command 'main'
+INFO - patrick_discrepancy - Started run with ID "205"
+EPOCH: [100]
+Train loss: 0.04725921154022217 - Train acc: 100.00%
+Acc Test: 75.00%
+EPOCH: [200]
+Train loss: 0.01021898165345192 - Train acc: 100.00%
+Acc Test: 77.16%
+EPOCH: [300]
+Train loss: 0.004183370154350996 - Train acc: 100.00%
+Acc Test: 77.08%
+EPOCH: [400]
+Train loss: 0.00251253810711205 - Train acc: 100.00%
+Acc Test: 76.92%
+EPOCH: [500]
+Train loss: 0.0015974326524883509 - Train acc: 100.00%
+Acc Test: 76.84%
+EPOCH: [600]
+Train loss: 0.001099547022022307 - Train acc: 100.00%
+Acc Test: 76.76%
+EPOCH: [700]
+Train loss: 0.0008081500418484211 - Train acc: 100.00%
+Acc Test: 76.84%
+EPOCH: [800]
+Train loss: 0.0006103069754317403 - Train acc: 100.00%
+Acc Test: 76.76%
+EPOCH: [900]
+Train loss: 0.000485128810396418 - Train acc: 100.00%
+Acc Test: 76.76%
+EPOCH: [1000]
+Train loss: 0.00038559126551263034 - Train acc: 100.00%
+Acc Test: 76.68%
+INFO - patrick_discrepancy - Completed after 0:00:03
