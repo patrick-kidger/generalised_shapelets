@@ -28,7 +28,7 @@ class PatrickDiscriminator(torch.nn.Module):
             diffs = (vector * diffs).sum(dim=-1)
             diffs = diffs ** 2
         diffs, _ = diffs.min(dim=1)
-        if self.mode in (3, 5):
+        if self.mode in (3, 5, 8, 9):
             diffs = diffs.log()
         return diffs
 
