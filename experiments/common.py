@@ -299,14 +299,16 @@ def save_results(result_folder, result_subfolder, results):
         except ValueError:
             pass
     result_to_save = results.copy()
+    model = result_to_save['model']
+    result_to_save['model'] = str(result_to_save['model'])
     del result_to_save['train_dataloader']
     del result_to_save['val_dataloader']
     del result_to_save['test_dataloader']
-    result_to_save['model'] = str(result_to_save['model'])
 
     num += 1
     with open(loc / str(num), 'w') as f:
         json.dump(result_to_save, f, cls=_TensorEncoder)
+    torch.save(model.state_dict(), loc / (str(num) + '_model'))
 
 
 def main(times,

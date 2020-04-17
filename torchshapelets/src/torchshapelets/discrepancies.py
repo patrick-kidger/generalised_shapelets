@@ -80,7 +80,7 @@ class L2Discrepancy(CppDiscrepancy):
                 torch.nn.init.uniform_(linear, 0.9, 1.1)
             self.arg = torch.nn.Parameter(linear)
         else:
-            self.arg = torch.nn.Parameter(torch.Tensor())
+            self.arg = torch.nn.Parameter(torch.empty(()))
 
     def extra_repr(self):
         return "in_channels={}, pseudometric={}".format(self.in_channels, self.pseudometric)

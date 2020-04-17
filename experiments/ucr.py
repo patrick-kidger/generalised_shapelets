@@ -424,9 +424,7 @@ def main(dataset_name,                        # dataset parameters
 def comparison_test():
     pseudometric = False  # meaningless in one dimension
     result_folder = 'ucr_comparison'
-    # Note that the most expensive datasets really will take a phenomenally long time to do, so be prepared to control-C
-    # this at some point.
-    for dataset_name in datasets_by_cost:
+    for dataset_name in datasets_by_cost[:36]:
         # We're actually perfectly capable of handling irregular lengths, but they're a pain to batch over.
         # Similarly we can handle missing data (see the UEA experiment), but for simplicity we leave them out of this
         # study
@@ -438,22 +436,14 @@ def comparison_test():
              result_subfolder='L2',
              discrepancy_fn='L2',
              ablation_pseudometric=pseudometric)
-        print("Starting comparison: L2_squared, " + dataset_name)
-        main(dataset_name,
-             result_folder=result_folder,
-             result_subfolder='L2_squared',
-             discrepancy_fn='L2_squared',
-             ablation_pseudometric=pseudometric)
         print("Starting comparison: logsig-3, " + dataset_name)
         main(dataset_name,
              result_folder=result_folder,
              result_subfolder='logsig-3',
              discrepancy_fn='logsig-3',
              ablation_pseudometric=pseudometric)
-        print("Starting comparison: old-L2_squared, " + dataset_name)
+        print("Starting comparison: old, " + dataset_name)
         main(dataset_name,
              result_folder=result_folder,
-             result_subfolder='old-L2_squared',
-             discrepancy_fn='L2_squared',
-             old_shapelets=True,
-             ablation_pseudometric=pseudometric)
+             result_subfolder='old',
+             old_shapelets=True)

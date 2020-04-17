@@ -195,14 +195,15 @@ def main(dataset_name,                        # dataset parameters
          noise_channels=0,                    #
          result_folder=None,                  # saving parameters
          result_subfolder='',                 #
-         epochs=1000,                         # training parameters
+         dataset_detail='',                   #
+         epochs=0,                         # training parameters
          num_shapelets_per_class=3,           # model parameters
          num_shapelet_samples=None,           #
          discrepancy_fn='L2',                 #
          max_shapelet_length_proportion=1.0,  #
          lengths_per_shapelet=1,              #
          num_continuous_samples=None,         #
-         metric_type='general',
+         metric_type='general',               #
          ablation_pseudometric=True,          # For ablation studies
          ablation_learntlengths=True,         #
          ablation_similarreg=True,            #
@@ -219,7 +220,7 @@ def main(dataset_name,                        # dataset parameters
                        num_classes,
                        input_channels,
                        result_folder,
-                       dataset_name + '-' + result_subfolder,
+                       dataset_name + dataset_detail + '-' + result_subfolder,
                        epochs,
                        num_shapelets_per_class,
                        num_shapelet_samples,
@@ -236,34 +237,27 @@ def main(dataset_name,                        # dataset parameters
 
 def comparison_test():
     result_folder = 'uea_comparison'
-    # Note that the most expensive datasets really will take a phenomenally long time to do, so be prepared to control-C
-    # this at some point.
-    for dataset_name in datasets_by_cost:
-        pseudometric = dataset_name in large_datasets
-        print("Starting comparison: L2, " + dataset_name)
+    metric_type = 'diagonal'
+    for dataset_name in datasets_by_cost[:11]:
+        result_subfolder = 'L2-' + metric_type
+        print("Starting comparison: " + dataset_name + ' ' + result_subfolder)
         main(dataset_name,
              result_folder=result_folder,
-             result_subfolder='L2',
+             result_subfolder=result_subfolder,
              discrepancy_fn='L2',
-             ablation_pseudometric=pseudometric)
-        print("Starting comparison: L2_squared, " + dataset_name)
+             metric_type=metric_type)
+        result_subfolder = 'logsig-3-' + metric_type
+        print("Starting comparison: " + dataset_name + ' ' + result_subfolder)
         main(dataset_name,
              result_folder=result_folder,
-             result_subfolder='L2',
-             discrepancy_fn='L2_squared',
-             ablation_pseudometric=pseudometric)
-        print("Starting comparison: logsig-3, " + dataset_name)
-        main(dataset_name,
-             result_folder=result_folder,
-             result_subfolder='logsig-3',
+             result_subfolder='logsig-3' + metric_type,
              discrepancy_fn='logsig-3',
-             ablation_pseudometric=pseudometric)
-        print("Starting comparison: old-L2_squared, " + dataset_name)
+             metric_type=metric_type)
+        result_subfolder = 'old'
+        print("Starting comparison: " + dataset_name + ' ' + result_subfolder)
         main(dataset_name,
              result_folder=result_folder,
-             result_subfolder='old-L2_squared',
-             discrepancy_fn='L2_squared',
-             ablation_pseudometric=pseudometric,
+             result_subfolder=result_subfolder,
              old_shapelets=True)
 
 
@@ -272,53 +266,62 @@ standard_dataset_names = ('JapaneseVowels', 'BasicMotions', 'FingerMovements')
 
 def missing_rate_test():
     result_folder = 'uea_missingness'
+    metric_type = 'diagonal'
     for dataset_name in standard_dataset_names:
         for missing_rate in (0.1, 0.3, 0.5):
-            result_subfolder = str(int(missing_rate * 100))
-            for discrepancy_fn in ('L2', 'L2_squared', 'logsig-3'):
-                run_subfolder = result_subfolder + '-' + discrepancy_fn
-                print("Starting comparison: " + run_subfolder)
+            for discrepancy_fn in ('L2', 'logsig-3'):
+                result_subfolder = discrepancy_fn + '-' + metric_type
+                print("Starting comparison: " + dataset_name + str(int(missing_rate * 100)) + ' ' + result_subfolder)
                 main(dataset_name,
                      result_folder=result_folder,
-                     result_subfolder=run_subfolder,
+                     result_subfolder=result_subfolder,
+                     dataset_detail=str(int(missing_rate * 100)),
                      missing_rate=missing_rate,
-                     discrepancy_fn=discrepancy_fn)
+                     discrepancy_fn=discrepancy_fn,
+                     metric_type=metric_type)
 
 
 def noise_test():
     result_folder = 'uea_noise'
-    for dataset_name in standard_dataset_names:
-        for noise_channels in (3, 9, 30):
-            result_subfolder = str(noise_channels)
-            for discrepancy_fn in ('L2',):
+    for _ in range(5):
+        for dataset_name in standard_dataset_names:
+            for noise_channels in (3, 9, 30):
+                discrepancy_fn = 'L2'
+                metric_type = 'diagonal'
                 for pseudometric in (True, False):
-                    run_subfolder = result_subfolder + '-' + discrepancy_fn + '-' + str(pseudometric)
-                    print("Starting comparison: " + run_subfolder)
+                    result_subfolder = discrepancy_fn + '-' + metric_type + '-' + str(pseudometric)
+                    print("Starting comparison: " + dataset_name + str(noise_channels) + ' ' + result_subfolder)
                     main(dataset_name,
                          noise_channels=noise_channels,
                          result_folder=result_folder,
-                         result_subfolder=run_subfolder,
+                         result_subfolder=result_subfolder,
+                         dataset_detail=str(noise_channels),
                          discrepancy_fn=discrepancy_fn,
-                         ablation_pseudometric=pseudometric)
-                run_subfolder = result_subfolder + '-old-' + discrepancy_fn
-                print("Starting comparison: " + run_subfolder)
+                         ablation_pseudometric=pseudometric,
+                         metric_type=metric_type)
+                result_subfolder = 'old'
+                print("Starting comparison: " + str(noise_channels) + result_subfolder)
                 main(dataset_name,
                      noise_channels=noise_channels,
                      result_folder=result_folder,
-                     result_subfolder=run_subfolder,
+                     result_subfolder=result_subfolder,
+                     dataset_detail=str(noise_channels),
                      discrepancy_fn=discrepancy_fn,
                      old_shapelets=True)
 
 
 def length_test():
     result_folder = 'uea_length'
-    for dataset_name in standard_dataset_names:
-        for discrepancy_fn in ('L2',):
+    for _ in range(5):
+        for dataset_name in standard_dataset_names:
+            discrepancy_fn = 'L2'
+            metric_type = 'diagonal'
             for learnt_lengths in (True, False):
-                run_subfolder = discrepancy_fn + str(learnt_lengths)
-                print("Starting comparison: " + run_subfolder)
+                result_subfolder = discrepancy_fn + '-' + metric_type + '-' + str(learnt_lengths)
+                print("Starting comparison: " + dataset_name + ' ' + result_subfolder)
                 main(dataset_name,
                      result_folder=result_folder,
-                     result_subfolder=run_subfolder,
+                     result_subfolder=result_subfolder,
                      discrepancy_fn=discrepancy_fn,
-                     ablation_learntlengths=learnt_lengths)
+                     ablation_learntlengths=learnt_lengths,
+                     metric_type=metric_type)

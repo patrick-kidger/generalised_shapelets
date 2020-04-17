@@ -76,12 +76,12 @@ def main(result_folder=None,                  # saving parameters
                        old_shapelets)
 
 
-def comparison_test():
-    result_folder = 'speech_commands'
-    print("Starting comparison: L2")
-    main(result_folder=result_folder,
-         result_subfolder='L2')
-    print("Starting comparison: old-L2_squared")
-    main(result_folder=result_folder,
-         result_subfolder='old-L2_squared',
-         old_shapelets=True)
+def james1():
+    main(result_folder='speech_commands', result_subfolder='L2')
+
+
+def james2():
+    main(result_folder='speech_commands', result_subfolder='L2-diagonal', metric_type='diagonal')
+
+
+james4 = james3 = james2
