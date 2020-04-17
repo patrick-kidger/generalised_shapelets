@@ -196,7 +196,7 @@ def main(dataset_name,                        # dataset parameters
          result_folder=None,                  # saving parameters
          result_subfolder='',                 #
          dataset_detail='',                   #
-         epochs=0,                         # training parameters
+         epochs=1000,                         # training parameters
          num_shapelets_per_class=3,           # model parameters
          num_shapelet_samples=None,           #
          discrepancy_fn='L2',                 #
