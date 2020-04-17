@@ -177,7 +177,7 @@ if __name__ == '__main__':
 
         'discriminator': [
             # 'patrick{}'.format(str(x)) for x in range(1, 10)
-            'patrick1'
+            'patrick6'
     ],
 
         'max_epochs': [1000],

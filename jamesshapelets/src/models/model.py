@@ -20,15 +20,42 @@ class PatrickDiscriminator(torch.nn.Module):
         if self.mode == 1:  # very nearly james' version. He adds a bias as well.
             diffs = diffs.abs()
             diffs = (vector * diffs).sum(dim=-1)
-            diffs.abs()
-        elif self.mode in (2, 3, 6, 8):
+            diffs, _ = diffs.min(dim=1)
+        elif self.mode == 2:
             diffs = (vector * diffs).sum(dim=-1)
             diffs = diffs.abs()
-        elif self.mode in (4, 5, 7, 9):
+            diffs, _ = diffs.min(dim=1)
+        elif self.mode == 3:
+            diffs = (vector * diffs).sum(dim=-1)
+            diffs = diffs.abs()
+            diffs, _ = diffs.min(dim=1)
+            diffs = diffs.log()
+        elif self.mode == 4:
             diffs = (vector * diffs).sum(dim=-1)
             diffs = diffs ** 2
-        diffs, _ = diffs.min(dim=1)
-        if self.mode in (3, 5, 8, 9):
+            diffs, _ = diffs.min(dim=1)
+        elif self.mode == 5:
+            diffs = (vector * diffs).sum(dim=-1)
+            diffs = diffs ** 2
+            diffs, _ = diffs.min(dim=1)
+            diffs = diffs.log()
+        elif self.mode == 6:
+            diffs = diffs.abs()
+            diffs = (vector * diffs).sum(dim=-1)
+            diffs, _ = diffs.min(dim=1)
+        elif self.mode == 7:
+            diffs = diffs ** 2
+            diffs = (vector * diffs).sum(dim=-1)
+            diffs, _ = diffs.min(dim=1)
+        elif self.mode == 8:
+            diffs = diffs.abs()
+            diffs = (vector * diffs).sum(dim=-1)
+            diffs, _ = diffs.min(dim=1)
+            diffs = diffs.log()
+        elif self.mode == 9:
+            diffs = diffs ** 2
+            diffs = (vector * diffs).sum(dim=-1)
+            diffs, _ = diffs.min(dim=1)
             diffs = diffs.log()
         return diffs
 
