@@ -19,19 +19,29 @@ def get(foldername):
 def main(dataset_folder):
     dataset_folder = here / 'results' / dataset_folder
 
+    has_no_dash = False
+    for foldername in os.listdir(dataset_folder):
+        if '-' not in foldername:
+            has_no_dash = True
+            break
+
     means = {}
     stds = {}
     for foldername in os.listdir(dataset_folder):
-        foldername_split = foldername.split('-', maxsplit=1)
-        dataset_name = foldername_split[0]
-        regularisation = foldername_split[1]
+        if has_no_dash:
+            dataset_name = str(dataset_folder.name)
+            setting = foldername
+        else:
+            foldername_split = foldername.split('-', maxsplit=1)
+            dataset_name = foldername_split[0]
+            setting = foldername_split[1]
         if dataset_name not in means:
             means[dataset_name] = {}
             stds[dataset_name] = {}
         values = list(get(dataset_folder / foldername))
-        means[dataset_name][regularisation] = statistics.mean(values)
+        means[dataset_name][setting] = statistics.mean(values)
         if len(values) > 1:
-            stds[dataset_name][regularisation] = statistics.stdev(values)
+            stds[dataset_name][setting] = statistics.stdev(values)
 
     headings = co.OrderedDict()  # Used as an ordered set here
     for mean in means.values():

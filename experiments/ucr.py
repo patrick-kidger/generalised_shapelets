@@ -422,7 +422,6 @@ def main(dataset_name,                        # dataset parameters
 
 
 def comparison_test():
-    pseudometric = False  # meaningless in one dimension
     result_folder = 'ucr_comparison'
     for dataset_name in datasets_by_cost[:36]:
         # We're actually perfectly capable of handling irregular lengths, but they're a pain to batch over.
@@ -435,13 +434,14 @@ def comparison_test():
              result_folder=result_folder,
              result_subfolder='L2',
              discrepancy_fn='L2',
-             ablation_pseudometric=pseudometric)
-        print("Starting comparison: logsig-3, " + dataset_name)
+             ablation_pseudometric=False)
+        print("Starting comparison: logsig-3-diagonal, " + dataset_name)
         main(dataset_name,
              result_folder=result_folder,
-             result_subfolder='logsig-3',
+             result_subfolder='logsig-3-diagonal',
              discrepancy_fn='logsig-3',
-             ablation_pseudometric=pseudometric)
+             ablation_pseudometric=True,
+             metric_type='diagonal')
         print("Starting comparison: old, " + dataset_name)
         main(dataset_name,
              result_folder=result_folder,
