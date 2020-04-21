@@ -11,9 +11,10 @@ here = pathlib.Path(__file__).resolve().parent
 
 def get(foldername):
     for filename in os.listdir(foldername):
-        with open(foldername / filename, 'r') as f:
-            content = json.load(f)
-        yield content['test_metrics']['accuracy']
+        if 'model' not in filename:
+            with open(foldername / filename, 'r') as f:
+                content = json.load(f)
+            yield content['test_metrics']['accuracy']
 
 
 def main(dataset_folder):

@@ -152,3 +152,18 @@ def main(result_folder=None,                  # saving parameters
                        ablation_learntlengths,
                        ablation_similarreg,
                        old_shapelets)
+
+
+def james1():
+    main(result_folder='human_activity', result_subfolder='logsig-3-diagonal', discrepancy_fn='logsig-3',
+         metric_type='diagonal')
+
+
+james3 = james2 = james1
+
+
+def james4():
+    main(result_folder='human_activity', result_subfolder='logsig-3', discrepancy_fn='logsig-3')
+
+
+james6 = james5 = james4
