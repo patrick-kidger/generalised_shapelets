@@ -38,6 +38,7 @@ def main(dataset_folder):
             setting = foldername_split[1]
         if dataset_name not in means:
             means[dataset_name] = {}
+        if dataset_name not in stds:
             stds[dataset_name] = {}
         values = list(get(dataset_folder / foldername))
         means[dataset_name][setting] = statistics.mean(values)
@@ -46,8 +47,8 @@ def main(dataset_folder):
 
     headings = co.OrderedDict()  # Used as an ordered set here
     for mean in means.values():
-        for key in mean:
-            headings[key] = None
+        for setting in mean:
+            headings[setting] = None
 
     means = co.OrderedDict(sorted(means.items(), key=lambda x: x[0]))
 
@@ -61,7 +62,8 @@ def main(dataset_folder):
     for _ in headings:
         print('+' + '-' * (column_width + 2), end='')
     print('')
-    for (dataset_name, mean), std in zip(means.items(), stds.values()):
+    for dataset_name, mean in means.items():
+        std = stds[dataset_name]
         print('{{:{}}}'.format(dataset_column_width).format(dataset_name), end='')
         for heading in headings:
             mean_print = '{:.3f}'.format(mean[heading]) if heading in mean else '  -  '
