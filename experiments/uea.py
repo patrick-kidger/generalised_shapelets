@@ -59,7 +59,7 @@ large_datasets = {'InsectWingbeat', 'ElectricDevices', 'PenDigits', 'SpokenArabi
 # Ordered by chanels * dataset size * num_classes * length ** 2, i.e. the cost of evaluating shaplets on them.
 datasets_by_cost = ('ERing',
                     'RacketSports',
-                    'PenDigits',
+                    # 'PenDigits',
                     'BasicMotions',
                     'Libras',
                     'JapaneseVowels',

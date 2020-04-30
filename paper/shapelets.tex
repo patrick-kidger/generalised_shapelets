@@ -252,9 +252,8 @@ In \cite{TODO} they propose to solve this issue via adversarial regularisation.
 	
 	This is now easily interpretable: a very negative coefficient of $\log \sigma^A_{S_k}(f^n, w^{k, \rho, S_k})$ corresponds to the importance of $\sigma^A_{S_k}(f^n, w^{k, \rho, S_k})$ being close to zero, and thus the importance of $f^n$ and $w^{k, \rho, S_k}$ being similar to each other.
 	
-	\section{Experiments}
-	Our generalised shapelet transform, contrasted with the classical shapelet transform, has two extra degrees of freedom: the choice of interpolation scheme $\iota$, and the choice of discrepancy function $\pi^A_S$. In our experiments, we consider $\pi^A_S$ given by either of equations \eqref{eq:learnt-discrepancy} or \eqref{eq:logsignature-discrepancy}. Meanwhile, we take $\iota$ to be piecewise linear interpolation, because efficient algorithms for computing the logsignature transform only exist for piecewise linear paths \cite{signatory}.
 	
-	TODO: we need to consider more disrepancy functions than this.
-	
+	\input{sections/experiments.tex}
+
+
 \end{document}

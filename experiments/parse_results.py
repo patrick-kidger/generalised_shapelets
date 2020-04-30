@@ -6,6 +6,7 @@ import statistics
 import sys
 import pickle
 import pandas as pd
+from copy import deepcopy
 
 here = pathlib.Path(__file__).resolve().parent
 
@@ -16,6 +17,12 @@ def get(foldername):
             with open(foldername / filename, 'r') as f:
                 content = json.load(f)
             yield content['test_metrics']['accuracy']
+
+
+def write_string(save_loc, string):
+    with open(save_loc, "w") as file:
+        file.write(string)
+    file.close()
 
 
 def _create_folder_if_not_exist(filename):
@@ -43,6 +50,20 @@ def save_pickle(obj, filename, protocol=4, create_folder=True):
     # Save
     with open(filename, 'wb') as file:
         pickle.dump(obj, file, protocol=protocol)
+
+
+def load_pickle(filename):
+    """ Basic dill/pickle load function.
+
+    Args:
+        filename (str): Location of the object.
+
+    Returns:
+        python object: The loaded object.
+    """
+    with open(filename, 'rb') as file:
+        obj = pickle.load(file)
+    return obj
 
 
 def main(dataset_folder, save_df=True):
@@ -118,14 +139,61 @@ def main(dataset_folder, save_df=True):
         print('| {{:{}}} '.format(column_width).format(wins[heading]), end='')
     print('')
 
-    # Generate and return a dataframe
-    if save_df:
-        folder_name = dataset_folder.name
-        df = pd.DataFrame.from_dict(means).T
-        save_pickle(df, './results/dataframes/{}.pkl'.format(folder_name))
+    return means, wins, stds
+
+
+def generate_dataframes(means, wins, stds):
+    """ Generates dataframes from means, stds and wins. """
+    # Save mean
+    means = pd.DataFrame.from_dict(means).T
+
+    # Save wins
+    wins = pd.DataFrame.from_dict(wins, orient='index')
+    wins = wins.T
+    wins.index = ['Wins']
+    wins = wins[means.columns]
+
+    stds = pd.DataFrame.from_dict(stds).T
+    if stds.shape[1] > 0:
+        stds = stds[means.columns]
+    else:
+        stds = None
+
+    return means, wins, stds
+
+
+def generate_table(save_loc, means, wins, stds, round=3):
+    """ Generates latex ready tables from means, wins, stds. """
+    means, wins, stds = generate_dataframes(means, wins, stds)
+
+    n_cols = len(means.columns)
+    means = means.round(round)
+
+    if stds is not None:
+        stds = stds.round(round)
+        zfill = lambda x: x.astype(str).str.ljust(width=round + 2, fillchar='0')
+        new_means = deepcopy(means)
+        for col in means.columns:
+            new_means[col] = zfill(means[col]) + ' \pm ' + zfill(stds[col])
+        means = new_means
+
+    # Convert onto a win frame
+    column_format = 'l' + 'c' * n_cols
+    top_section = (means.to_latex(float_format="%.3f", column_format=column_format, na_rep='-', escape=False)
+                        .split('\\\\\n\\bottom')[0])
+    bottom_section = 'Wins' + wins.to_latex().split('Wins')[1]
+    tex_string = top_section + '\\\\ \n\midrule\n' + bottom_section
+
+    # Write the table
+    write_string(save_loc, tex_string)
+
 
 
 if __name__ == '__main__':
     assert len(sys.argv) == 2
     dataset = sys.argv[1]
-    main(dataset)
+    means, wins, stds = main(dataset)
+
+    # Save the table to results
+    save_loc = '../paper/results/data/{}.tex'.format(dataset)
+    generate_table(save_loc, means, wins, stds)
