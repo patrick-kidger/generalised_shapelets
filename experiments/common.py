@@ -259,8 +259,6 @@ def _train_loop(train_dataloader, val_dataloader, test_dataloader, model, times,
 
     epoch_per_metric = 1
     print_freq = 5
-    # plateau_patience = 1  # this will be multiplied by epoch_per_metric for the actual patience
-    # plateau_terminate = 50
     similarity_coefficient = 0.0001
 
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=plateau_patience, mode='min', min_lr=1e-3)
@@ -407,9 +405,10 @@ def main(times,
          plateau_terminate,
          initialisation):
 
+    max_shapelet_length_proportion = 0.3
+
     if old_shapelets:
         discrepancy_fn = 'piecewise_constant_L2_squared'
-        max_shapelet_length_proportion = 0.3
         ablation_pseudometric = False
         ablation_learntlengths = False
         ablation_similarreg = False
@@ -424,7 +423,8 @@ def main(times,
         num_shapelet_samples = int(num_shapelet_samples * ds_length)
 
     if initialisation == 'kmeans':
-        initial_shapelet_len = int(np.floor(0.2 * train_dataloader.dataset.tensors[0].size(1)))
+        initial_shapelet_len = max(7, int(np.floor(max_shapelet_length_proportion * train_dataloader.dataset.tensors[0].size(1))))
+        print(initial_shapelet_len)
         num_shapelet_samples = initial_shapelet_len
 
     # Select some sensible options based on the length of the dataset
@@ -439,7 +439,7 @@ def main(times,
 
     discrepancy_fn = _get_discrepancy_fn(discrepancy_fn, input_channels, ablation_pseudometric, metric_type)
 
-    num_shapelets = num_shapelets_per_class * num_classes
+    num_shapelets = min(30, num_shapelets_per_class * num_classes)
 
     if num_classes == 2:
         out_channels = 1
