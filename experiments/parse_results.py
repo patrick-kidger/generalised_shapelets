@@ -1,5 +1,6 @@
 import collections as co
 import json
+import math
 import os
 import pathlib
 import statistics
@@ -26,8 +27,8 @@ def main(dataset_folder):
             has_no_dash = True
             break
 
-    means = {}
-    stds = {}
+    values = {}
+    min_num_observations = math.inf
     for foldername in os.listdir(dataset_folder):
         if has_no_dash:
             dataset_name = str(dataset_folder.name)
@@ -36,14 +37,19 @@ def main(dataset_folder):
             foldername_split = foldername.split('-', maxsplit=1)
             dataset_name = foldername_split[0]
             setting = foldername_split[1]
-        if dataset_name not in means:
-            means[dataset_name] = {}
-        if dataset_name not in stds:
-            stds[dataset_name] = {}
-        values = list(get(dataset_folder / foldername))
-        means[dataset_name][setting] = statistics.mean(values)
-        if len(values) > 1:
-            stds[dataset_name][setting] = statistics.stdev(values)
+        if dataset_name not in values:
+            values[dataset_name] = {}
+        value = list(get(dataset_folder / foldername))
+        min_num_observations = min(min_num_observations, len(value))
+        values[dataset_name][setting] = value
+
+    means = {k: {} for k in values}
+    stds = {k: {} for k in values}
+    for dataset_name, settings in values.items():
+        for setting, value in settings.items():
+            means[dataset_name][setting] = statistics.mean(value[:min_num_observations])
+            if len(value) > 1:
+                stds[dataset_name][setting] = statistics.stdev(value[:min_num_observations])
 
     headings = co.OrderedDict()  # Used as an ordered set here
     for mean in means.values():
@@ -52,6 +58,7 @@ def main(dataset_folder):
 
     means = co.OrderedDict(sorted(means.items(), key=lambda x: x[0]))
 
+    print('Num observations: ' + str(min_num_observations))
     dataset_column_width = max(len(dataset_name) for dataset_name in means) + 1
     column_width = max(max(len(heading) for heading in headings), 12)
     print(' ' * dataset_column_width, end='')
