@@ -80,6 +80,8 @@ def hyperparameter_search():
             print("Starting comparison: " + result_subfolder)
             main(result_folder=result_folder,
                  result_subfolder=result_subfolder,
+                 num_shapelets_per_class=num_shapelets_per_class,
+                 max_shapelet_length_proportion=max_shapelet_length_proportion,
                  old_shapelets=True)
 
 
