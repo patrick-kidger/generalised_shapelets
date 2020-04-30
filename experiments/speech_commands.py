@@ -41,17 +41,11 @@ def main(result_folder=None,                  # saving parameters
          num_shapelet_samples=None,           #
          discrepancy_fn='L2',                 #
          max_shapelet_length_proportion=1.0,  #
-         lengths_per_shapelet=1,              #
          num_continuous_samples=None,         #
-         metric_type='general',               #
          ablation_pseudometric=True,          # For ablation studies
          ablation_learntlengths=True,         #
          ablation_similarreg=True,            #
-         old_shapelets=False,
-         lr=0.05,
-         plateau_patience=20,
-         plateau_terminate=60,
-         initialisation='old'):                # Whether to toggle off all of our innovations and use old-style shapelets
+         old_shapelets=False):                # Whether to toggle off all of our innovations and use old-style shapelets
 
     times, train_dataloader, val_dataloader, test_dataloader = get_data()
 
@@ -71,27 +65,26 @@ def main(result_folder=None,                  # saving parameters
                        num_shapelet_samples,
                        discrepancy_fn,
                        max_shapelet_length_proportion,
-                       lengths_per_shapelet,
                        num_continuous_samples,
-                       metric_type,
                        ablation_pseudometric,
                        ablation_learntlengths,
                        ablation_similarreg,
-                       old_shapelets,
-                       lr,
-                       plateau_patience,
-                       plateau_terminate,
-                       initialisation)
+                       old_shapelets)
 
 
-def james1():
-    main(result_folder='speech_commands', result_subfolder='L2')
+def hyperparameter_search():
+    result_folder = 'speech_commands_hyperparameter_search'
+    for num_shapelets_per_class in (2, 3, 5):
+        for max_shapelet_length_proportion in (0.3, 0.5, 1.0):
+            result_subfolder = 'old-' + str(num_shapelets_per_class) + '-' + str(max_shapelet_length_proportion)
+            print("Starting comparison: " + result_subfolder)
+            main(result_folder=result_folder,
+                 result_subfolder=result_subfolder,
+                 old_shapelets=True)
 
 
-def james2():
-    main(result_folder='speech_commands', result_subfolder='L2-diagonal', metric_type='diagonal')
-
-
-james4 = james3 = james2
-
-james6 = james5 = james1
+def comparison_test(seed, old):
+    common.handle_seed(seed)
+    main(result_folder='speech_commands',
+         result_subfolder='old' if old else 'L2',
+         old_shapelets=old)

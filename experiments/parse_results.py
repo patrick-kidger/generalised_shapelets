@@ -1,13 +1,13 @@
 import collections as co
+import copy
 import json
 import math
 import os
 import pathlib
 import statistics
 import sys
-import pickle
 import pandas as pd
-from copy import deepcopy
+
 
 here = pathlib.Path(__file__).resolve().parent
 
@@ -20,54 +20,7 @@ def get(foldername):
             yield content['test_metrics']['accuracy']
 
 
-def write_string(save_loc, string):
-    with open(save_loc, "w") as file:
-        file.write(string)
-    file.close()
-
-
-def _create_folder_if_not_exist(filename):
-    """ Makes a folder if the folder component of the filename does not already exist. """
-    os.makedirs(os.path.dirname(filename), exist_ok=True)
-
-
-def save_pickle(obj, filename, protocol=4, create_folder=True):
-    """ Basic pickle/dill dumping.
-
-    Given a python object and a filename, the method will save the object under that filename.
-
-    Args:
-        obj (python object): The object to be saved.
-        filename (str): Location to save the file.
-        protocol (int): Pickling protocol (see pickle docs).
-        create_folder (bool): Set True to create the folder if it does not already exist.
-
-    Returns:
-        None
-    """
-    if create_folder:
-        _create_folder_if_not_exist(filename)
-
-    # Save
-    with open(filename, 'wb') as file:
-        pickle.dump(obj, file, protocol=protocol)
-
-
-def load_pickle(filename):
-    """ Basic dill/pickle load function.
-
-    Args:
-        filename (str): Location of the object.
-
-    Returns:
-        python object: The loaded object.
-    """
-    with open(filename, 'rb') as file:
-        obj = pickle.load(file)
-    return obj
-
-
-def main(dataset_folder, save_df=True):
+def main(dataset_folder):
     dataset_folder = here / 'results' / dataset_folder
 
     has_no_dash = False
@@ -134,13 +87,16 @@ def main(dataset_folder, save_df=True):
 
     wins = {k: 0 for k in headings}
     for dataset_name, mean in means.items():
-        max_regularisation_name = None
+        max_regularisation_names = set()
         max_regularisation_value = -1.
         for regularisation_name, regularisation_value in mean.items():
             if regularisation_value > max_regularisation_value:
                 max_regularisation_value = regularisation_value
-                max_regularisation_name = regularisation_name
-        wins[max_regularisation_name] += 1
+                max_regularisation_names = {regularisation_name}
+            elif regularisation_value == max_regularisation_value:
+                max_regularisation_names.add(regularisation_name)
+        for name in max_regularisation_names:
+            wins[name] += 1
 
     for heading in headings:
         print('| {{:{}}} '.format(column_width).format(wins[heading]), end='')
@@ -179,7 +135,7 @@ def generate_table(save_loc, means, wins, stds, round=3):
     if stds is not None:
         stds = stds.round(round)
         zfill = lambda x: x.astype(str).str.ljust(width=round + 2, fillchar='0')
-        new_means = deepcopy(means)
+        new_means = copy.deepcopy(means)
         for col in means.columns:
             new_means[col] = zfill(means[col]) + ' $\pm$ ' + zfill(stds[col])
         means = new_means
@@ -192,15 +148,16 @@ def generate_table(save_loc, means, wins, stds, round=3):
     tex_string = top_section + '\\\\ \n\midrule\n' + bottom_section
 
     # Write the table
-    write_string(save_loc, tex_string)
-
+    with open(save_loc, "w") as file:
+        file.write(tex_string)
 
 
 if __name__ == '__main__':
-    assert len(sys.argv) == 2
+    assert len(sys.argv) in (2, 3)
     dataset = sys.argv[1]
     means, wins, stds = main(dataset)
 
-    # Save the table to results
-    save_loc = '../paper/results/data/{}.tex'.format(dataset)
-    generate_table(save_loc, means, wins, stds)
+    if len(sys.argv) == 3 and sys.argv[2] == '--save':
+        # Save the table to results
+        save_loc = '../paper/results/data/{}.tex'.format(dataset)
+        generate_table(save_loc, means, wins, stds)
