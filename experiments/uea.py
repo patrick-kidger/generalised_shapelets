@@ -4,7 +4,6 @@ import pathlib
 import sklearn.model_selection
 import sktime.utils.load_data
 import torch
-import random
 
 import common
 
@@ -56,7 +55,7 @@ large_datasets = {'InsectWingbeat', 'ElectricDevices', 'PenDigits', 'SpokenArabi
                   'PhonemeSpectra', 'LSST', 'UWaveGestureLibrary', 'CharacterTrajectories'}
 
 
-# Ordered by chanels * dataset size * num_classes * length ** 2, i.e. the cost of evaluating shaplets on them.
+# Ordered by channels * dataset size * num_classes * length ** 2, i.e. the cost of evaluating shaplets on them.
 datasets_by_cost = ('ERing',
                     'RacketSports',
                     'PenDigits',
@@ -240,7 +239,7 @@ def hyperparameter_search():
     result_folder = 'uea_hyperparameter_search'
     for dataset_name in datasets_by_cost[:9]:
         for num_shapelets_per_class in (2, 3, 5):
-            for max_shapelet_length_proportion in (0.3, 0.5, 1.0):
+            for max_shapelet_length_proportion in (0.15, 0.3, 0.5, 1.0):
                 result_subfolder = 'old-' + str(num_shapelets_per_class) + '-' + str(max_shapelet_length_proportion)
                 print("Starting comparison: " + dataset_name + '-' + result_subfolder)
                 main(dataset_name,
