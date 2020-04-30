@@ -211,7 +211,7 @@ def main(dataset_name,                        # dataset parameters
          old_shapelets=False,
          lr=0.005,
          plateau_patience=10,
-         pleateau_terminate=250,
+         plateau_terminate=250,
          initialisation='old'):                # Whether to toggle off all of our innovations and use old-style shapelets
 
     times, train_dataloader, val_dataloader, test_dataloader, num_classes, input_channels = get_data(dataset_name,
@@ -240,7 +240,7 @@ def main(dataset_name,                        # dataset parameters
                        old_shapelets,
                        lr,
                        plateau_patience,
-                       pleateau_terminate,
+                       plateau_terminate,
                        initialisation)
 
 
@@ -372,7 +372,7 @@ def comparison_test_new():
                  discrepancy_fn='L2',
                  lr=lr,
                  plateau_patience=plateau_patience,
-                 pleateau_terminate=plateau_terminate,
+                 plateau_terminate=plateau_terminate,
                  initialisation=initialisation)
 
         result_subfolder = 'L2-' + metric_type
@@ -385,7 +385,7 @@ def comparison_test_new():
                  metric_type=metric_type,
                  lr=lr,
                  plateau_patience=plateau_patience,
-                 pleateau_terminate=plateau_terminate,
+                 plateau_terminate=plateau_terminate,
                  initialisation=initialisation)
 
         result_subfolder = 'logsig-3' + metric_type
@@ -398,7 +398,7 @@ def comparison_test_new():
                  metric_type=metric_type,
                  lr=lr,
                  plateau_patience=plateau_patience,
-                 pleateau_terminate=plateau_terminate,
+                 plateau_terminate=plateau_terminate,
                  initialisation=initialisation)
 
         result_subfolder = 'old'
@@ -410,6 +410,14 @@ def comparison_test_new():
                  old_shapelets=True,
                  lr=lr,
                  plateau_patience=plateau_patience,
-                 pleateau_terminate=plateau_terminate,
+                 plateau_terminate=plateau_terminate,
                  initialisation=initialisation)
+
+
+if __name__ == '__main__':
+    main(
+        'ERing', result_folder='test', result_subfolder='', num_shapelets_per_class=4,
+        lr=0.05, plateau_patience=15, plateau_terminate=40, initialisation='kmeans', discrepancy_fn='logsig-3',
+        metric_type='diagonal', epochs=200
+    )
 

@@ -239,7 +239,7 @@ def _evaluate_metrics(dataloader, model, times, loss_fn, num_classes):
         return _AttrDict(loss=total_loss, accuracy=total_accuracy)
 
 
-def _train_loop(train_dataloader, val_dataloader, model, times, optimizer, loss_fn, epochs, num_classes,
+def _train_loop(train_dataloader, val_dataloader, test_dataloader, model, times, optimizer, loss_fn, epochs, num_classes,
                 ablation_similarreg, plateau_patience, plateau_terminate):
     """Standard training loop.
 
@@ -288,6 +288,7 @@ def _train_loop(train_dataloader, val_dataloader, model, times, optimizer, loss_
             model.eval()
             train_metrics = _evaluate_metrics(train_dataloader, model, times, loss_fn, num_classes)
             val_metrics = _evaluate_metrics(val_dataloader, model, times, loss_fn, num_classes)
+            test_metrics = _evaluate_metrics(test_dataloader, model, times, loss_fn, num_classes)
             model.train()
 
             # if train_metrics.loss * 1.0001 < best_train_loss:
@@ -310,9 +311,9 @@ def _train_loop(train_dataloader, val_dataloader, model, times, optimizer, loss_
 
             if epoch % print_freq == 0:
                 tqdm_range.write('Epoch: {}  Train loss: {:.3}  Train accuracy: {:.3}  Val loss: {:.3}  '
-                                 'Val accuracy: {:.3}'
+                                 'Val accuracy: {:.3}  Test loss: {:.3}  Test accuracy: {:.3}'
                                  ''.format(epoch, train_metrics.loss, train_metrics.accuracy, val_metrics.loss,
-                                           val_metrics.accuracy))
+                                           val_metrics.accuracy, test_metrics.loss, test_metrics.accuracy))
             scheduler.step(val_metrics.loss)
             history.append(_AttrDict(epoch=epoch, train_loss=train_metrics.loss,
                                      train_accuracy=train_metrics.accuracy,
@@ -479,7 +480,7 @@ def main(times,
 
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 
-    history, best_model = _train_loop(train_dataloader, val_dataloader, model, times, optimizer, loss_fn, epochs, num_classes,
+    history, best_model = _train_loop(train_dataloader, val_dataloader, test_dataloader, model, times, optimizer, loss_fn, epochs, num_classes,
                           ablation_similarreg, plateau_patience, plateau_terminate)
     results = _evaluate_model(train_dataloader, val_dataloader, test_dataloader, best_model, times, loss_fn, history,
                               num_classes)

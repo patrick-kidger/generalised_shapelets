@@ -508,6 +508,7 @@ def comparison_test_new():
 
 if __name__ == '__main__':
     main(
-        'Chinatown', result_folder='test', result_subfolder='', num_shapelets_per_class=2,
-        lr=0.1, plateau_patience=5, plateau_terminate=10, initialisation='kmeans'
+        'ItalyPowerDemand', result_folder='test', result_subfolder='', num_shapelets_per_class=4,
+        lr=0.05, plateau_patience=20, plateau_terminate=60, initialisation='kmeans', discrepancy_fn='logsig-3',
+        metric_type='diagonal'
     )

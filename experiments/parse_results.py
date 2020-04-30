@@ -174,7 +174,7 @@ def generate_table(save_loc, means, wins, stds, round=3):
         zfill = lambda x: x.astype(str).str.ljust(width=round + 2, fillchar='0')
         new_means = deepcopy(means)
         for col in means.columns:
-            new_means[col] = zfill(means[col]) + ' \pm ' + zfill(stds[col])
+            new_means[col] = zfill(means[col]) + ' $\pm$ ' + zfill(stds[col])
         means = new_means
 
     # Convert onto a win frame
