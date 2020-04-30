@@ -4,6 +4,7 @@ import pathlib
 import sklearn.model_selection
 import sktime.utils.load_data
 import torch
+import random
 
 import common
 
@@ -207,7 +208,11 @@ def main(dataset_name,                        # dataset parameters
          ablation_pseudometric=True,          # For ablation studies
          ablation_learntlengths=True,         #
          ablation_similarreg=True,            #
-         old_shapelets=False):                # Whether to toggle off all of our innovations and use old-style shapelets
+         old_shapelets=False,
+         lr=0.005,
+         plateau_patience=10,
+         pleateau_terminate=250,
+         initialisation='old'):                # Whether to toggle off all of our innovations and use old-style shapelets
 
     times, train_dataloader, val_dataloader, test_dataloader, num_classes, input_channels = get_data(dataset_name,
                                                                                                      missing_rate,
@@ -232,7 +237,11 @@ def main(dataset_name,                        # dataset parameters
                        ablation_pseudometric,
                        ablation_learntlengths,
                        ablation_similarreg,
-                       old_shapelets)
+                       old_shapelets,
+                       lr,
+                       plateau_patience,
+                       pleateau_terminate,
+                       initialisation)
 
 
 def comparison_test():
@@ -240,25 +249,30 @@ def comparison_test():
     metric_type = 'diagonal'
     for dataset_name in datasets_by_cost[:11]:
         result_subfolder = 'L2-' + metric_type
-        print("Starting comparison: " + dataset_name + ' ' + result_subfolder)
-        main(dataset_name,
-             result_folder=result_folder,
-             result_subfolder=result_subfolder,
-             discrepancy_fn='L2',
-             metric_type=metric_type)
-        result_subfolder = 'logsig-3-' + metric_type
-        print("Starting comparison: " + dataset_name + ' ' + result_subfolder)
-        main(dataset_name,
-             result_folder=result_folder,
-             result_subfolder='logsig-3' + metric_type,
-             discrepancy_fn='logsig-3',
-             metric_type=metric_type)
+        if not common.assert_done(result_folder, dataset_name + '-' + result_subfolder):
+            print("Starting comparison: " + dataset_name + ' ' + result_subfolder)
+            main(dataset_name,
+                 result_folder=result_folder,
+                 result_subfolder=result_subfolder,
+                 discrepancy_fn='L2',
+                 metric_type=metric_type)
+
+        result_subfolder = 'logsig-3' + metric_type
+        if not common.assert_done(result_folder, dataset_name + '-' + result_subfolder):
+            print("Starting comparison: " + dataset_name + ' ' + result_subfolder)
+            main(dataset_name,
+                 result_folder=result_folder,
+                 result_subfolder='logsig-3' + metric_type,
+                 discrepancy_fn='logsig-3',
+                 metric_type=metric_type)
+
         result_subfolder = 'old'
-        print("Starting comparison: " + dataset_name + ' ' + result_subfolder)
-        main(dataset_name,
-             result_folder=result_folder,
-             result_subfolder=result_subfolder,
-             old_shapelets=True)
+        if not common.assert_done(result_folder, dataset_name + '-' + result_subfolder):
+            print("Starting comparison: " + dataset_name + ' ' + result_subfolder)
+            main(dataset_name,
+                 result_folder=result_folder,
+                 result_subfolder=result_subfolder,
+                 old_shapelets=True)
 
 
 standard_dataset_names = ('JapaneseVowels', 'BasicMotions', 'FingerMovements')
@@ -290,24 +304,27 @@ def noise_test():
                 metric_type = 'diagonal'
                 for pseudometric in (True, False):
                     result_subfolder = discrepancy_fn + '-' + metric_type + '-' + str(pseudometric)
-                    print("Starting comparison: " + dataset_name + str(noise_channels) + ' ' + result_subfolder)
+                    if not common.assert_done(result_folder, dataset_name + str(noise_channels) + '-' + result_subfolder, n_done=5):
+                        print("Starting comparison: " + dataset_name + str(noise_channels) + ' ' + result_subfolder)
+                        main(dataset_name,
+                             noise_channels=noise_channels,
+                             result_folder=result_folder,
+                             result_subfolder=result_subfolder,
+                             dataset_detail=str(noise_channels),
+                             discrepancy_fn=discrepancy_fn,
+                             ablation_pseudometric=pseudometric,
+                             metric_type=metric_type)
+                result_subfolder = 'old'
+                if not common.assert_done(result_folder, dataset_name + str(noise_channels) + '-' + result_subfolder,
+                                          n_done=5):
+                    print("Starting comparison: " + str(noise_channels) + result_subfolder)
                     main(dataset_name,
                          noise_channels=noise_channels,
                          result_folder=result_folder,
                          result_subfolder=result_subfolder,
                          dataset_detail=str(noise_channels),
                          discrepancy_fn=discrepancy_fn,
-                         ablation_pseudometric=pseudometric,
-                         metric_type=metric_type)
-                result_subfolder = 'old'
-                print("Starting comparison: " + str(noise_channels) + result_subfolder)
-                main(dataset_name,
-                     noise_channels=noise_channels,
-                     result_folder=result_folder,
-                     result_subfolder=result_subfolder,
-                     dataset_detail=str(noise_channels),
-                     discrepancy_fn=discrepancy_fn,
-                     old_shapelets=True)
+                         old_shapelets=True)
 
 
 def length_test():
@@ -318,10 +335,81 @@ def length_test():
             metric_type = 'diagonal'
             for learnt_lengths in (True, False):
                 result_subfolder = discrepancy_fn + '-' + metric_type + '-' + str(learnt_lengths)
-                print("Starting comparison: " + dataset_name + ' ' + result_subfolder)
-                main(dataset_name,
-                     result_folder=result_folder,
-                     result_subfolder=result_subfolder,
-                     discrepancy_fn=discrepancy_fn,
-                     ablation_learntlengths=learnt_lengths,
-                     metric_type=metric_type)
+
+                if not common.assert_done(result_folder, dataset_name + '-' + result_subfolder, n_done=5):
+                    print("Starting comparison: " + dataset_name + ' ' + result_subfolder)
+                    main(dataset_name,
+                         result_folder=result_folder,
+                         result_subfolder=result_subfolder,
+                         discrepancy_fn=discrepancy_fn,
+                         ablation_learntlengths=learnt_lengths,
+                         metric_type=metric_type)
+
+
+def comparison_test_new():
+    # Seeds
+    seed = 0
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+
+    result_folder = 'uea_comparison_new'
+    metric_type = 'diagonal'
+
+    lr = 0.05
+    plateau_patience = 20
+    plateau_terminate = 60
+    initialisation = 'kmeans'
+
+    for dataset_name in datasets_by_cost[:11]:
+        result_subfolder = 'L2'
+        if not common.assert_done(result_folder, dataset_name + '-' + result_subfolder):
+            print("Starting comparison: " + dataset_name + ' ' + result_subfolder)
+            main(dataset_name,
+                 result_folder=result_folder,
+                 result_subfolder=result_subfolder,
+                 discrepancy_fn='L2',
+                 lr=lr,
+                 plateau_patience=plateau_patience,
+                 pleateau_terminate=plateau_terminate,
+                 initialisation=initialisation)
+
+        result_subfolder = 'L2-' + metric_type
+        if not common.assert_done(result_folder, dataset_name + '-' + result_subfolder):
+            print("Starting comparison: " + dataset_name + ' ' + result_subfolder)
+            main(dataset_name,
+                 result_folder=result_folder,
+                 result_subfolder=result_subfolder,
+                 discrepancy_fn='L2',
+                 metric_type=metric_type,
+                 lr=lr,
+                 plateau_patience=plateau_patience,
+                 pleateau_terminate=plateau_terminate,
+                 initialisation=initialisation)
+
+        result_subfolder = 'logsig-3' + metric_type
+        if not common.assert_done(result_folder, dataset_name + '-' + result_subfolder):
+            print("Starting comparison: " + dataset_name + ' ' + result_subfolder)
+            main(dataset_name,
+                 result_folder=result_folder,
+                 result_subfolder='logsig-3' + metric_type,
+                 discrepancy_fn='logsig-3',
+                 metric_type=metric_type,
+                 lr=lr,
+                 plateau_patience=plateau_patience,
+                 pleateau_terminate=plateau_terminate,
+                 initialisation=initialisation)
+
+        result_subfolder = 'old'
+        if not common.assert_done(result_folder, dataset_name + '-' + result_subfolder):
+            print("Starting comparison: " + dataset_name + ' ' + result_subfolder)
+            main(dataset_name,
+                 result_folder=result_folder,
+                 result_subfolder=result_subfolder,
+                 old_shapelets=True,
+                 lr=lr,
+                 plateau_patience=plateau_patience,
+                 pleateau_terminate=plateau_terminate,
+                 initialisation=initialisation)
+

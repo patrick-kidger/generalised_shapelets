@@ -4,7 +4,8 @@ import os
 import pathlib
 import statistics
 import sys
-
+import pickle
+import pandas as pd
 
 here = pathlib.Path(__file__).resolve().parent
 
@@ -17,7 +18,34 @@ def get(foldername):
             yield content['test_metrics']['accuracy']
 
 
-def main(dataset_folder):
+def _create_folder_if_not_exist(filename):
+    """ Makes a folder if the folder component of the filename does not already exist. """
+    os.makedirs(os.path.dirname(filename), exist_ok=True)
+
+
+def save_pickle(obj, filename, protocol=4, create_folder=True):
+    """ Basic pickle/dill dumping.
+
+    Given a python object and a filename, the method will save the object under that filename.
+
+    Args:
+        obj (python object): The object to be saved.
+        filename (str): Location to save the file.
+        protocol (int): Pickling protocol (see pickle docs).
+        create_folder (bool): Set True to create the folder if it does not already exist.
+
+    Returns:
+        None
+    """
+    if create_folder:
+        _create_folder_if_not_exist(filename)
+
+    # Save
+    with open(filename, 'wb') as file:
+        pickle.dump(obj, file, protocol=protocol)
+
+
+def main(dataset_folder, save_df=True):
     dataset_folder = here / 'results' / dataset_folder
 
     has_no_dash = False
@@ -89,6 +117,12 @@ def main(dataset_folder):
     for heading in headings:
         print('| {{:{}}} '.format(column_width).format(wins[heading]), end='')
     print('')
+
+    # Generate and return a dataframe
+    if save_df:
+        folder_name = dataset_folder.name
+        df = pd.DataFrame.from_dict(means).T
+        save_pickle(df, './results/dataframes/{}.pkl'.format(folder_name))
 
 
 if __name__ == '__main__':

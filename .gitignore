@@ -12,3 +12,5 @@ docs/_build
 docs/_templates
 *.egg-info/
 **/.mypy_cache/
+
+/env
