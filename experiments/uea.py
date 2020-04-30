@@ -4,6 +4,7 @@ import pathlib
 import sklearn.model_selection
 import sktime.utils.load_data
 import torch
+import random
 
 import common
 
@@ -196,7 +197,7 @@ def main(dataset_name,                        # dataset parameters
          result_folder=None,                  # saving parameters
          result_subfolder='',                 #
          dataset_detail='',                   #
-         epochs=1000,                         # training parameters
+         epochs=250,                          # training parameters
          num_shapelets_per_class=3,           # model parameters
          num_shapelet_samples=None,           #
          discrepancy_fn='L2',                 #
@@ -207,7 +208,11 @@ def main(dataset_name,                        # dataset parameters
          ablation_pseudometric=True,          # For ablation studies
          ablation_learntlengths=True,         #
          ablation_similarreg=True,            #
-         old_shapelets=False):                # Whether to toggle off all of our innovations and use old-style shapelets
+         old_shapelets=False,                 # Whether to toggle off all of our innovations and use old-style shapelets
+         lr=0.05,
+         plateau_patience=20,
+         plateau_terminate=60,
+         initialisation='kmeans'):
 
     times, train_dataloader, val_dataloader, test_dataloader, num_classes, input_channels = get_data(dataset_name,
                                                                                                      missing_rate,
@@ -232,38 +237,82 @@ def main(dataset_name,                        # dataset parameters
                        ablation_pseudometric,
                        ablation_learntlengths,
                        ablation_similarreg,
-                       old_shapelets)
+                       old_shapelets,
+                       lr,
+                       plateau_patience,
+                       plateau_terminate,
+                       initialisation)
 
 
 def comparison_test():
     result_folder = 'uea_comparison'
     metric_type = 'diagonal'
-    for dataset_name in datasets_by_cost[:11]:
+    for dataset_name in datasets_by_cost[:9]:
         result_subfolder = 'L2-' + metric_type
-        print("Starting comparison: " + dataset_name + ' ' + result_subfolder)
-        main(dataset_name,
-             result_folder=result_folder,
-             result_subfolder=result_subfolder,
-             discrepancy_fn='L2',
-             metric_type=metric_type)
-        result_subfolder = 'logsig-3-' + metric_type
-        print("Starting comparison: " + dataset_name + ' ' + result_subfolder)
-        main(dataset_name,
-             result_folder=result_folder,
-             result_subfolder='logsig-3' + metric_type,
-             discrepancy_fn='logsig-3',
-             metric_type=metric_type)
+        if not common.assert_done(result_folder, dataset_name + '-' + result_subfolder):
+            print("Starting comparison: " + dataset_name + ' ' + result_subfolder)
+            main(dataset_name,
+                 result_folder=result_folder,
+                 result_subfolder=result_subfolder,
+                 discrepancy_fn='L2',
+                 metric_type=metric_type)
+
+        result_subfolder = 'logsig-3' + metric_type
+        if not common.assert_done(result_folder, dataset_name + '-' + result_subfolder):
+            print("Starting comparison: " + dataset_name + ' ' + result_subfolder)
+            main(dataset_name,
+                 result_folder=result_folder,
+                 result_subfolder='logsig-3' + metric_type,
+                 discrepancy_fn='logsig-3',
+                 metric_type=metric_type)
+
         result_subfolder = 'old'
-        print("Starting comparison: " + dataset_name + ' ' + result_subfolder)
-        main(dataset_name,
-             result_folder=result_folder,
-             result_subfolder=result_subfolder,
-             old_shapelets=True)
+        if not common.assert_done(result_folder, dataset_name + '-' + result_subfolder):
+            print("Starting comparison: " + dataset_name + ' ' + result_subfolder)
+            main(dataset_name,
+                 result_folder=result_folder,
+                 result_subfolder=result_subfolder,
+                 old_shapelets=True)
+
+
+comparison_test_again = comparison_test
 
 
 standard_dataset_names = ('JapaneseVowels', 'BasicMotions', 'FingerMovements')
 
 
+def missing_and_length_test():
+    for i in range(3):
+        # Seeds
+        seed = i
+        random.seed(seed)
+        np.random.seed(seed)
+        torch.manual_seed(seed)
+        torch.cuda.manual_seed(seed)
+
+        result_folder = 'uea_missing_and_length'
+        metric_type = 'diagonal'
+        for dataset_name in standard_dataset_names:
+            for missing_rate in (0.1, 0.3, 0.5):
+                for discrepancy_fn in ('L2', 'logsig-3'):
+                    for learntlengths in (True, False):
+                        result_subfolder = discrepancy_fn + '-' + metric_type + '-' + str(learntlengths)
+                        if not common.assert_done(result_folder, dataset_name + '-' + result_subfolder, n_done=3):
+                            print("Starting comparison: " + dataset_name + str(int(missing_rate * 100)) + ' ' + result_subfolder)
+                            main(dataset_name,
+                                 result_folder=result_folder,
+                                 result_subfolder=result_subfolder,
+                                 dataset_detail=str(int(missing_rate * 100)),
+                                 missing_rate=missing_rate,
+                                 discrepancy_fn=discrepancy_fn,
+                                 metric_type=metric_type,
+                                 ablation_learntlengths=learntlengths)
+
+
+missing_and_length_test_again_again = missing_and_length_test_again = missing_and_length_test
+
+
+# TODO: remove?
 def missing_rate_test():
     result_folder = 'uea_missingness'
     metric_type = 'diagonal'
@@ -281,6 +330,7 @@ def missing_rate_test():
                      metric_type=metric_type)
 
 
+# TODO: remove?
 def noise_test():
     result_folder = 'uea_noise'
     for _ in range(5):
@@ -290,26 +340,30 @@ def noise_test():
                 metric_type = 'diagonal'
                 for pseudometric in (True, False):
                     result_subfolder = discrepancy_fn + '-' + metric_type + '-' + str(pseudometric)
-                    print("Starting comparison: " + dataset_name + str(noise_channels) + ' ' + result_subfolder)
+                    if not common.assert_done(result_folder, dataset_name + str(noise_channels) + '-' + result_subfolder, n_done=5):
+                        print("Starting comparison: " + dataset_name + str(noise_channels) + ' ' + result_subfolder)
+                        main(dataset_name,
+                             noise_channels=noise_channels,
+                             result_folder=result_folder,
+                             result_subfolder=result_subfolder,
+                             dataset_detail=str(noise_channels),
+                             discrepancy_fn=discrepancy_fn,
+                             ablation_pseudometric=pseudometric,
+                             metric_type=metric_type)
+                result_subfolder = 'old'
+                if not common.assert_done(result_folder, dataset_name + str(noise_channels) + '-' + result_subfolder,
+                                          n_done=5):
+                    print("Starting comparison: " + str(noise_channels) + result_subfolder)
                     main(dataset_name,
                          noise_channels=noise_channels,
                          result_folder=result_folder,
                          result_subfolder=result_subfolder,
                          dataset_detail=str(noise_channels),
                          discrepancy_fn=discrepancy_fn,
-                         ablation_pseudometric=pseudometric,
-                         metric_type=metric_type)
-                result_subfolder = 'old'
-                print("Starting comparison: " + str(noise_channels) + result_subfolder)
-                main(dataset_name,
-                     noise_channels=noise_channels,
-                     result_folder=result_folder,
-                     result_subfolder=result_subfolder,
-                     dataset_detail=str(noise_channels),
-                     discrepancy_fn=discrepancy_fn,
-                     old_shapelets=True)
+                         old_shapelets=True)
 
 
+# TODO: remove?
 def length_test():
     result_folder = 'uea_length'
     for _ in range(5):
@@ -318,10 +372,73 @@ def length_test():
             metric_type = 'diagonal'
             for learnt_lengths in (True, False):
                 result_subfolder = discrepancy_fn + '-' + metric_type + '-' + str(learnt_lengths)
+
+                if not common.assert_done(result_folder, dataset_name + '-' + result_subfolder, n_done=5):
+                    print("Starting comparison: " + dataset_name + ' ' + result_subfolder)
+                    main(dataset_name,
+                         result_folder=result_folder,
+                         result_subfolder=result_subfolder,
+                         discrepancy_fn=discrepancy_fn,
+                         ablation_learntlengths=learnt_lengths,
+                         metric_type=metric_type)
+
+
+def comparison_test_new():
+    for i in range(3):
+        # Seeds
+        seed = i
+        random.seed(seed)
+        np.random.seed(seed)
+        torch.manual_seed(seed)
+        torch.cuda.manual_seed(seed)
+
+        result_folder = 'uea_comparison_new'
+        metric_type = 'diagonal'
+
+        for dataset_name in datasets_by_cost[:10][::-1]:
+            result_subfolder = 'L2'
+            if not common.assert_done(result_folder, dataset_name + '-' + result_subfolder, n_done=3):
                 print("Starting comparison: " + dataset_name + ' ' + result_subfolder)
                 main(dataset_name,
                      result_folder=result_folder,
                      result_subfolder=result_subfolder,
-                     discrepancy_fn=discrepancy_fn,
-                     ablation_learntlengths=learnt_lengths,
-                     metric_type=metric_type)
+                     discrepancy_fn='L2'
+                     )
+
+            result_subfolder = 'L2-' + metric_type
+            if not common.assert_done(result_folder, dataset_name + '-' + result_subfolder, n_done=3):
+                print("Starting comparison: " + dataset_name + ' ' + result_subfolder)
+                main(dataset_name,
+                     result_folder=result_folder,
+                     result_subfolder=result_subfolder,
+                     discrepancy_fn='L2',
+                     metric_type=metric_type
+                     )
+
+            result_subfolder = 'logsig-3' + metric_type
+            if not common.assert_done(result_folder, dataset_name + '-' + result_subfolder, n_done=3):
+                print("Starting comparison: " + dataset_name + ' ' + result_subfolder)
+                main(dataset_name,
+                     result_folder=result_folder,
+                     result_subfolder='logsig-3' + metric_type,
+                     discrepancy_fn='logsig-3',
+                     metric_type=metric_type
+                     )
+
+            result_subfolder = 'old'
+            if not common.assert_done(result_folder, dataset_name + '-' + result_subfolder, n_done=3):
+                print("Starting comparison: " + dataset_name + ' ' + result_subfolder)
+                main(dataset_name,
+                     result_folder=result_folder,
+                     result_subfolder=result_subfolder,
+                     old_shapelets=True)
+
+
+if __name__ == '__main__':
+    print('h')
+    main(
+        'PenDigits', result_folder='test', result_subfolder='', num_shapelets_per_class=4,
+        lr=0.05, plateau_patience=15, plateau_terminate=40, initialisation='kmeans', discrepancy_fn='L2',
+        metric_type='diagonal', epochs=250
+    )
+

@@ -4,6 +4,7 @@ import pathlib
 import sklearn.model_selection
 import sktime.utils.load_data
 import torch
+import random
 
 import common
 
@@ -386,6 +387,7 @@ def main(dataset_name,                        # dataset parameters
          epochs=1000,                         # training parameters
          num_shapelets_per_class=4,           # model parameters
          num_shapelet_samples=None,           #
+         # num_shapelet_samples=0.3,           #
          discrepancy_fn='L2',                 #
          max_shapelet_length_proportion=1.0,  #
          lengths_per_shapelet=1,              #
@@ -394,7 +396,11 @@ def main(dataset_name,                        # dataset parameters
          ablation_pseudometric=True,          # For ablation studies
          ablation_learntlengths=True,         #
          ablation_similarreg=True,            #
-         old_shapelets=False):                # Whether to toggle off all of our innovations and use old-style shapelets
+         old_shapelets=False,
+         lr=0.05,
+         plateau_patience=20,
+         plateau_terminate=60,
+         initialisation='kmeans'):                # Whether to toggle off all of our innovations and use old-style shapelets
 
     times, train_dataloader, val_dataloader, test_dataloader, num_classes = get_data(dataset_name)
     input_channels = 1
@@ -418,7 +424,11 @@ def main(dataset_name,                        # dataset parameters
                        ablation_pseudometric,
                        ablation_learntlengths,
                        ablation_similarreg,
-                       old_shapelets)
+                       old_shapelets,
+                       lr,
+                       plateau_patience,
+                       plateau_terminate,
+                       initialisation)
 
 
 def comparison_test():
@@ -429,21 +439,76 @@ def comparison_test():
         # study
         if dataset_name in irregular_length_datasets | missing_data_datasets:
             continue
-        print("Starting comparison: L2, " + dataset_name)
-        main(dataset_name,
-             result_folder=result_folder,
-             result_subfolder='L2',
-             discrepancy_fn='L2',
-             ablation_pseudometric=False)
-        print("Starting comparison: logsig-3-diagonal, " + dataset_name)
-        main(dataset_name,
-             result_folder=result_folder,
-             result_subfolder='logsig-3-diagonal',
-             discrepancy_fn='logsig-3',
-             ablation_pseudometric=True,
-             metric_type='diagonal')
-        print("Starting comparison: old, " + dataset_name)
-        main(dataset_name,
-             result_folder=result_folder,
-             result_subfolder='old',
-             old_shapelets=True)
+        if not common.assert_done(result_folder, dataset_name + '-L2'):
+            print("Starting comparison: L2, " + dataset_name)
+            main(dataset_name,
+                 result_folder=result_folder,
+                 result_subfolder='L2',
+                 discrepancy_fn='L2',
+                 ablation_pseudometric=False)
+        if not common.assert_done(result_folder, dataset_name + '-logsig-3-diagonal'):
+            print("Starting comparison: logsig-3-diagonal, " + dataset_name)
+            main(dataset_name,
+                 result_folder=result_folder,
+                 result_subfolder='logsig-3-diagonal',
+                 discrepancy_fn='logsig-3',
+                 ablation_pseudometric=True,
+                 metric_type='diagonal')
+        if not common.assert_done(result_folder, dataset_name + '-old'):
+            print("Starting comparison: old, " + dataset_name)
+            main(dataset_name,
+                 result_folder=result_folder,
+                 result_subfolder='old',
+                 old_shapelets=True)
+
+
+def comparison_test_new():
+    # Seeds
+    seed = 0
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+
+    result_folder = 'ucr_comparison_test_new'
+    for dataset_name in datasets_by_cost[:36]:
+        if dataset_name in irregular_length_datasets | missing_data_datasets:
+            continue
+        if not common.assert_done(result_folder, dataset_name + '-L2'):
+            print("Starting comparison: L2, " + dataset_name)
+            main(dataset_name,
+                 result_folder=result_folder,
+                 result_subfolder='L2',
+                 discrepancy_fn='L2',
+                 ablation_pseudometric=False)
+        if not common.assert_done(result_folder, dataset_name + '-L2-diagonal'):
+            print("Starting comparison: L2-diagonal, " + dataset_name)
+            main(dataset_name,
+                 result_folder=result_folder,
+                 result_subfolder='L2-diagonal',
+                 discrepancy_fn='L2',
+                 metric_type='diagonal',
+                 ablation_pseudometric=False)
+        if not common.assert_done(result_folder, dataset_name + '-logsig-3-diagonal'):
+            print("Starting comparison: logsig-3-diagonal, " + dataset_name)
+            main(dataset_name,
+                 result_folder=result_folder,
+                 result_subfolder='logsig-3-diagonal',
+                 discrepancy_fn='logsig-3',
+                 ablation_pseudometric=True,
+                 metric_type='diagonal')
+        if not common.assert_done(result_folder, dataset_name + '-old'):
+            print("Starting comparison: old, " + dataset_name)
+            main(dataset_name,
+                 result_folder=result_folder,
+                 result_subfolder='old',
+                 old_shapelets=True
+                 )
+
+
+if __name__ == '__main__':
+    main(
+        'ItalyPowerDemand', result_folder='test', result_subfolder='', num_shapelets_per_class=4,
+        lr=0.05, plateau_patience=20, plateau_terminate=60, initialisation='kmeans', discrepancy_fn='logsig-3',
+        metric_type='diagonal'
+    )

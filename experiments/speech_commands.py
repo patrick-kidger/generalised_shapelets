@@ -19,7 +19,7 @@ def _load_data(dir):
 
 
 def get_data():
-    tensors = _load_data(here / 'speech_commands_data')
+    tensors = _load_data(here / 'data/speech_commands_data')
     train_dataset = torch.utils.data.TensorDataset(tensors['train_X'], tensors['train_y'])
     val_dataset = torch.utils.data.TensorDataset(tensors['val_X'], tensors['val_y'])
     test_dataset = torch.utils.data.TensorDataset(tensors['test_X'], tensors['test_y'])
@@ -47,7 +47,11 @@ def main(result_folder=None,                  # saving parameters
          ablation_pseudometric=True,          # For ablation studies
          ablation_learntlengths=True,         #
          ablation_similarreg=True,            #
-         old_shapelets=False):                # Whether to toggle off all of our innovations and use old-style shapelets
+         old_shapelets=False,
+         lr=0.05,
+         plateau_patience=20,
+         plateau_terminate=60,
+         initialisation='old'):                # Whether to toggle off all of our innovations and use old-style shapelets
 
     times, train_dataloader, val_dataloader, test_dataloader = get_data()
 
@@ -73,7 +77,11 @@ def main(result_folder=None,                  # saving parameters
                        ablation_pseudometric,
                        ablation_learntlengths,
                        ablation_similarreg,
-                       old_shapelets)
+                       old_shapelets,
+                       lr,
+                       plateau_patience,
+                       plateau_terminate,
+                       initialisation)
 
 
 def james1():
@@ -85,3 +93,5 @@ def james2():
 
 
 james4 = james3 = james2
+
+james6 = james5 = james1

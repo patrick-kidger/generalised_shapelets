@@ -8,9 +8,50 @@ import pathlib
 import torch
 import tqdm
 import torchshapelets
+from sklearn.cluster import KMeans
 
 
 here = pathlib.Path(__file__).resolve().parent
+
+
+def assert_done(result_folder, result_subfolder, n_done=1):
+    folder = './results/{}/{}'.format(result_folder, result_subfolder)
+    if os.path.isdir(folder):
+        all_files = [x for x in os.listdir(folder) if all([not x.startswith('.'), 'model' not in x])]
+        if len(all_files) < n_done:
+            return False
+        else:
+            print('Already done: {}'.format(folder))
+            return True
+    else:
+        return False
+
+
+def pytorch_rolling(x, dimension, window_size, step_size=1, return_same_size=False):
+    """ Outputs an expanded tensor to perform rolling window operations on a pytorch tensor.
+    Given an input tensor of shape [N, L, C] and a window length W, computes an output tensor of shape [N, L, C, W]
+    where the final dimension contains the values from the current timestep to timestep - W + 1.
+    Args:
+        x (torch.Tensor): Tensor of shape [N, L, C].
+        dimension (int): Dimension to open.
+        window_size (int): Length of the rolling window.
+        step_size (int): Window step, defaults to 1.
+        return_same_size (bool): Set True to return a tensor of the same size as the input tensor with nan values filled
+                                 where insufficient prior window lengths existed. Otherwise returns a reduced size
+                                 tensor from the paths that had sufficient data.
+    Returns:
+        torch.Tensor: Tensor of shape [N, L, C, W] where the window values are opened into the fourth W dimension.
+    """
+    if return_same_size:
+        x_dims = list(x.size())
+        x_dims[dimension] = window_size - 1
+        nans = np.nan * torch.zeros(x_dims)
+        x = torch.cat((nans, x), dim=dimension)
+
+    # Unfold ready for mean calculations
+    unfolded = x.unfold(dimension, window_size, step_size)
+
+    return unfolded
 
 
 def normalise_data(X, train_X):
@@ -160,6 +201,23 @@ class _LinearShapeletTransform(torch.nn.Module):
         data = self.shapelet_transform.extract_random_shapelets(times, path)
         self.shapelet_transform.set_shapelets(data)
 
+    def set_kmeans_shapelets(self, data, init_len, n_shapelets):
+        """ Shapelet initialisation using k-means clustering. """
+        # Compute centroids
+        data = data.to('cpu')
+
+        # Make a rolling window over the starting length trick and compute kmeans
+        data_rolling = pytorch_rolling(data, dimension=1, window_size=init_len)
+        data_tricked = data_rolling.reshape(-1, data_rolling.size(2) * data_rolling.size(3))
+        kmeans = KMeans(n_clusters=n_shapelets)
+        kmeans.fit(data_tricked)
+
+        # Untrick to be of shape [N_shapelets, Window_len, Channels]
+        cluster_centers_untricked = kmeans.cluster_centers_.reshape(-1, data_rolling.size(2), data_rolling.size(3))
+        cluster_centers = torch.Tensor(cluster_centers_untricked).transpose(1, 2)
+
+        self.shapelet_transform.set_shapelets(cluster_centers)
+
 
 def _evaluate_metrics(dataloader, model, times, loss_fn, num_classes):
     with torch.no_grad():
@@ -181,8 +239,8 @@ def _evaluate_metrics(dataloader, model, times, loss_fn, num_classes):
         return _AttrDict(loss=total_loss, accuracy=total_accuracy)
 
 
-def _train_loop(train_dataloader, val_dataloader, model, times, optimizer, loss_fn, epochs, num_classes,
-                ablation_similarreg):
+def _train_loop(train_dataloader, val_dataloader, test_dataloader, model, times, optimizer, loss_fn, epochs, num_classes,
+                ablation_similarreg, plateau_patience, plateau_terminate):
     """Standard training loop.
 
     Has a few simple bells and whistles:
@@ -193,17 +251,17 @@ def _train_loop(train_dataloader, val_dataloader, model, times, optimizer, loss_
     model.train()
     best_model = model
     best_train_loss = math.inf
+    best_val_loss = math.inf
     best_val_accuracy = 0
     best_epoch = 0
     history = []
     breaking = False
 
-    epoch_per_metric = 10
-    plateau_patience = 1  # this will be multiplied by epoch_per_metric for the actual patience
-    plateau_terminate = 50
+    epoch_per_metric = 1
+    print_freq = 5
     similarity_coefficient = 0.0001
 
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=plateau_patience, mode='max')
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=plateau_patience, mode='min', min_lr=1e-3)
 
     tqdm_range = tqdm.tqdm(range(epochs))
     for epoch in tqdm_range:
@@ -224,26 +282,37 @@ def _train_loop(train_dataloader, val_dataloader, model, times, optimizer, loss_
             model.clip_length()
             optimizer.zero_grad()
 
-        if epoch % epoch_per_metric == 0 or epoch == epochs - 1:
+        if all([epoch % epoch_per_metric == 0, epoch >= 10]) or epoch == epochs - 1:
             model.eval()
             train_metrics = _evaluate_metrics(train_dataloader, model, times, loss_fn, num_classes)
             val_metrics = _evaluate_metrics(val_dataloader, model, times, loss_fn, num_classes)
+            test_metrics = _evaluate_metrics(test_dataloader, model, times, loss_fn, num_classes)
             model.train()
 
-            if train_metrics.loss * 1.0001 < best_train_loss:
-                best_train_loss = train_metrics.loss
+            # if train_metrics.loss * 1.0001 < best_train_loss:
+            #     best_train_loss = train_metrics.loss
+            #     best_epoch = epoch
+
+            # Performance bools
+            improved_val_loss_and_acc = all([val_metrics.loss.item() < best_val_loss, val_metrics.accuracy > best_val_accuracy])
+            improved_val_loss_err = val_metrics.loss.item() + 1e-3 < best_val_loss
+
+            if val_metrics.accuracy >= best_val_accuracy:
+                if val_metrics.loss.item() < best_val_loss:
+                    best_val_accuracy = val_metrics.accuracy
+                    del best_model  # so that we don't have three copies of a model simultaneously
+                    best_model = copy.deepcopy(model)
+
+            if any([improved_val_loss_err, improved_val_loss_and_acc]):
+                best_val_loss = val_metrics.loss
                 best_epoch = epoch
 
-            if val_metrics.accuracy > best_val_accuracy:
-                best_val_accuracy = val_metrics.accuracy
-                del best_model  # so that we don't have three copies of a model simultaneously
-                best_model = copy.deepcopy(model)
-
-            tqdm_range.write('Epoch: {}  Train loss: {:.3}  Train accuracy: {:.3}  Val loss: {:.3}  '
-                             'Val accuracy: {:.3}'
-                             ''.format(epoch, train_metrics.loss, train_metrics.accuracy, val_metrics.loss,
-                                       val_metrics.accuracy))
-            scheduler.step(val_metrics.accuracy)
+            if epoch % print_freq == 0:
+                tqdm_range.write('Epoch: {}  Train loss: {:.3}  Train accuracy: {:.3}  Val loss: {:.3}  '
+                                 'Val accuracy: {:.3}  Test loss: {:.3}  Test accuracy: {:.3}'
+                                 ''.format(epoch, train_metrics.loss, train_metrics.accuracy, val_metrics.loss,
+                                           val_metrics.accuracy, test_metrics.loss, test_metrics.accuracy))
+            scheduler.step(val_metrics.loss)
             history.append(_AttrDict(epoch=epoch, train_loss=train_metrics.loss,
                                      train_accuracy=train_metrics.accuracy,
                                      val_loss=val_metrics.loss, val_accuracy=val_metrics.accuracy))
@@ -255,7 +324,7 @@ def _train_loop(train_dataloader, val_dataloader, model, times, optimizer, loss_
 
     for parameter, best_parameter in zip(model.parameters(), best_model.parameters()):
         parameter.data = best_parameter.data
-    return history
+    return history, best_model
 
 
 def _evaluate_model(train_dataloader, val_dataloader, test_dataloader, model, times, loss_fn, history, num_classes):
@@ -330,11 +399,16 @@ def main(times,
          ablation_pseudometric,
          ablation_learntlengths,
          ablation_similarreg,
-         old_shapelets):
+         old_shapelets,
+         lr,
+         plateau_patience,
+         plateau_terminate,
+         initialisation):
+
+    max_shapelet_length_proportion = 0.3
 
     if old_shapelets:
         discrepancy_fn = 'piecewise_constant_L2_squared'
-        max_shapelet_length_proportion = 0.3
         ablation_pseudometric = False
         ablation_learntlengths = False
         ablation_similarreg = False
@@ -342,6 +416,16 @@ def main(times,
         log = False
     else:
         log = True
+
+    ds_length = train_dataloader.dataset.tensors[0].size(1)
+
+    if isinstance(num_shapelet_samples, float):
+        num_shapelet_samples = int(num_shapelet_samples * ds_length)
+
+    if initialisation == 'kmeans':
+        initial_shapelet_len = max(7, int(np.floor(max_shapelet_length_proportion * train_dataloader.dataset.tensors[0].size(1))))
+        print(initial_shapelet_len)
+        num_shapelet_samples = initial_shapelet_len
 
     # Select some sensible options based on the length of the dataset
     timespan = times[-1] - times[0]
@@ -355,7 +439,7 @@ def main(times,
 
     discrepancy_fn = _get_discrepancy_fn(discrepancy_fn, input_channels, ablation_pseudometric, metric_type)
 
-    num_shapelets = num_shapelets_per_class * num_classes
+    num_shapelets = min(30, num_shapelets_per_class * num_classes)
 
     if num_classes == 2:
         out_channels = 1
@@ -377,8 +461,14 @@ def main(times,
         del model.shapelet_transform.lengths
         model.shapelet_transform.register_buffer('lengths', new_lengths)
 
-    sample_batch = _get_sample_batch(train_dataloader, num_shapelets_per_class, num_shapelets)
-    model.set_shapelets(times.to('cpu'), sample_batch.to('cpu'))  # smart initialisation of shapelets
+    if initialisation == 'old':
+        sample_batch = _get_sample_batch(train_dataloader, num_shapelets_per_class, num_shapelets)
+        model.set_shapelets(times.to('cpu'), sample_batch.to('cpu'))  # smart initialisation of shapelets
+    elif initialisation == 'kmeans':
+        paths = train_dataloader.dataset.tensors[0]
+        model.set_kmeans_shapelets(paths.to('cpu'), num_shapelet_samples, num_shapelets)
+    else:
+        raise ValueError('Initialisation method must be one of "old", or "kmeans". Given: {}'.format(initialisation))
 
     if not ablation_learntlengths:
         model.shapelet_transform.lengths.requires_grad_(False)
@@ -388,11 +478,11 @@ def main(times,
     else:
         loss_fn = torch.nn.functional.cross_entropy
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.005)
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 
-    history = _train_loop(train_dataloader, val_dataloader, model, times, optimizer, loss_fn, epochs, num_classes,
-                          ablation_similarreg)
-    results = _evaluate_model(train_dataloader, val_dataloader, test_dataloader, model, times, loss_fn, history,
+    history, best_model = _train_loop(train_dataloader, val_dataloader, test_dataloader, model, times, optimizer, loss_fn, epochs, num_classes,
+                          ablation_similarreg, plateau_patience, plateau_terminate)
+    results = _evaluate_model(train_dataloader, val_dataloader, test_dataloader, best_model, times, loss_fn, history,
                               num_classes)
     results.num_shapelets_per_class = num_shapelets_per_class
     results.num_shapelet_samples = num_shapelet_samples
