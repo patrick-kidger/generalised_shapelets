@@ -85,3 +85,5 @@ def james2():
 
 
 james4 = james3 = james2
+
+james6 = james5 = james1

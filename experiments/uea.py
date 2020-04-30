@@ -247,7 +247,7 @@ def main(dataset_name,                        # dataset parameters
 def comparison_test():
     result_folder = 'uea_comparison'
     metric_type = 'diagonal'
-    for dataset_name in datasets_by_cost[:11]:
+    for dataset_name in datasets_by_cost[:9]:
         result_subfolder = 'L2-' + metric_type
         if not common.assert_done(result_folder, dataset_name + '-' + result_subfolder):
             print("Starting comparison: " + dataset_name + ' ' + result_subfolder)
@@ -275,9 +275,35 @@ def comparison_test():
                  old_shapelets=True)
 
 
+comparison_test_again = comparison_test
+
+
 standard_dataset_names = ('JapaneseVowels', 'BasicMotions', 'FingerMovements')
 
 
+def missing_and_length_test():
+    result_folder = 'uea_missing_and_length'
+    metric_type = 'diagonal'
+    for dataset_name in standard_dataset_names:
+        for missing_rate in (0.1, 0.3, 0.5):
+            for discrepancy_fn in ('L2', 'logsig-3'):
+                for learntlengths in (True, False):
+                    result_subfolder = discrepancy_fn + '-' + metric_type + '-' + str(learntlengths)
+                    print("Starting comparison: " + dataset_name + str(int(missing_rate * 100)) + ' ' + result_subfolder)
+                    main(dataset_name,
+                         result_folder=result_folder,
+                         result_subfolder=result_subfolder,
+                         dataset_detail=str(int(missing_rate * 100)),
+                         missing_rate=missing_rate,
+                         discrepancy_fn=discrepancy_fn,
+                         metric_type=metric_type,
+                         ablation_learntlengths=learntlengths)
+
+
+missing_and_length_test_again_again = missing_and_length_test_again = missing_and_length_test
+
+
+# TODO: remove?
 def missing_rate_test():
     result_folder = 'uea_missingness'
     metric_type = 'diagonal'
@@ -295,6 +321,7 @@ def missing_rate_test():
                      metric_type=metric_type)
 
 
+# TODO: remove?
 def noise_test():
     result_folder = 'uea_noise'
     for _ in range(5):
@@ -327,6 +354,7 @@ def noise_test():
                          old_shapelets=True)
 
 
+# TODO: remove?
 def length_test():
     result_folder = 'uea_length'
     for _ in range(5):
