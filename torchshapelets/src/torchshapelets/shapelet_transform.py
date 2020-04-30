@@ -10,7 +10,8 @@ class GeneralisedShapeletTransform(torch.nn.Module):
     Each shapelet that it is compared against will be a piecewise linear function.
     """
     def __init__(self, in_channels, num_shapelets, num_shapelet_samples, discrepancy_fn,  max_shapelet_length,
-                 lengths_per_shapelet=1, num_continuous_samples=None, scale_length_gradients='auto'):
+                 init_min_length=None, init_max_length=None, lengths_per_shapelet=1, num_continuous_samples=None,
+                 scale_length_gradients='auto'):
         """
         Arguments:
             in_channels: An integer specifying the number of input channels in the path it will be called with.
@@ -26,6 +27,10 @@ class GeneralisedShapeletTransform(torch.nn.Module):
                 shape (...,) describing the similarity between `path` and `shapelet`.
             max_shapelet_length: The maximum length for a shapelet. (As if it grows too long then it cannot be compared
                 against.)
+            init_min_length: The smallest length that can be randomly chosen when initialising lengths. Defaults to
+                half of max_shapelet_length.
+            init_max_length: The smallest length that can be randomly chosen when initialising lengths. Defaults to
+                max_shapelet_length.
             lengths_per_shapelet: The number of lengths that each shapelet is compared against.
             num_continuous_samples: We compute a minimum over s in {start, start + 1/num_samples, start + 2/num_samples,
                 ..., end - 1/num_samples, end}, where `start` and `end` are the endpoints of the times that this is
@@ -47,6 +52,8 @@ class GeneralisedShapeletTransform(torch.nn.Module):
         self.max_shapelet_length = max_shapelet_length
         self.lengths_per_shapelet = lengths_per_shapelet
         self.scale_length_gradients = scale_length_gradients
+        self.init_min_length = max_shapelet_length / 2 if init_min_length is None else init_min_length
+        self.init_max_length = max_shapelet_length if init_max_length is None else init_max_length
 
         self.lengths = torch.nn.Parameter(torch.empty(num_shapelets * lengths_per_shapelet))
         self.shapelets = torch.nn.Parameter(torch.empty(num_shapelets, num_shapelet_samples, in_channels))
@@ -94,7 +101,7 @@ class GeneralisedShapeletTransform(torch.nn.Module):
 
     def reset_parameters(self):
         with torch.no_grad():
-            self.lengths.uniform_(self.max_shapelet_length / 2, self.max_shapelet_length)
+            self.lengths.uniform_(self.init_min_length, self.init_max_length)
             self.shapelets.uniform_(-1, 1)
 
     def clip_length(self):
