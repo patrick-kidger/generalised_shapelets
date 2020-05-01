@@ -407,14 +407,14 @@ def main(times,
         model.shapelet_transform.register_buffer('lengths', new_lengths)
 
     # Choose initialisation strategy:
-    if old_shapelets:
-        # K-means is what is proposed in previous work...
-        paths = train_dataloader.dataset.tensors[0]
-        model.set_kmeans_shapelets(paths.to('cpu'), num_shapelet_samples, num_shapelets)
-    else:
+    # if old_shapelets:
+    #     # K-means is what is proposed in previous work...
+    #     paths = train_dataloader.dataset.tensors[0]
+    #     model.set_kmeans_shapelets(paths.to('cpu'), num_shapelet_samples, num_shapelets)
+    # else:
         # ...but that doesn't make much sense for variable-length shapelets.
-        sample_batch = _get_sample_batch(train_dataloader, num_shapelets_per_class, num_shapelets)
-        model.set_extract_shapelets(times.to('cpu'), sample_batch.to('cpu'))
+    sample_batch = _get_sample_batch(train_dataloader, num_shapelets_per_class, num_shapelets)
+    model.set_extract_shapelets(times.to('cpu'), sample_batch.to('cpu'))
     # Initialisation strategy doesn't seem to matter that much anyway.
 
     if not ablation_learntlengths:
