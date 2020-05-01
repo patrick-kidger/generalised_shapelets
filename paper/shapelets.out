@@ -11,3 +11,6 @@
 \BOOKMARK [2][-]{subsection.3.1}{The UEA \(Multivariate\) Time-Series Archive}{section.3}% 11
 \BOOKMARK [3][-]{subsubsection.3.1.1}{Algorithm Interpretability}{subsection.3.1}% 12
 \BOOKMARK [3][-]{subsubsection.3.1.2}{Missing Data and Length Ablation}{subsection.3.1}% 13
+\BOOKMARK [2][-]{subsection.3.2}{Speech Commands}{section.3}% 14
+\BOOKMARK [3][-]{subsubsection.3.2.1}{Interpretability of Speech Commands}{subsection.3.2}% 15
+\BOOKMARK [1][-]{section.4}{Conclusion}{}% 16
