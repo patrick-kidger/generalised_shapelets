@@ -162,12 +162,11 @@ def generate_table(save_loc, means, wins, stds, round=3):
 
 
 if __name__ == '__main__':
-    # assert len(sys.argv) in (2, 3)
-    # dataset = sys.argv[1]
-    dataset = 'uea_hyperparameter_search'
+    assert len(sys.argv) in (2, 3)
+    dataset = sys.argv[1]
     means, wins, stds = main(dataset)
 
-# if len(sys.argv) == 3 and sys.argv[2] == '--save':
-    # Save the table to results
-    save_loc = '../paper/results/data/{}.tex'.format(dataset)
-    generate_table(save_loc, means, wins, stds)
+    if len(sys.argv) == 3 and sys.argv[2] == '--save':
+        # Save the table to results
+        save_loc = '../paper/results/data/{}.tex'.format(dataset)
+        generate_table(save_loc, means, wins, stds)
