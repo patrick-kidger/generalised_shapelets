@@ -3,19 +3,11 @@ Our generalised shapelet transform, contrasted with the classical shapelet trans
 
 TODO: we need to consider more disrepancy functions than this.
 
-\subsection{The UCR (Univariate) Time-Series Archive}
-
-\begin{table}[ht]
-    \caption{Scores for four different metrics on a subset of the UCR time-series archive.}
-    \label{tab:ucr_results}
-    \centering
-    \input{results/data/ucr_comparison.tex}
-\end{table}
-
 
 \subsection{The UEA (Multivariate) Time-Series Archive}
+We begin by comparing the classification performance of the old method of shapelets to our new 'generalised' approach for which we consider three learnt metrics: a standard L2-metric, an learnt metric and a logsig-3-diagonal. We evaluate the methods on a subset of the UEA time-series archive \cite{bagnall2018uea}. This contains a wide range of multivariate time-series classification problems from various fields with significant differences in time-series length, number of classes, and amount of training data. The full collection contains 30 datasets, however due to algorithm run-time constraints we have considered a subset of these ensuring they still contain significant variation. The statistics of these dataset are given in Table \ref{} of the Appendix.
 
-\subsubsection{Comparison}
+The results are given in Table \ref{tab:uea_comparison_results}. We see improved performance from the old shapelet method in ? of ? cases. Whats more, we see there are datasets for which the optimal accuracy is achieved with a learnt metric and the logsignature discrepancy. These results, whilst not extensive, show the feasibility of improving performance by discrepancy tailored to the structure of the data as opposed to a simple euclidean distance metric.
 \begin{table}[ht]
     \centering
     \caption{}
@@ -23,7 +15,44 @@ TODO: we need to consider more disrepancy functions than this.
     \input{results/data/uea_comparison.tex}
 \end{table}
 
-\subsubsection{Noise}
+
+\subsubsection{Algorithm Interpretability}
+TODO: It would be good to include more than 4 images here, we could include one of each number corresponding to the largest logreg value for that class and plot a row from 0-9 for each class. This would actually save space and hopefully demonstrate the interpretable aspect much better. It will also look like we havent just picked out two nice ones and two bad ones if we note they were the largest coefficient for each class.
+
+Here we explore the effect of the inclusion of the regularisation term from Equation \cite{eq:interpretable_reg} on shapelet interpretability. Recall that the term was chosen to ensure the resulting shapelets are `close', in the sense of the chosen discrepancy, to some subsample of the training data giving a natural interpretability as representing those such subsamples of the data. To examine this we consider the PenDigits dataset where participants were asked to write down a number from 0-9 and the goal is to classify the intended digit. In Figure \ref{fig:pendigits} we plot two of the learnt shapelets for both the old algorithm (top) and the regularised algorithm (bottom). For the regularised algorithm one could immediately guess that the first shapelet is designed to distinguish the number two, as it looks like the top half of the number two, and the second clearly looks like a number 7. By looking at the coefficients of the logistic regression, one does indeed find that these are the main classes that these shapelets aim to discriminate. On the other hand it is much less clear what is represented by the old shapelets, it turns out these also aim to represent a two and a seven but it is less clear that this is the case.
+
+We chose PenDigits here because it is easy to understand visually what the shapelet represents. In general this is not the case, but provided we can make sense of isolated subintervals of the time-series, then the generated results will be interpretable in this context.
+\begin{figure}[ht]
+    \begin{subfigure}[b]{0.5\linewidth}
+        \centering
+        \includegraphics[width=0.75\linewidth]{images/pendigits/old_2}
+        \caption{Old 2}
+        \label{fig:a}
+    \end{subfigure}
+    \begin{subfigure}[b]{0.5\linewidth}
+        \centering
+        \includegraphics[width=0.75\linewidth]{images/pendigits/old_7}
+        \caption{Old 7}
+        \label{fig:b}
+    \end{subfigure}
+    \begin{subfigure}[b]{0.5\linewidth}
+        \centering
+        \includegraphics[width=0.75\linewidth]{images/pendigits/new_2}
+        \caption{New 2}
+        \label{fig7:c}
+    \end{subfigure}
+    \begin{subfigure}[b]{0.5\linewidth}
+        \centering
+        \includegraphics[width=0.75\linewidth]{images/pendigits/new_7}
+        \caption{New 7}
+    \end{subfigure}
+    \caption{Learnt shapelets from the PenDigits dataset with the old algorithm (top) and the new algorithm (bottom).}
+    \label{fig:pendigits}
+\end{figure}
+
+
+\subsubsection{Missing Data and Length Ablation}
+We now demonstrate both the ability of the proposed framework to handle partially observed data, as well as show the effectiveness of having learnable shapelet lengths.
 \begin{table}[ht]
     \caption{}
     \label{tab:uea_noise}
@@ -31,18 +60,16 @@ TODO: we need to consider more disrepancy functions than this.
     \input{results/data/uea_noise.tex}
 \end{table}
 
-\subsubsection{Length}
+
+\subsection{Speech Commands}
+Finally we examine the performance on the speech commands dataset \ref{warden2018speech} which includes a selection of one-second audio files with each representing a single spoken word. The aim is to build a model to detect the word that has been spoken. We chose this dataset as it is significantly larger than any in the UEA archive so as to demonstrate that the method is not restricted to these (relatively) small datasets. We do reiterate that the computational cost of shapelet methods is high in comparison to other more traditional deep-learning approaches and so can make datasets such as this prohibitive, in particular, it is why we have left the logsig-3 discrepancy out of our analysis in this instance as it takes significantly longer to train compared with the L2 methods.
 \begin{table}[ht]
-    \caption{}
-    \label{tab:uea_length}
+    \caption{Classification accuracy for old shapelets and new shapelets on the Speech Commands dataset.}
+    \label{tab:speech_commands}
     \centering
-    \input{results/data/uea_length.tex}
+    \input{results/data/speech_commands_placeholder.tex}
 \end{table}
 
-\subsubsection{Missingness}
-\begin{table}[ht]
-    \caption{}
-    \label{tab:uea_missingness}
-    \centering
-    \input{results/data/uea_missingness.tex}
-\end{table}
+\subsubsection{Interpretability of Speech Commands}
+Pray for me.
+

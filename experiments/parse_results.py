@@ -132,6 +132,9 @@ def generate_table(save_loc, means, wins, stds, round=3):
     n_cols = len(means.columns)
     means = means.round(round)
 
+    # Slight column name hack
+    means.columns = pd.MultiIndex.from_arrays([['\\textbf{Discrepancy}'] * n_cols, means.columns])
+
     if stds is not None:
         stds = stds.round(round)
         zfill = lambda x: x.astype(str).str.ljust(width=round + 2, fillchar='0')
@@ -142,10 +145,16 @@ def generate_table(save_loc, means, wins, stds, round=3):
 
     # Convert onto a win frame
     column_format = 'l' + 'c' * n_cols
-    top_section = (means.to_latex(float_format="%.3f", column_format=column_format, na_rep='-', escape=False)
+    top_section = (means.to_latex(float_format="%.3f", column_format=column_format, na_rep='-', escape=False, index_names=True)
                         .split('\\\\\n\\bottom')[0])
+
+    # Add dataset col name
+    top_split = top_section.split('\\\\\n{} ')
+    discrepancy_string = '\\\\\n \\textbf{Dataset} '
+    top_section_discrepancy = top_split[0] + discrepancy_string + top_split[1]
+
     bottom_section = 'Wins' + wins.to_latex().split('Wins')[1]
-    tex_string = top_section + '\\\\ \n\midrule\n' + bottom_section
+    tex_string = top_section_discrepancy + '\\\\ \n\midrule\n' + bottom_section
 
     # Write the table
     with open(save_loc, "w") as file:
@@ -153,11 +162,12 @@ def generate_table(save_loc, means, wins, stds, round=3):
 
 
 if __name__ == '__main__':
-    assert len(sys.argv) in (2, 3)
-    dataset = sys.argv[1]
+    # assert len(sys.argv) in (2, 3)
+    # dataset = sys.argv[1]
+    dataset = 'uea_hyperparameter_search'
     means, wins, stds = main(dataset)
 
-    if len(sys.argv) == 3 and sys.argv[2] == '--save':
-        # Save the table to results
-        save_loc = '../paper/results/data/{}.tex'.format(dataset)
-        generate_table(save_loc, means, wins, stds)
+# if len(sys.argv) == 3 and sys.argv[2] == '--save':
+    # Save the table to results
+    save_loc = '../paper/results/data/{}.tex'.format(dataset)
+    generate_table(save_loc, means, wins, stds)

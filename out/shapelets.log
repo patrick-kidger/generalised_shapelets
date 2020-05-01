@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.14159265-2.6-1.40.19 (TeX Live 2018) (preloaded format=pdflatex 2018.7.19)  30 APR 2020 13:24
+This is pdfTeX, Version 3.14159265-2.6-1.40.19 (TeX Live 2018) (preloaded format=pdflatex 2018.7.19)  1 MAY 2020 15:44
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -947,10 +947,10 @@ LaTeX Warning: Citation `TODO' on page 4 undefined on input line 223.
 
 [4]
 
-LaTeX Warning: Citation `pytorch' on page 5 undefined on input line 242.
+LaTeX Warning: Citation `pytorch' on page 5 undefined on input line 243.
 
 
-Underfull \hbox (badness 1253) in paragraph at lines 241--243
+Underfull \hbox (badness 1253) in paragraph at lines 242--244
 []\OT1/ptm/b/n/10 Differentiability  \OT1/ptm/m/n/10 Some thought is nec-es-sar
 y to ver-ify that our con-struc-tions are in fact
  []
@@ -959,19 +959,66 @@ y to ver-ify that our con-struc-tions are in fact
 
 LaTeX Warning: Citation `signatory' on page 6 undefined on input line 2.
 
-(./results/data/ucr_comparison.tex) (./results/data/uea_comparison.tex)
-(./results/data/uea_noise.tex) (./results/data/uea_length.tex)
-(./results/data/uea_missingness.tex)) [6]
-Package atveryend Info: Empty hook `BeforeClearDocument' on input line 259.
- [7]
-Package atveryend Info: Empty hook `AfterLastShipout' on input line 259.
+
+LaTeX Warning: Citation `bagnall2018uea' on page 6 undefined on input line 8.
+
+
+LaTeX Warning: Reference `' on page 6 undefined on input line 8.
+
+(./results/data/uea_comparison.tex)
+
+LaTeX Warning: Citation `eq:interpretable_reg' on page 6 undefined on input lin
+e 22.
+
+[6]
+<images/pendigits/old_2.png, id=133, 642.4pt x 477.785pt>
+File: images/pendigits/old_2.png Graphic file (type png)
+<use images/pendigits/old_2.png>
+Package pdftex.def Info: images/pendigits/old_2.png  used on input line 28.
+(pdftex.def)             Requested size: 149.05687pt x 110.85785pt.
+<images/pendigits/old_7.png, id=135, 642.4pt x 477.785pt>
+File: images/pendigits/old_7.png Graphic file (type png)
+<use images/pendigits/old_7.png>
+Package pdftex.def Info: images/pendigits/old_7.png  used on input line 34.
+(pdftex.def)             Requested size: 149.05687pt x 110.85785pt.
+<images/pendigits/new_2.png, id=136, 642.4pt x 477.785pt>
+File: images/pendigits/new_2.png Graphic file (type png)
+<use images/pendigits/new_2.png>
+Package pdftex.def Info: images/pendigits/new_2.png  used on input line 40.
+(pdftex.def)             Requested size: 149.05687pt x 110.85785pt.
+<images/pendigits/new_7.png, id=137, 642.4pt x 477.785pt>
+File: images/pendigits/new_7.png Graphic file (type png)
+<use images/pendigits/new_7.png>
+Package pdftex.def Info: images/pendigits/new_7.png  used on input line 46.
+(pdftex.def)             Requested size: 149.05687pt x 110.85785pt.
+
+Overfull \hbox (1.90002pt too wide) in paragraph at lines 26--49
+[][] []
+ []
+
+
+Overfull \hbox (1.90002pt too wide) in paragraph at lines 26--49
+[] [] 
+ []
+
+(./results/data/uea_noise.tex)
+
+LaTeX Warning: Reference `warden2018speech' on page 7 undefined on input line 6
+5.
+
+(./results/data/speech_commands_placeholder.tex)) [7 <./images/pendigits/old_2.
+png> <./images/pendigits/old_7.png> <./images/pendigits/new_2.png> <./images/pe
+ndigits/new_7.png>]
+Package atveryend Info: Empty hook `BeforeClearDocument' on input line 260.
+ [8]
+Package atveryend Info: Empty hook `AfterLastShipout' on input line 260.
 
 (/Users/jambo/Documents/PhD/code/actual/generalised_shapelets/out/shapelets.aux
 )
-Package atveryend Info: Executing hook `AtVeryEndDocument' on input line 259.
-Package atveryend Info: Executing hook `AtEndAfterFileList' on input line 259.
+Package atveryend Info: Executing hook `AtVeryEndDocument' on input line 260.
+Package atveryend Info: Executing hook `AtEndAfterFileList' on input line 260.
 Package rerunfilecheck Info: File `shapelets.out' has not changed.
-(rerunfilecheck)             Checksum: D41D8CD98F00B204E9800998ECF8427E;0.
+(rerunfilecheck)             Checksum: C737987758D696374B35A4520391686C;912.
 
 
 LaTeX Font Warning: Some font shapes were not available, defaults substituted.
@@ -982,16 +1029,16 @@ LaTeX Warning: There were undefined references.
 
 LaTeX Warning: Label(s) may have changed. Rerun to get cross-references right.
 
-Package atveryend Info: Empty hook `AtVeryVeryEnd' on input line 259.
+Package atveryend Info: Empty hook `AtVeryVeryEnd' on input line 260.
  ) 
 Here is how much of TeX's memory you used:
- 18694 strings out of 492649
- 347026 string characters out of 6129622
- 531982 words of memory out of 5000000
- 22177 multiletter control sequences out of 15000+600000
+ 18727 strings out of 492649
+ 347713 string characters out of 6129622
+ 526439 words of memory out of 5000000
+ 22210 multiletter control sequences out of 15000+600000
  23856 words of font info for 59 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 55i,9n,54p,999b,354s stack positions out of 5000i,500n,10000p,200000b,80000s
+ 55i,10n,54p,1316b,471s stack positions out of 5000i,500n,10000p,200000b,80000s
 {/usr/local/texlive/2018/texmf-dist/fonts/enc/dvips/base/8r.enc}</usr/local/t
 exlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmex10.pfb></usr/local/te
 xlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi10.pfb></usr/local/tex
@@ -1008,10 +1055,10 @@ xmf-dist/fonts/type1/urw/times/utmb8a.pfb></usr/local/texlive/2018/texmf-dist/f
 onts/type1/urw/times/utmr8a.pfb></usr/local/texlive/2018/texmf-dist/fonts/type1
 /urw/times/utmri8a.pfb>
 Output written on /Users/jambo/Documents/PhD/code/actual/generalised_shapelets/
-out/shapelets.pdf (7 pages, 173781 bytes).
+out/shapelets.pdf (8 pages, 237460 bytes).
 PDF statistics:
- 194 PDF objects out of 1000 (max. 8388607)
- 169 compressed objects within 2 object streams
+ 214 PDF objects out of 1000 (max. 8388607)
+ 180 compressed objects within 2 object streams
  43 named destinations out of 1000 (max. 500000)
- 117 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 153 words of extra memory for PDF output out of 10000 (max. 10000000)
 
