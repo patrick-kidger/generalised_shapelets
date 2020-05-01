@@ -1,5 +1,4 @@
 #include <torch/extension.h>
-#include <pybind11/functional.h>  // py::cpp_function
 #include <cstdint>    // int64_t
 #include <functional>  // std::function
 

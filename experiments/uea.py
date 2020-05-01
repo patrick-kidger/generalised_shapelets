@@ -55,7 +55,7 @@ large_datasets = {'InsectWingbeat', 'ElectricDevices', 'PenDigits', 'SpokenArabi
                   'PhonemeSpectra', 'LSST', 'UWaveGestureLibrary', 'CharacterTrajectories'}
 
 
-# Ordered by chanels * dataset size * num_classes * length ** 2, i.e. the cost of evaluating shaplets on them.
+# Ordered by channels * dataset size * num_classes * length ** 2, i.e. the cost of evaluating shaplets on them.
 datasets_by_cost = ('ERing',
                     'RacketSports',
                     'PenDigits',
@@ -178,9 +178,9 @@ def get_data(dataset_name, missing_rate, noise_channels):
     val_dataset = torch.utils.data.TensorDataset(val_X, val_y)
     test_dataset = torch.utils.data.TensorDataset(test_X, test_y)
 
-    train_dataloader = common.dataloader(train_dataset, batch_size=2048)
-    val_dataloader = common.dataloader(val_dataset, batch_size=2048)
-    test_dataloader = common.dataloader(test_dataset, batch_size=2048)
+    train_dataloader = common.dataloader(train_dataset, batch_size=1024)
+    val_dataloader = common.dataloader(val_dataset, batch_size=1024)
+    test_dataloader = common.dataloader(test_dataset, batch_size=1024)
 
     num_classes = counter
     input_channels = train_X.size(-1)
@@ -190,20 +190,22 @@ def get_data(dataset_name, missing_rate, noise_channels):
     return times, train_dataloader, val_dataloader, test_dataloader, num_classes, input_channels
 
 
+def _subfolder(dataset_name, dataset_detail, result_subfolder):
+    return dataset_name + dataset_detail + '-' + result_subfolder
+
+
 def main(dataset_name,                        # dataset parameters
          missing_rate=0.,                     #
          noise_channels=0,                    #
          result_folder=None,                  # saving parameters
          result_subfolder='',                 #
          dataset_detail='',                   #
-         epochs=1000,                         # training parameters
+         epochs=250,                          # training parameters
          num_shapelets_per_class=3,           # model parameters
          num_shapelet_samples=None,           #
          discrepancy_fn='L2',                 #
          max_shapelet_length_proportion=1.0,  #
-         lengths_per_shapelet=1,              #
          num_continuous_samples=None,         #
-         metric_type='general',               #
          ablation_pseudometric=True,          # For ablation studies
          ablation_learntlengths=True,         #
          ablation_similarreg=True,            #
@@ -220,108 +222,83 @@ def main(dataset_name,                        # dataset parameters
                        num_classes,
                        input_channels,
                        result_folder,
-                       dataset_name + dataset_detail + '-' + result_subfolder,
+                       _subfolder(dataset_name, dataset_detail, result_subfolder),
                        epochs,
                        num_shapelets_per_class,
                        num_shapelet_samples,
                        discrepancy_fn,
                        max_shapelet_length_proportion,
-                       lengths_per_shapelet,
                        num_continuous_samples,
-                       metric_type,
                        ablation_pseudometric,
                        ablation_learntlengths,
                        ablation_similarreg,
                        old_shapelets)
 
 
-def comparison_test():
-    result_folder = 'uea_comparison'
-    metric_type = 'diagonal'
-    for dataset_name in datasets_by_cost[:11]:
-        result_subfolder = 'L2-' + metric_type
-        print("Starting comparison: " + dataset_name + ' ' + result_subfolder)
-        main(dataset_name,
-             result_folder=result_folder,
-             result_subfolder=result_subfolder,
-             discrepancy_fn='L2',
-             metric_type=metric_type)
-        result_subfolder = 'logsig-3-' + metric_type
-        print("Starting comparison: " + dataset_name + ' ' + result_subfolder)
-        main(dataset_name,
-             result_folder=result_folder,
-             result_subfolder='logsig-3' + metric_type,
-             discrepancy_fn='logsig-3',
-             metric_type=metric_type)
-        result_subfolder = 'old'
-        print("Starting comparison: " + dataset_name + ' ' + result_subfolder)
-        main(dataset_name,
-             result_folder=result_folder,
-             result_subfolder=result_subfolder,
-             old_shapelets=True)
-
-
-standard_dataset_names = ('JapaneseVowels', 'BasicMotions', 'FingerMovements')
-
-
-def missing_rate_test():
-    result_folder = 'uea_missingness'
-    metric_type = 'diagonal'
-    for dataset_name in standard_dataset_names:
-        for missing_rate in (0.1, 0.3, 0.5):
-            for discrepancy_fn in ('L2', 'logsig-3'):
-                result_subfolder = discrepancy_fn + '-' + metric_type
-                print("Starting comparison: " + dataset_name + str(int(missing_rate * 100)) + ' ' + result_subfolder)
-                main(dataset_name,
-                     result_folder=result_folder,
-                     result_subfolder=result_subfolder,
-                     dataset_detail=str(int(missing_rate * 100)),
-                     missing_rate=missing_rate,
-                     discrepancy_fn=discrepancy_fn,
-                     metric_type=metric_type)
-
-
-def noise_test():
-    result_folder = 'uea_noise'
-    for _ in range(5):
-        for dataset_name in standard_dataset_names:
-            for noise_channels in (3, 9, 30):
-                discrepancy_fn = 'L2'
-                metric_type = 'diagonal'
-                for pseudometric in (True, False):
-                    result_subfolder = discrepancy_fn + '-' + metric_type + '-' + str(pseudometric)
-                    print("Starting comparison: " + dataset_name + str(noise_channels) + ' ' + result_subfolder)
+def hyperparameter_search():
+    result_folder = 'uea_hyperparameter_search'
+    for dataset_name in datasets_by_cost[8:10]:
+        for num_shapelets_per_class in (2, 3, 5):
+            for max_shapelet_length_proportion in (0.15, 0.3, 0.5, 1.0):
+                result_subfolder = 'old-' + str(num_shapelets_per_class) + '-' + str(max_shapelet_length_proportion)
+                if common.assert_not_done(result_folder, dataset_name + '-' + result_subfolder, n_done=1):
+                    print("Starting comparison: " + dataset_name + '-' + result_subfolder)
                     main(dataset_name,
-                         noise_channels=noise_channels,
                          result_folder=result_folder,
                          result_subfolder=result_subfolder,
-                         dataset_detail=str(noise_channels),
-                         discrepancy_fn=discrepancy_fn,
-                         ablation_pseudometric=pseudometric,
-                         metric_type=metric_type)
-                result_subfolder = 'old'
-                print("Starting comparison: " + str(noise_channels) + result_subfolder)
+                         num_shapelets_per_class=num_shapelets_per_class,
+                         max_shapelet_length_proportion=max_shapelet_length_proportion,
+                         old_shapelets=True)
+
+
+def missing_and_length_test():
+    seed = 5678
+    for i in range(3):
+        result_folder = 'uea_missing_and_length'
+        for dataset_name in ('JapaneseVowels', 'BasicMotions', 'FingerMovements'):
+            for missing_rate in (0.1, 0.3, 0.5):
+                for discrepancy_fn in ('L2', 'logsig-3'):
+                    for learntlengths in (True, False):
+                        seed = common.handle_seeds(seed)
+                        result_subfolder = discrepancy_fn + '-' + str(learntlengths)
+                        dataset_detail = str(int(missing_rate * 100))
+                        full_result_subfolder = _subfolder(dataset_name, dataset_detail, result_subfolder)
+                        if common.assert_not_done(result_folder, full_result_subfolder, n_done=3):
+                            print("Starting comparison: " + full_result_subfolder)
+                            main(dataset_name,
+                                 result_folder=result_folder,
+                                 result_subfolder=result_subfolder,
+                                 dataset_detail=dataset_detail,
+                                 missing_rate=missing_rate,
+                                 discrepancy_fn=discrepancy_fn,
+                                 ablation_learntlengths=learntlengths)
+
+
+def comparison_test():
+    seed = 5678
+    for i in range(3):
+        result_folder = 'uea_comparison'
+
+        for dataset_name in datasets_by_cost[:9]:
+            for discrepancy_fn in ('L2', 'logsig-3'):
+                seed = common.handle_seeds(seed)
+                result_subfolder = discrepancy_fn
+                dataset_detail = ''
+                full_result_subfolder = _subfolder(dataset_name, dataset_detail, result_subfolder)
+                if common.assert_not_done(result_folder, full_result_subfolder, n_done=3):
+                    print("Starting comparison: " + full_result_subfolder)
+                    main(dataset_name,
+                         result_folder=result_folder,
+                         result_subfolder=result_subfolder,
+                         discrepancy_fn=discrepancy_fn)
+
+            seed = common.handle_seeds(seed)
+            result_subfolder = 'old'
+            dataset_detail = ''
+            full_result_subfolder = _subfolder(dataset_name, dataset_detail, result_subfolder)
+            if common.assert_not_done(result_folder, full_result_subfolder, n_done=3):
+                print("Starting comparison: " + full_result_subfolder)
                 main(dataset_name,
-                     noise_channels=noise_channels,
                      result_folder=result_folder,
                      result_subfolder=result_subfolder,
-                     dataset_detail=str(noise_channels),
-                     discrepancy_fn=discrepancy_fn,
                      old_shapelets=True)
-
-
-def length_test():
-    result_folder = 'uea_length'
-    for _ in range(5):
-        for dataset_name in standard_dataset_names:
-            discrepancy_fn = 'L2'
-            metric_type = 'diagonal'
-            for learnt_lengths in (True, False):
-                result_subfolder = discrepancy_fn + '-' + metric_type + '-' + str(learnt_lengths)
-                print("Starting comparison: " + dataset_name + ' ' + result_subfolder)
-                main(dataset_name,
-                     result_folder=result_folder,
-                     result_subfolder=result_subfolder,
-                     discrepancy_fn=discrepancy_fn,
-                     ablation_learntlengths=learnt_lengths,
-                     metric_type=metric_type)

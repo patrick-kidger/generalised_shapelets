@@ -96,7 +96,7 @@ def _process_data():
 def main():
     download()
     train_X, val_X, test_X, train_y, val_y, test_y = _process_data()
-    loc = here / '..' / 'experiments' / 'speech_commands_data'
+    loc = here / '..' / 'experiments' / 'data' / 'speech_commands_data'
     if not os.path.exists(loc):
         os.mkdir(loc)
     _save_data(loc, train_X=train_X, val_X=val_X, test_X=test_X, train_y=train_y, val_y=val_y, test_y=test_y)

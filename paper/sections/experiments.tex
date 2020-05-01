@@ -1,0 +1,48 @@
+\section{Experiments}
+Our generalised shapelet transform, contrasted with the classical shapelet transform, has two extra degrees of freedom: the choice of interpolation scheme $\iota$, and the choice of discrepancy function $\pi^A_S$. In our experiments, we consider $\pi^A_S$ given by either of equations \eqref{eq:learnt-discrepancy} or \eqref{eq:logsignature-discrepancy}. Meanwhile, we take $\iota$ to be piecewise linear interpolation, because efficient algorithms for computing the logsignature transform only exist for piecewise linear paths \cite{signatory}.
+
+TODO: we need to consider more disrepancy functions than this.
+
+\subsection{The UCR (Univariate) Time-Series Archive}
+
+\begin{table}[ht]
+    \caption{Scores for four different metrics on a subset of the UCR time-series archive.}
+    \label{tab:ucr_results}
+    \centering
+    \input{results/data/ucr_comparison.tex}
+\end{table}
+
+
+\subsection{The UEA (Multivariate) Time-Series Archive}
+
+\subsubsection{Comparison}
+\begin{table}[ht]
+    \centering
+    \caption{}
+    \label{tab:uea_comparison_results}
+    \input{results/data/uea_comparison.tex}
+\end{table}
+
+\subsubsection{Noise}
+\begin{table}[ht]
+    \caption{}
+    \label{tab:uea_noise}
+    \centering
+    \input{results/data/uea_noise.tex}
+\end{table}
+
+\subsubsection{Length}
+\begin{table}[ht]
+    \caption{}
+    \label{tab:uea_length}
+    \centering
+    \input{results/data/uea_length.tex}
+\end{table}
+
+\subsubsection{Missingness}
+\begin{table}[ht]
+    \caption{}
+    \label{tab:uea_missingness}
+    \centering
+    \input{results/data/uea_missingness.tex}
+\end{table}

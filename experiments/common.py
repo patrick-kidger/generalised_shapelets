@@ -5,12 +5,31 @@ import math
 import numpy as np
 import os
 import pathlib
+import random
+import sklearn.cluster
 import torch
 import tqdm
 import torchshapelets
 
 
 here = pathlib.Path(__file__).resolve().parent
+
+
+def handle_seeds(seed):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    return seed + 1
+
+
+def assert_not_done(result_folder, result_subfolder, n_done=1):
+    folder = here / 'results' / result_folder / result_subfolder
+    if os.path.isdir(folder):
+        num_files = sum(1 for x in os.listdir(folder) if not x.startswith('.') and 'model' not in x)
+        return num_files < n_done
+    else:
+        return True
 
 
 def normalise_data(X, train_X):
@@ -104,10 +123,10 @@ def _compute_multiclass_accuracy(pred_y, true_y):
     return proportion_correct
 
 
-def _get_discrepancy_fn(discrepancy_fn, input_channels, ablation_pseudometric, metric_type):
+def _get_discrepancy_fn(discrepancy_fn, input_channels, ablation_pseudometric):
     if discrepancy_fn == 'L2':
         discrepancy_fn = torchshapelets.L2Discrepancy(in_channels=input_channels, pseudometric=ablation_pseudometric,
-                                                      metric_type=metric_type)
+                                                      metric_type='diagonal')
     elif 'logsig' in discrepancy_fn:
         # expects e.g. 'logsig-4'
         split_desc = discrepancy_fn.split('-')
@@ -116,7 +135,7 @@ def _get_discrepancy_fn(discrepancy_fn, input_channels, ablation_pseudometric, m
         depth = int(split_desc[1])
         discrepancy_fn = torchshapelets.LogsignatureDiscrepancy(in_channels=input_channels, depth=depth,
                                                                 pseudometric=ablation_pseudometric,
-                                                                metric_type=metric_type)
+                                                                metric_type='diagonal')
     elif discrepancy_fn == 'piecewise_constant_L2_squared':
         def discrepancy_fn(times, path, shapelet):
             return ((path - shapelet) ** 2).sum(dim=(-1, -2))
@@ -126,7 +145,7 @@ def _get_discrepancy_fn(discrepancy_fn, input_channels, ablation_pseudometric, m
 
 class _LinearShapeletTransform(torch.nn.Module):
     def __init__(self, in_channels, out_channels, num_shapelets, num_shapelet_samples, discrepancy_fn,
-                 max_shapelet_length, lengths_per_shapelet, num_continuous_samples, log):
+                 max_shapelet_length, num_continuous_samples, log):
         super(_LinearShapeletTransform, self).__init__()
 
         self.shapelet_transform = torchshapelets.GeneralisedShapeletTransform(in_channels=in_channels,
@@ -134,9 +153,8 @@ class _LinearShapeletTransform(torch.nn.Module):
                                                                               num_shapelet_samples=num_shapelet_samples,
                                                                               discrepancy_fn=discrepancy_fn,
                                                                               max_shapelet_length=max_shapelet_length,
-                                                                              lengths_per_shapelet=lengths_per_shapelet,
                                                                               num_continuous_samples=num_continuous_samples)
-        self.linear = torch.nn.Linear(num_shapelets * lengths_per_shapelet, out_channels)
+        self.linear = torch.nn.Linear(num_shapelets, out_channels)
         self.linear.weight.register_hook(lambda grad: 100 * grad)
         self.linear.bias.register_hook(lambda grad: 100 * grad)
 
@@ -156,9 +174,25 @@ class _LinearShapeletTransform(torch.nn.Module):
     def clip_length(self):
         self.shapelet_transform.clip_length()
 
-    def set_shapelets(self, times, path):
+    def set_extract_shapelets(self, times, path):
         data = self.shapelet_transform.extract_random_shapelets(times, path)
         self.shapelet_transform.set_shapelets(data)
+
+    def set_kmeans_shapelets(self, data, init_len, n_shapelets):
+        """ Shapelet initialisation using k-means clustering. """
+        data = data.to('cpu')
+
+        # Make a rolling window over the starting length trick and compute kmeans
+        data_rolling = data.unfold(1, init_len, 1)
+        data_tricked = data_rolling.reshape(-1, data_rolling.size(2) * data_rolling.size(3))
+        kmeans = sklearn.cluster.KMeans(n_clusters=n_shapelets)
+        kmeans.fit(data_tricked)
+
+        # Untrick to be of shape [N_shapelets, Window_len, Channels]
+        cluster_centers_untricked = kmeans.cluster_centers_.reshape(-1, data_rolling.size(2), data_rolling.size(3))
+        cluster_centers = torch.Tensor(cluster_centers_untricked).transpose(1, 2)
+
+        self.shapelet_transform.set_shapelets(cluster_centers)
 
 
 def _evaluate_metrics(dataloader, model, times, loss_fn, num_classes):
@@ -181,29 +215,23 @@ def _evaluate_metrics(dataloader, model, times, loss_fn, num_classes):
         return _AttrDict(loss=total_loss, accuracy=total_accuracy)
 
 
-def _train_loop(train_dataloader, val_dataloader, model, times, optimizer, loss_fn, epochs, num_classes,
-                ablation_similarreg):
-    """Standard training loop.
-
-    Has a few simple bells and whistles:
-    - Decreases learning rate on plateau.
-    - Stops training if there's no improvement in training loss for several epochs.
-    - Uses the best model (measured by validation accuracy) encountered during training, not just the final one.
-    """
+def _train_loop(train_dataloader, val_dataloader, test_dataloader, model, times, optimizer, loss_fn, epochs,
+                num_classes, ablation_similarreg):
     model.train()
     best_model = model
-    best_train_loss = math.inf
+    best_val_loss = math.inf
     best_val_accuracy = 0
     best_epoch = 0
     history = []
     breaking = False
 
-    epoch_per_metric = 10
-    plateau_patience = 1  # this will be multiplied by epoch_per_metric for the actual patience
-    plateau_terminate = 50
+    epoch_per_metric = 1
+    print_freq = 5
     similarity_coefficient = 0.0001
+    plateau_patience = 20
+    plateau_terminate = 60
 
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=plateau_patience, mode='max')
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=plateau_patience, min_lr=1e-3)
 
     tqdm_range = tqdm.tqdm(range(epochs))
     for epoch in tqdm_range:
@@ -224,26 +252,30 @@ def _train_loop(train_dataloader, val_dataloader, model, times, optimizer, loss_
             model.clip_length()
             optimizer.zero_grad()
 
-        if epoch % epoch_per_metric == 0 or epoch == epochs - 1:
+        if (epoch % epoch_per_metric == 0 and epoch >= 10) or epoch == epochs - 1:
             model.eval()
             train_metrics = _evaluate_metrics(train_dataloader, model, times, loss_fn, num_classes)
             val_metrics = _evaluate_metrics(val_dataloader, model, times, loss_fn, num_classes)
             model.train()
 
-            if train_metrics.loss * 1.0001 < best_train_loss:
-                best_train_loss = train_metrics.loss
-                best_epoch = epoch
+            improved_val_loss_and_acc = val_metrics.loss.item() < best_val_loss and \
+                                        val_metrics.accuracy > best_val_accuracy
+            improved_val_loss_err = val_metrics.loss.item() + 1e-3 < best_val_loss
 
-            if val_metrics.accuracy > best_val_accuracy:
+            if improved_val_loss_and_acc:
                 best_val_accuracy = val_metrics.accuracy
                 del best_model  # so that we don't have three copies of a model simultaneously
                 best_model = copy.deepcopy(model)
 
-            tqdm_range.write('Epoch: {}  Train loss: {:.3}  Train accuracy: {:.3}  Val loss: {:.3}  '
-                             'Val accuracy: {:.3}'
-                             ''.format(epoch, train_metrics.loss, train_metrics.accuracy, val_metrics.loss,
-                                       val_metrics.accuracy))
-            scheduler.step(val_metrics.accuracy)
+            if improved_val_loss_err or improved_val_loss_and_acc:
+                best_val_loss = val_metrics.loss
+                best_epoch = epoch
+
+            if epoch % print_freq == 0:
+                tqdm_range.write('Epoch: {}  Train loss: {:.3}  Train accuracy: {:.3}  Val loss: {:.3}  '
+                                 'Val accuracy: {:.3}'.format(epoch, train_metrics.loss, train_metrics.accuracy,
+                                                              val_metrics.loss, val_metrics.accuracy))
+            scheduler.step(val_metrics.loss)
             history.append(_AttrDict(epoch=epoch, train_loss=train_metrics.loss,
                                      train_accuracy=train_metrics.accuracy,
                                      val_loss=val_metrics.loss, val_accuracy=val_metrics.accuracy))
@@ -255,7 +287,7 @@ def _train_loop(train_dataloader, val_dataloader, model, times, optimizer, loss_
 
     for parameter, best_parameter in zip(model.parameters(), best_model.parameters()):
         parameter.data = best_parameter.data
-    return history
+    return history, best_model
 
 
 def _evaluate_model(train_dataloader, val_dataloader, test_dataloader, model, times, loss_fn, history, num_classes):
@@ -324,9 +356,7 @@ def main(times,
          num_shapelet_samples,
          discrepancy_fn,
          max_shapelet_length_proportion,
-         lengths_per_shapelet,
          num_continuous_samples,
-         metric_type,
          ablation_pseudometric,
          ablation_learntlengths,
          ablation_similarreg,
@@ -334,7 +364,6 @@ def main(times,
 
     if old_shapelets:
         discrepancy_fn = 'piecewise_constant_L2_squared'
-        max_shapelet_length_proportion = 0.3
         ablation_pseudometric = False
         ablation_learntlengths = False
         ablation_similarreg = False
@@ -345,17 +374,18 @@ def main(times,
 
     # Select some sensible options based on the length of the dataset
     timespan = times[-1] - times[0]
-    if max_shapelet_length_proportion is None:
-        max_shapelet_length_proportion = min((10 / timespan).sqrt(), 1)
     max_shapelet_length = timespan * max_shapelet_length_proportion
     if num_shapelet_samples is None:
         num_shapelet_samples = int(max_shapelet_length_proportion * times.size(0))
+        num_shapelet_samples = max(num_shapelet_samples, 7)  # make sure they have a minimum amount of expressivity
     if num_continuous_samples is None:
         num_continuous_samples = times.size(0)
 
-    discrepancy_fn = _get_discrepancy_fn(discrepancy_fn, input_channels, ablation_pseudometric, metric_type)
+    discrepancy_fn = _get_discrepancy_fn(discrepancy_fn, input_channels, ablation_pseudometric)
 
+    num_ds_samples = train_dataloader.dataset.tensors[0].size(0)
     num_shapelets = num_shapelets_per_class * num_classes
+    num_shapelets = min(num_shapelets, 30, num_ds_samples)  # lest things take forever to run
 
     if num_classes == 2:
         out_channels = 1
@@ -368,17 +398,25 @@ def main(times,
                                      num_shapelet_samples=num_shapelet_samples,
                                      discrepancy_fn=discrepancy_fn,
                                      max_shapelet_length=max_shapelet_length,
-                                     lengths_per_shapelet=lengths_per_shapelet,
                                      num_continuous_samples=num_continuous_samples,
                                      log=log)
 
     if old_shapelets:
+        # Set shapelets to all be the same length
         new_lengths = torch.full_like(model.shapelet_transform.lengths, max_shapelet_length)
         del model.shapelet_transform.lengths
         model.shapelet_transform.register_buffer('lengths', new_lengths)
 
-    sample_batch = _get_sample_batch(train_dataloader, num_shapelets_per_class, num_shapelets)
-    model.set_shapelets(times.to('cpu'), sample_batch.to('cpu'))  # smart initialisation of shapelets
+    # Choose initialisation strategy:
+    if old_shapelets:
+        # K-means is what is proposed in previous work...
+        paths = train_dataloader.dataset.tensors[0]
+        model.set_kmeans_shapelets(paths.to('cpu'), num_shapelet_samples, num_shapelets)
+    else:
+        # ...but that doesn't make much sense for variable-length shapelets.
+        sample_batch = _get_sample_batch(train_dataloader, num_shapelets_per_class, num_shapelets)
+        model.set_extract_shapelets(times.to('cpu'), sample_batch.to('cpu'))
+    # Initialisation strategy doesn't seem to matter that much anyway.
 
     if not ablation_learntlengths:
         model.shapelet_transform.lengths.requires_grad_(False)
@@ -388,11 +426,11 @@ def main(times,
     else:
         loss_fn = torch.nn.functional.cross_entropy
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.005)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.05)
 
-    history = _train_loop(train_dataloader, val_dataloader, model, times, optimizer, loss_fn, epochs, num_classes,
-                          ablation_similarreg)
-    results = _evaluate_model(train_dataloader, val_dataloader, test_dataloader, model, times, loss_fn, history,
+    history, best_model = _train_loop(train_dataloader, val_dataloader, test_dataloader, model, times, optimizer,
+                                      loss_fn, epochs, num_classes, ablation_similarreg)
+    results = _evaluate_model(train_dataloader, val_dataloader, test_dataloader, best_model, times, loss_fn, history,
                               num_classes)
     results.num_shapelets_per_class = num_shapelets_per_class
     results.num_shapelet_samples = num_shapelet_samples
