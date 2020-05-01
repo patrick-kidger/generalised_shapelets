@@ -148,9 +148,11 @@ def generate_table(save_loc, means, wins, stds, round=3):
     top_section = (means.to_latex(float_format="%.3f", column_format=column_format, na_rep='-', escape=False, index_names=True)
                         .split('\\\\\n\\bottom')[0])
 
+    # Make column heading centreed
+    top_section = top_section.replace('{l}{\\textbf{Discrepancy}}', '{c}{\\textbf{Discrepancy}}')
     # Add dataset col name
     top_split = top_section.split('\\\\\n{} ')
-    discrepancy_string = '\\\\\n \\textbf{Dataset} '
+    discrepancy_string = '\\\\\n\\textbf{Dataset} '
     top_section_discrepancy = top_split[0] + discrepancy_string + top_split[1]
 
     bottom_section = 'Wins' + wins.to_latex().split('Wins')[1]

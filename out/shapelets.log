@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.14159265-2.6-1.40.19 (TeX Live 2018) (preloaded format=pdflatex 2018.7.19)  1 MAY 2020 15:44
+This is pdfTeX, Version 3.14159265-2.6-1.40.19 (TeX Live 2018) (preloaded format=pdflatex 2018.7.19)  1 MAY 2020 16:40
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -1026,9 +1026,6 @@ LaTeX Font Warning: Some font shapes were not available, defaults substituted.
 
 LaTeX Warning: There were undefined references.
 
-
-LaTeX Warning: Label(s) may have changed. Rerun to get cross-references right.
-
 Package atveryend Info: Empty hook `AtVeryVeryEnd' on input line 260.
  ) 
 Here is how much of TeX's memory you used:
@@ -1055,7 +1052,7 @@ xmf-dist/fonts/type1/urw/times/utmb8a.pfb></usr/local/texlive/2018/texmf-dist/f
 onts/type1/urw/times/utmr8a.pfb></usr/local/texlive/2018/texmf-dist/fonts/type1
 /urw/times/utmri8a.pfb>
 Output written on /Users/jambo/Documents/PhD/code/actual/generalised_shapelets/
-out/shapelets.pdf (8 pages, 237460 bytes).
+out/shapelets.pdf (8 pages, 237507 bytes).
 PDF statistics:
  214 PDF objects out of 1000 (max. 8388607)
  180 compressed objects within 2 object streams
