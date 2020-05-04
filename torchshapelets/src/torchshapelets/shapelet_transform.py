@@ -134,5 +134,6 @@ class GeneralisedShapeletTransform(torch.nn.Module):
         times = torch.as_tensor(times, dtype=path.dtype, device=path.device)
         max_shapelet_length = torch.as_tensor(self.max_shapelet_length, dtype=path.dtype, device=path.device)
         shapelets_repeated = self.shapelets.repeat(self.lengths_per_shapelet, 1, 1)
+
         return _impl.shapelet_transform(times, path, self.lengths, shapelets_repeated, max_shapelet_length,
                                         num_continuous_samples, discrepancy_fn, discrepancy_arg)
