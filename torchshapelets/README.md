@@ -7,7 +7,7 @@ It's a feature extraction method for time series, in which a time series is desc
 
 For more details, see the paper: TODO.
 
-Despite the name, it has nothing to do with wavelets.
+Despite the similar names, it has nothing to do with wavelets.
 
 # Installation
 
@@ -54,11 +54,9 @@ shapelet_similarity = transform(times, path)
 ```
 
 ### CPU vs GPU
-This is specifically written to operate on the CPU, and will probably crash if you try to run it on the GPU.
+This is specifically written to operate on the CPU, and may crash if you try to run it on the GPU.
 
 That this is the case is just an implementation limitation - computing shapelets is a massively parallel and therefore GPU-friendly operation, with the potential to parallelise over batch, over different shapelets, and over the continuous-minimum operation. But there's no easy way to write this parallelisation using just PyTorch (for the general case of irregularly sampled data), so this would need a custom GPU kernel.
-
-If you do want to build this into a deep learning model which is mostly on the GPU, then that is doable by passing the tensors between the CPU and GPU in the usual way for PyTorch.
 
 ### Full API
 Available objects are:
@@ -66,7 +64,7 @@ Available objects are:
 torchshapelets.GeneralisedShapeletTransform
 
 torchshapelets.CppDiscrepancy
-torchshapelets.L2Discrepanc
+torchshapelets.L2Discrepancy
 torchshapelets.LogsignatureDiscrepancy
 
 torchshapelets.similarity_regularisation

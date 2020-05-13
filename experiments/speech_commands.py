@@ -21,7 +21,7 @@ def _load_data(dir):
     return tensors
 
 
-def _get_sample(foldername):  # valid foldernames are ('yes', 'no', 'up', 'down', 'left', 'right', 'on', 'off', 'stop', 'go')
+def _get_sample(foldername):
     loc = here / 'data' / 'SpeechCommands' / foldername
     filenames = list(os.listdir(loc))
     while True:
@@ -42,9 +42,9 @@ def invert(model_filename, wav_filename):
     # Get the shapelet we're going to invert
     state_dict = torch.load(here / 'results/speech_commands' / model_filename)
     weight = state_dict['linear.weight']
-    most_informative = weight.argmin().item()
     num_classes, num_shapelets = weight.shape
-    class_index, shapelet_index = divmod(most_informative, num_shapelets)
+    most_informative = weight.argmin(dim=1)
+
     shapelets = state_dict['shapelet_transform.shapelets']
     mfcc_shapelet = shapelets[shapelet_index].to('cpu')
     lengths = state_dict['shapelet_transform.lengths']
@@ -66,8 +66,7 @@ def invert(model_filename, wav_filename):
     to_learn = torch.empty(16000, requires_grad=True)
     classes_set = set(classes)
     classes_set.remove(classes[class_index])
-    #init_audio = _get_sample(random.choice(list(classes_set)))
-    init_audio = _get_sample('up')
+    init_audio = _get_sample(random.choice(list(classes_set)))
     with torch.no_grad():
         to_learn.copy_(init_audio)
         to_learn += torch.randn(16000) * 0.1
