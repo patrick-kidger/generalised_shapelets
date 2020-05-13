@@ -223,9 +223,10 @@
 In \cite{TODO} they propose to solve this issue via adversarial regularisation.
 
 	We instead propose a much simpler method; train differentiably as before, and add on
-	\begin{equation*}
-	\sum_{k = 1}^K \min_{n \in \{1, \ldots, N\}} \sigma^A_S(f^n, w^{k, \rho, s})
-	\end{equation*}
+	\begin{equation}
+		\label{eq:interpretable_reg}
+		\sum_{k = 1}^K \min_{n \in \{1, \ldots, N\}} \sigma^A_S(f^n, w^{k, \rho, s})
+	\end{equation}
 	as a regularisation term, so that minimising the discrepancy between $f^n$ and $w^{k, \rho, S}$ is also important. Note the choice of minimisation over $n$, rather than a sum over $n$. A sum over $n$ would ask that every shapelet should look like every training sample. Taking a minimum instead asks only that every shapelet should be similar to a single training sample.
 	
 	\subsection{Minimisation objective and training procedure}
@@ -254,6 +255,9 @@ In \cite{TODO} they propose to solve this issue via adversarial regularisation.
 	
 	
 	\input{sections/experiments.tex}
+
+
+	\section{Conclusion}
 
 
 \end{document}

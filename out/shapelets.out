@@ -8,9 +8,8 @@
 \BOOKMARK [2][-]{subsection.2.3}{Interpretable regularisation}{section.2}% 8
 \BOOKMARK [2][-]{subsection.2.4}{Minimisation objective and training procedure}{section.2}% 9
 \BOOKMARK [1][-]{section.3}{Experiments}{}% 10
-\BOOKMARK [2][-]{subsection.3.1}{The UCR \(Univariate\) Time-Series Archive}{section.3}% 11
-\BOOKMARK [2][-]{subsection.3.2}{The UEA \(Multivariate\) Time-Series Archive}{section.3}% 12
-\BOOKMARK [3][-]{subsubsection.3.2.1}{Comparison}{subsection.3.2}% 13
-\BOOKMARK [3][-]{subsubsection.3.2.2}{Noise}{subsection.3.2}% 14
-\BOOKMARK [3][-]{subsubsection.3.2.3}{Length}{subsection.3.2}% 15
-\BOOKMARK [3][-]{subsubsection.3.2.4}{Missingness}{subsection.3.2}% 16
+\BOOKMARK [2][-]{subsection.3.1}{The UEA \(Multivariate\) Time-Series Archive}{section.3}% 11
+\BOOKMARK [3][-]{subsubsection.3.1.1}{Algorithm Interpretability}{subsection.3.1}% 12
+\BOOKMARK [3][-]{subsubsection.3.1.2}{Missing Data and Length Ablation}{subsection.3.1}% 13
+\BOOKMARK [2][-]{subsection.3.2}{Speech Commands}{section.3}% 14
+\BOOKMARK [3][-]{subsubsection.3.2.1}{Interpretability of Speech Commands}{subsection.3.2}% 15

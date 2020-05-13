@@ -384,8 +384,9 @@ def main(times,
 
     discrepancy_fn = _get_discrepancy_fn(discrepancy_fn, input_channels, ablation_pseudometric)
 
+    num_ds_samples = train_dataloader.dataset.tensors[0].size(0)
     num_shapelets = num_shapelets_per_class * num_classes
-    num_shapelets = min(num_shapelets, 30)  # lest things take forever to run
+    num_shapelets = min(num_shapelets, 30, num_ds_samples)  # lest things take forever to run
 
     if num_classes == 2:
         out_channels = 1
@@ -426,7 +427,7 @@ def main(times,
     else:
         loss_fn = torch.nn.functional.cross_entropy
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.025)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.05)
 
     start_time = time.time()
     history, best_model = _train_loop(train_dataloader, val_dataloader, test_dataloader, model, times, optimizer,

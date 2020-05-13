@@ -237,17 +237,18 @@ def main(dataset_name,                        # dataset parameters
 
 def hyperparameter_search():
     result_folder = 'uea_hyperparameter_search'
-    for dataset_name in datasets_by_cost[:9]:
+    for dataset_name in datasets_by_cost[6:8]:
         for num_shapelets_per_class in (2, 3, 5):
             for max_shapelet_length_proportion in (0.15, 0.3, 0.5, 1.0):
                 result_subfolder = 'old-' + str(num_shapelets_per_class) + '-' + str(max_shapelet_length_proportion)
-                print("Starting comparison: " + dataset_name + '-' + result_subfolder)
-                main(dataset_name,
-                     result_folder=result_folder,
-                     result_subfolder=result_subfolder,
-                     num_shapelets_per_class=num_shapelets_per_class,
-                     max_shapelet_length_proportion=max_shapelet_length_proportion,
-                     old_shapelets=True)
+                if common.assert_not_done(result_folder, dataset_name + '-' + result_subfolder, n_done=1):
+                    print("Starting comparison: " + dataset_name + '-' + result_subfolder)
+                    main(dataset_name,
+                         result_folder=result_folder,
+                         result_subfolder=result_subfolder,
+                         num_shapelets_per_class=num_shapelets_per_class,
+                         max_shapelet_length_proportion=max_shapelet_length_proportion,
+                         old_shapelets=True)
 
 
 def missing_and_length_test():
