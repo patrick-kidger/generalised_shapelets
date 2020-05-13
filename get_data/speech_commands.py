@@ -81,25 +81,30 @@ def _process_data():
 
     train_X, _, _ = _split_data(X, y)
     out = []
+    means = []
+    stds = []
     for Xi, train_Xi in zip(X.unbind(dim=-1), train_X.unbind(dim=-1)):
         mean = train_Xi.mean()
         std = train_Xi.std()
+        means.append(mean)
+        stds.append(std)
         out.append((Xi - mean) / (std + 1e-5))
     X = torch.stack(out, dim=-1)
 
     train_X, val_X, test_X = _split_data(X, y)
     train_y, val_y, test_y = _split_data(y, y)
 
-    return train_X, val_X, test_X, train_y, val_y, test_y
+    return train_X, val_X, test_X, train_y, val_y, test_y, torch.stack(means), torch.stack(stds)
 
 
 def main():
     download()
-    train_X, val_X, test_X, train_y, val_y, test_y = _process_data()
+    train_X, val_X, test_X, train_y, val_y, test_y, means, stds = _process_data()
     loc = here / '..' / 'experiments' / 'data' / 'speech_commands_data'
     if not os.path.exists(loc):
         os.mkdir(loc)
-    _save_data(loc, train_X=train_X, val_X=val_X, test_X=test_X, train_y=train_y, val_y=val_y, test_y=test_y)
+    _save_data(loc, train_X=train_X, val_X=val_X, test_X=test_X, train_y=train_y, val_y=val_y, test_y=test_y,
+               means=means, stds=stds)
 
 
 if __name__ == '__main__':
