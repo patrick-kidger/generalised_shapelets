@@ -53,11 +53,6 @@ shapelet_similarity = transform(times, path)
 # describing the similarity between each batch element and each shapelet.
 ```
 
-### CPU vs GPU
-This is specifically written to operate on the CPU, and may crash if you try to run it on the GPU.
-
-That this is the case is just an implementation limitation - computing shapelets is a massively parallel and therefore GPU-friendly operation, with the potential to parallelise over batch, over different shapelets, and over the continuous-minimum operation. But there's no easy way to write this parallelisation using just PyTorch (for the general case of irregularly sampled data), so this would need a custom GPU kernel.
-
 ### Full API
 Available objects are:
 ```python
@@ -76,6 +71,20 @@ This is then an argument to the `GeneralisedShapeletTransform`. This is then cap
 The regularisation will help ensure that the shapelets that are learnt are in fact interpretable (rather than just being random-looking).
 
 Check their docstrings and the paper TODO for more details.
+
+### CPU vs GPU
+
+The code may or may not crash if ran on the GPU. OpenMP and CUDA don't always seem to play well with each other.
+
+# Limitations
+
+There are a number of limitations with this implementation - this definitely constitutes research code, not production code!
+
+In brief, the code is slow and memory inefficient. We're pretty sure that this is mostly just a limitation of the implementation though - in principle the shapelet transform shouldn't suffer from any of these issues.
+
+(Footnote - if anyone writes a better `torchshapelets` then we'll happily link to it as superseding this code.)
+
+If you're curious, having a look at `LIMITATIONS.md` for more information.
 
 # Citation
 
