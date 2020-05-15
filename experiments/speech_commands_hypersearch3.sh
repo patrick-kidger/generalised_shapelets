@@ -1,1 +1,0 @@
-psrecord "python -c 'import speech_commands; speech_commands.hyperparameter_search(5)'" --log speech_commands_hypersearch_five --interval 10 --include-children

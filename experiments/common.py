@@ -7,6 +7,7 @@ import os
 import pathlib
 import random
 import sklearn.cluster
+import time
 import torch
 import tqdm
 import torchshapelets
@@ -169,7 +170,7 @@ class _LinearShapeletTransform(torch.nn.Module):
         out = self.linear(log_shapelet_similarity)
         if out.size(-1) == 1:
             out = out.squeeze(-1)
-        return out, shapelet_similarity, self.shapelet_transform.lengths, self.shapelet_transform.discrepancy_fn
+        return out, shapelet_similarity
 
     def clip_length(self):
         self.shapelet_transform.clip_length()
@@ -204,7 +205,7 @@ def _evaluate_metrics(dataloader, model, times, loss_fn, num_classes):
         for batch in dataloader:
             X, y = batch
             batch_size = y.size(0)
-            pred_y, _, _, _ = model(times, X)
+            pred_y, _ = model(times, X)
             if num_classes == 2:
                 y = y.to(pred_y.dtype)
             total_accuracy += accuracy_fn(pred_y, y) * batch_size
@@ -241,7 +242,7 @@ def _train_loop(train_dataloader, val_dataloader, test_dataloader, model, times,
             if breaking:
                 break
             X, y = batch
-            pred_y, shapelet_similarity, shapelet_lengths, discrepancy_fn = model(times, X)
+            pred_y, shapelet_similarity = model(times, X)
             if num_classes == 2:
                 y = y.to(pred_y.dtype)
             loss = loss_fn(pred_y, y)
@@ -428,8 +429,10 @@ def main(times,
 
     optimizer = torch.optim.Adam(model.parameters(), lr=0.05)
 
+    start_time = time.time()
     history, best_model = _train_loop(train_dataloader, val_dataloader, test_dataloader, model, times, optimizer,
                                       loss_fn, epochs, num_classes, ablation_similarreg)
+    training_time = time.time() - start_time
     results = _evaluate_model(train_dataloader, val_dataloader, test_dataloader, best_model, times, loss_fn, history,
                               num_classes)
     results.num_shapelets_per_class = num_shapelets_per_class
@@ -439,6 +442,7 @@ def main(times,
     results.ablation_learntlengths = ablation_learntlengths
     results.ablation_similarreg = ablation_similarreg
     results.old_shapelets = old_shapelets
+    results.timespan = training_time
     if result_folder is not None:
         save_results(result_folder, result_subfolder, results)
     return results

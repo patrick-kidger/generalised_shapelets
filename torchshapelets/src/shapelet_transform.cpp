@@ -94,7 +94,7 @@ namespace torchshapelets {
             auto end_diff = len_index(path, end_index + 1) - len_index(path, end_index);
             auto end_restriction = len_index(path, end_index) + end_ratio * end_diff;
 
-            auto middle_times = times.narrow(/*dim=*/0, /*start=*/start_index + 1, /*end=*/end_index - start_index);
+            auto middle_times = times.narrow(/*dim=*/0, /*start=*/start_index + 1, /*length=*/end_index - start_index);
 
             std::tuple<torch::Tensor, torch::Tensor, torch::Tensor> restricted_times = {start,
                                                                                         middle_times,
