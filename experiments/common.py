@@ -373,9 +373,24 @@ def save_top_shapelets_and_minimizers(model, times, train_data, save_dir, model_
     idxs = np.argmin(linear, 1)
 
     # Find the shapelet minimizer from the training data
-    distances = model.shapelet_transform(times, train_data)
+    distances = []
+    with torch.no_grad():
+        s = len(train_data.split(500))
+        for i, data in enumerate(train_data.split(500)[0:2]):
+            print(i/s)
+            shapelet_similarity = model.shapelet_transform(times, data)
+            distances.append(shapelet_similarity)
+    distances = torch.cat(distances)
+
+    # distances = model.shapelet_transform(times, train_data)
     argmins = torch.argmin(distances, 0)
     minimizers = train_data[argmins].detach()
+
+    # Now if we wish to plot against the training sample, we need the time value the shapelet starts at
+    l = int(torch.round(lengths[0]).item())
+    similarites = [model.shapelet_transform(times[i:i+l], shapelets[[0]]) for i in range(data.size(1)-l)]
+    shapelets[0]
+
 
     # Get the subset
     save_dict = {
@@ -384,6 +399,8 @@ def save_top_shapelets_and_minimizers(model, times, train_data, save_dir, model_
         'minimizers': minimizers[idxs]
     }
 
+    print('saving')
+    save_dir = './results/speech_commands_shapelets'
     for name, item in save_dict.items():
         torch.save(item, save_dir + '/{}.pt'.format(name))
 
@@ -432,6 +449,7 @@ def main(times,
     num_ds_samples = train_dataloader.dataset.tensors[0].size(0)
     num_shapelets = num_shapelets_per_class * num_classes
     num_shapelets = min(num_shapelets, 30, num_ds_samples)  # lest things take forever to run
+    num_shapelets = 40
 
     if num_classes == 2:
         out_channels = 1
@@ -452,6 +470,10 @@ def main(times,
         new_lengths = torch.full_like(model.shapelet_transform.lengths, max_shapelet_length)
         del model.shapelet_transform.lengths
         model.shapelet_transform.register_buffer('lengths', new_lengths)
+
+
+    train_data = train_dataloader.dataset.tensors[0]
+    save_top_shapelets_and_minimizers(model, times, train_data, save_dir='', model_path='./results/shapelet_sc')
 
     # Choose initialisation strategy:
     # if old_shapelets:

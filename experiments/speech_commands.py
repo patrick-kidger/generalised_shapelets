@@ -42,7 +42,8 @@ def invert(model_filename, find_closest=True):
     """Inverts the MFCC shapelet to find the corresponding audio shapelet."""
 
     # Get the shapelets we're going to invert
-    state_dict = torch.load(here / 'results/speech_commands' / (model_filename + '_model'))
+    # state_dict = torch.load(here / 'results/speech_commands' / (model_filename + '_model'))
+    state_dict = torch.load(here / 'results/shapelet_sc')
     weight = state_dict['linear.weight']
     most_informative = weight.argmin(dim=1)
     shapelets = state_dict['shapelet_transform.shapelets']
@@ -93,6 +94,14 @@ def invert(model_filename, find_closest=True):
         # These were the ones we found were closest for one of our runs. If you don't want to do a search then you can
         # try using these instead.
         closeset_per_shapelet = torch.tensor([14429, 16271, 22411, 16943, 22223, 18688, 661, 17331, 2731, 6936])
+        shapelet_similarities = []
+        with torch.no_grad():
+            for train_Xi in train_X[closeset_per_shapelet]:
+                _, shapelet_similarity = model(times, train_Xi)
+                shapelet_similarities.append(shapelet_similarity)
+            shapelet_similarities = torch.cat(shapelet_similarities)
+
+
     init_audio = train_audio_X[closeset_per_shapelet].squeeze(2)
 
     # Initialise our candidate for inversion at the thing that has the closest MFCC. (This sort of thing is necessary as
@@ -144,7 +153,7 @@ def get_data():
     train_X = tensors['train_X']
     times = torch.linspace(0, train_X.size(1) - 1, train_X.size(1), dtype=train_X.dtype, device=train_X.device)
 
-    return times, train_dataloader, val_dataloader, test_dataloader, tensors['means'], tensors['stds']
+    return times, train_dataloader, val_dataloader, test_dataloader
 
 
 def main(result_folder=None,                  # saving parameters
@@ -158,9 +167,10 @@ def main(result_folder=None,                  # saving parameters
          ablation_pseudometric=True,          # For ablation studies
          ablation_learntlengths=True,         #
          ablation_similarreg=True,            #
-         old_shapelets=False):                # Whether to toggle off all of our innovations and use old-style shapelets
+         old_shapelets=False,
+         save_top_logreg_shapelets=False):                # Whether to toggle off all of our innovations and use old-style shapelets
 
-    times, train_dataloader, val_dataloader, test_dataloader, _, _ = get_data()
+    times, train_dataloader, val_dataloader, test_dataloader = get_data()
 
     input_channels = 40
     num_classes = 10
@@ -182,7 +192,8 @@ def main(result_folder=None,                  # saving parameters
                        ablation_pseudometric,
                        ablation_learntlengths,
                        ablation_similarreg,
-                       old_shapelets)
+                       old_shapelets,
+                       save_top_logreg_shapelets)
 
 
 def hyperparameter_search(num_shapelets_per_class):
@@ -202,3 +213,14 @@ def comparison_test(seed, old):
     main(result_folder='speech_commands',
          result_subfolder='old' if old else 'L2',
          old_shapelets=old)
+
+
+def analyse():
+    main(result_folder='speech_commands',
+         result_subfolder='L2',
+         epochs=0,
+         old_shapelets=False)
+
+if __name__ == '__main__':
+    # invert('./results/shapelet_sc', find_closest=False)
+    analyse()

@@ -38,7 +38,7 @@ We chose PenDigits here because it is easy to understand visually what the shape
 
 
 \subsubsection{Missing Data and Length Ablation}
-We now demonstrate both the ability of the proposed framework to handle partially observed data, as well as show the effectiveness of having learnable shapelet lengths.
+We now demonstrate both the ability of the proposed framework to handle partially observed data, as well as understand the effectiveness of having learnable shapelet lengths. We consider three datasets from the UEA archive and the two learnt discrepancy functions we have been using in this section (L2-diagonal and logsig-3). For each dataset and discrepancy function we run three experiments where we drop $10\%$, $30\%$, and $50\%$ of the data before running the shapelet model and we do this all twice for each discrepancy function, once where we enable the lengths to be learnt and once when we fix the lengths. The results are given in Table \ref{tab:uea_noise}. Firstly, we note that the model is extremely robust to missing data as the performance is in general maintained, or close to maintained, even as we drop $50\%$ of the data-points. Allowing the length to be learnt does not appear to improve the performance of the model in terms of accuracy, however we postulate that allowing for learnt lengths can take the place of the hyperparamter search over the length.
 \begin{table}[ht]
     \caption{}
     \label{tab:uea_noise}
