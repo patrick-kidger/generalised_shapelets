@@ -12,7 +12,7 @@
 %     \usepackage[preprint]{neurips_2019}
 
 % to compile a camera-ready version, add the [final] option, e.g.:
-\usepackage[preprint, nonatbib]{neurips_2019}
+\usepackage[preprint, nonatbib]{neurips_2020}
 
 
 \usepackage[utf8]{inputenc} % allow utf-8 input
@@ -238,10 +238,10 @@ In \cite{TODO} they propose to solve this issue via adversarial regularisation.
 	\objective \label{eq:objective}
 	\end{align}
 	over model parameters $\theta$, discrepancy parameters $A$, shapelet parameters $\rho$, and shapelet lengths $S_k$, via standard stochastic gradient descent based techniques.
-	
+
 	\boldheading{Differentiability}
 	Some thought is necessary to verify that our constructions are in fact differentiable, and in particular differentiable with respect to $S_k$. Examining the definition of $\sigma^A_{S_k}$ in equation \eqref{eq:new-sigma}, there are also two operations that may seem to pose a problem, namely the restriction operator $\iota(f^n) \mapsto \restr{\iota(f^n)}{[s, s + S_k]}$, and the minimum over a range $\min_{s \in [0, T_n - S_k]}$; neither of these are a standard part of an autodifferentiation framework such as PyTorch \cite{pytorch}.
-	
+
 	Practically speaking, however, it is straightforward to resolve all of these issues. The continuous-time paths $\iota(f^n)$ and continuous-time shapelets $w^{k, \rho, S_k}$ must both be represented by some parameterisation of function space, and it is thus sufficient to restrict to considering differentiability with respect to this parameterisation. In our experiments we represent both $\iota(f^n)$ and $w^{k, \rho, S_k}$ as a continuous piecewise linear function stored as a collection of knots.
 	
 	In this context, the restriction operator is clearly differentiable, as a map from the unrestricted function, represented by one collection of knots, to the restricted function, represented by another collection of knots. Each knot is either kept (the identity function), thrown away (the zero function), or interpolated between to place a new knot at the boundary (a ratio of existing knots), and so collectively the map is differentiable.

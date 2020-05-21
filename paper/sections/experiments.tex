@@ -1,18 +1,17 @@
 \section{Experiments}
-Our generalised shapelet transform, contrasted with the classical shapelet transform, has two extra degrees of freedom: the choice of interpolation scheme $\iota$, and the choice of discrepancy function $\pi^A_S$. In our experiments, we consider $\pi^A_S$ given by either of equations \eqref{eq:learnt-discrepancy} or \eqref{eq:logsignature-discrepancy}. Meanwhile, we take $\iota$ to be piecewise linear interpolation, because efficient algorithms for computing the logsignature transform only exist for piecewise linear paths \cite{signatory}.
+Our generalised shapelet transform, contrasted with the classical shapelet transform, has two extra degrees of freedom: the choice of interpolation scheme $\iota$, and the choice of discrepancy function $\pi^A_S$. In our experiments, we consider $\pi^A_S$ given by either of equations \eqref{eq:learnt-discrepancy} or \eqref{eq:logsignature-discrepancy} and in both cases take the discrepancy parameters $A$ to be diagonal, as this was empirically found empirically to perform best, and the truncation depth of the log-signature is always taken to be $3$. Meanwhile, we take $\iota$ to be piecewise linear interpolation, because efficient algorithms for computing the logsignature transform only exist for piecewise linear paths \cite{signatory}.
 
-TODO: we need to consider more disrepancy functions than this.
-
+For old shapelets, the key hyperparameters to consider are the number of shapelets and the length the these shapelets correspond to. A full description of the hyperparameter selection process is given in Appendix \ref{}. In short we perform a small hyperparameter search for each dataset to optmise the number and length of the shapelets for the old method and use these same parameters in the generalised approach. The length hyperparameter has less meaning in the generalised approach as it is changed during the learning process, but is used in the shapelet initialisation scheme such that the initialised shapelts are the same in all cases.
 
 \subsection{The UEA (Multivariate) Time-Series Archive}
-We begin by comparing the classification performance of the old method of shapelets to our new `generalised' approach for which we consider three learnt metrics: a standard L2-metric, an learnt metric and a logsig-3-diagonal. We evaluate the methods on a subset of the UEA time-series archive \cite{bagnall2018uea}. This contains a wide range of multivariate time-series classification problems from various fields with significant differences in time-series length, number of classes, and amount of training data. The full collection contains 30 datasets, however due to algorithm run-time constraints we have considered a subset of these ensuring they still contain significant variation. The statistics of these dataset are given in Table \ref{} of the Appendix.
+We begin by comparing the classification performance of the old method of shapelets to our new `generalised' approach for which we consider three learnt metrics: a standard L2-metric, an learnt metric and a logsig-3-diagonal. We evaluate the methods on a subset of the UEA time-series archive \cite{bagnall2018uea}. This contains a wide range of multivariate time-series classification problems from various fields with significant differences in time-series length, number of classes, and amount of training data. The full collection contains 30 datasets, however due to algorithm run-time constraints we have considered a subset of these ensuring they still contain significant variation. The statistics of these datasets are given in Table \ref{} of the Appendix.
 
-The results are given in Table \ref{tab:uea_comparison_results}. We see improved performance from the old shapelet method in ? of ? cases. Whats more, we see there are datasets for which the optimal accuracy is achieved with a learnt metric and the logsignature discrepancy. These results, whilst not extensive, show the feasibility of improving performance by choosing a discrepancy tailored to the structure of the data as opposed to a simple euclidean distance metric.
+The results are given in Table \ref{tab:uea_comparison_results}. We see significantly improved classification performance ($> 1$ standard deviation) on $6$ of the $9$ datasets tested with $1$ draw and $2$ losses. We note that the loss on `PenDigits' was extemely close, and the other loss was on `BasicMotions' which has a very small total number samples ($80$) making overfit more likely on the generalised methods (without proper hyperparameter tuning) due to the additional parameters in the model. In contrast, there are many cases where the new method won with significantly higher accuracies than the old method. We also note that the method is sensitive to choice of hyperparameters, and all hyperparameters were chosen for the old method, if hyperparameters were chosen separately for each discrepancy, this would likely improve the results for the learnt discrepancies further.
 \begin{table}[ht]
     \centering
-    \caption{}
+    \caption{Classification performance on the UEA datasets from the old shapelet method and the generalised method with a diagonal L2 and diagonal logsig metric with depth 3. The values indicate the classification accuracy on the test set plus or minus one standard deviation. The wins are computed as the number of times each algorithm was within 1 standard deviation from the top score for each dataset.}
     \label{tab:uea_comparison_results}
-    \input{results/data/uea_comparison.tex}
+    \input{results/data/uea_comparison_new.tex}
 \end{table}
 
 
@@ -27,7 +26,6 @@ We chose PenDigits here because it is easy to understand visually what the shape
         \caption{Old shapelets.}
         \label{fig:old_shapelets}
     \end{subfigure}
-    \vspace{0.1}
     \begin{subfigure}[b]{\linewidth}
         \centering
         \includegraphics[width=\linewidth]{images/pendigits/new_shapelets_noborder.png}
