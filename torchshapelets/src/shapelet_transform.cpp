@@ -133,7 +133,7 @@ namespace torchshapelets {
         // templates are the best way to get a zero-cost abstraction (at least according to:)
         // https://vittorioromeo.info/index/blog/passing_functions_to_functions.html
         template <typename fn_type>
-        torch::Tensor continuous_min(torch::Tensor start, torch::Tensor end, fn_type fn, int64_t num_samples) {
+        std::tuple<torch::Tensor, torch::Tensor> continuous_min(torch::Tensor start, torch::Tensor end, fn_type fn, int64_t num_samples) {
             auto start_detached = start.detach().item();
             auto end_detached = end.detach().item();
 
@@ -142,20 +142,15 @@ namespace torchshapelets {
             // We compute the minimum over the middle region separately, as there's good odds that this bit won't
             // require gradients. If I understand PyTorch's autograd well enough (and this really might be wrong on my
             // part), then this saves the creation of a zero-initialised tensor for each one, during backpropagation.
-            std::vector<torch::Tensor> middle_results (num_samples - 2);
+            std::vector<torch::Tensor> middle_results (num_samples);
+            middle_results[0] = fn(start);
             #pragma omp parallel for default(none) shared(middle_results, points, fn, num_samples)
             for (int64_t point_index = 1; point_index < num_samples - 1; ++point_index) {
                 middle_results[point_index - 1] = fn(points[point_index]);
             }
-            // std::get<0> to get the minimum values, not their indices.
-            auto middle_min = std::get<0>(torch::stack(middle_results, /*dim=*/0).min(/*dim=*/0));
-
-            // This allows us to differentiate through the endpoints
-            // If we wanted we could also construct every point in points[1:,-1] differentiably, but we're aiming for a
-            // continuous minimum here, and that's just an implementation detail. (Basically it depends on whether you
-            // use a discretise-then-optimise or optimise-then-discretise approach.)
-
-            return std::get<0>(torch::stack({fn(start), middle_min, fn(end)}, /*dim=*/0).min(/*dim=*/0));
+            middle_results[num_samples - 1] = fn(end);
+            auto out = torch::stack(middle_results, /*dim=*/0).min(/*dim=*/0);
+            return std::tuple<torch::Tensor, torch::Tensor> {std::get<0>(out), std::get<1>(out)};
         }
     }  // namespace torchshapelets::detail
 
@@ -281,7 +276,7 @@ namespace torchshapelets {
         }
     }
 
-    torch::Tensor shapelet_transform(torch::Tensor times, torch::Tensor path, torch::Tensor lengths,
+    std::tuple<torch::Tensor, torch::Tensor> shapelet_transform(torch::Tensor times, torch::Tensor path, torch::Tensor lengths,
                                      torch::Tensor shapelets, torch::Tensor max_length, const int64_t num_samples,
                                      const std::function<torch::Tensor(torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor)>& discrepancy_fn,
                                      torch::Tensor discrepancy_arg) {
@@ -312,9 +307,11 @@ namespace torchshapelets {
         const auto num_shapelets = shapelets.size(0);
         const auto num_shapelet_samples = shapelets.size(1);
         std::vector<torch::Tensor> discrepancies (num_shapelets);
+        std::vector<torch::Tensor> indices (num_shapelets);
 
         #pragma omp parallel for default(none) \
-                                 shared(times, path, lengths, shapelets, discrepancies, discrepancy_arg, discrepancy_fn)
+                                 shared(times, path, lengths, shapelets, discrepancies, discrepancy_arg, discrepancy_fn,\
+                                        indices)
         for (int64_t shapelet_index = 0; shapelet_index < num_shapelets; ++shapelet_index) {
             auto length = lengths[shapelet_index];
             auto shapelet = shapelets[shapelet_index];
@@ -361,11 +358,13 @@ namespace torchshapelets {
 
                 return discrepancy_fn(mutual_times, knot_restricted_path, knot_shapelet, discrepancy_arg);
             };
-            auto discrepancy = detail::continuous_min(times[0], times[-1] - length, min_fn, num_samples);
+            torch::Tensor discrepancy, index;
+            std::tie(discrepancy, index) = detail::continuous_min(times[0], times[-1] - length, min_fn, num_samples);
             discrepancies[shapelet_index] = discrepancy;
+            discrepancies[shapelet_index] = index;
         }
 
         // returns a tensor of shape (..., num_shapelets)
-        return torch::stack(discrepancies, /*dim=*/-1);
+        return std::tuple<torch::Tensor, torch::Tensor> {torch::stack(discrepancies, /*dim=*/-1), torch::stack(indices, /*dim=*/-1)};
     }
 }  // namespace torchshapelets
