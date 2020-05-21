@@ -1,5 +1,5 @@
 # Fdb version 3
-["pdflatex"] 1590079092 "shapelets.tex" "shapelets.pdf" "shapelets" 1590079094
+["pdflatex"] 1590081446 "shapelets.tex" "shapelets.pdf" "shapelets" 1590081447
   "/usr/local/texlive/2018/texmf-dist/fonts/enc/dvips/base/8r.enc" 1480098666 4850 80dc9bab7f31fb78a000ccfed0e27cab ""
   "/usr/local/texlive/2018/texmf-dist/fonts/map/fontname/texfonts.map" 1511824771 3332 103109f5612ad95229751940c61aada0 ""
   "/usr/local/texlive/2018/texmf-dist/fonts/tfm/adobe/times/ptmb7t.tfm" 1480098689 2172 fd0c924230362ff848a33632ed45dc23 ""
@@ -170,12 +170,12 @@
   "images/pendigits/old_shapelets_noborder.png" 1589381511 295642 2cc86e81356738d1e276aad3636294d0 ""
   "neurips_2020.sty" 1589561743 11308 33fa6948195904410daa8773ea6feb42 ""
   "results/data/speech_commands_placeholder.tex" 1588347555 139 71b61a697afa27e972102da3a3d80611 ""
-  "results/data/uea_comparison_new.tex" 1590058964 1133 35f78ccf251ac2a20e03c15e779ea0fb ""
-  "results/data/uea_missing_and_length.tex" 1590057846 1261 8db7f0c84e75d6d4293c76866ed82fb4 ""
-  "sections/experiments.tex" 1590079092 9062 c49ece69cd252f5ef2fb5e1b498b140b ""
-  "shapelets.aux" 1590079094 6038 e6024fc09db5aec9ddcfb894619dcd58 ""
-  "shapelets.out" 1590079094 1118 aeeca850b16244566233b86638738a50 ""
-  "shapelets.tex" 1590058533 22527 c7de24118053fddd862503c6a8ee98f4 ""
+  "results/data/uea_comparison_new.tex" 1590081268 1133 35f78ccf251ac2a20e03c15e779ea0fb ""
+  "results/data/uea_missing_and_length.tex" 1590081268 1261 8db7f0c84e75d6d4293c76866ed82fb4 ""
+  "sections/experiments.tex" 1590081445 8977 ee335d805d217a356526e73e616ebf28 ""
+  "shapelets.aux" 1590081447 6038 e6024fc09db5aec9ddcfb894619dcd58 ""
+  "shapelets.out" 1590081447 1118 aeeca850b16244566233b86638738a50 ""
+  "shapelets.tex" 1590081268 22527 c7de24118053fddd862503c6a8ee98f4 ""
   (generated)
   "shapelets.log"
   "shapelets.out"
