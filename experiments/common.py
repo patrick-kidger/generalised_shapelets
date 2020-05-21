@@ -126,7 +126,7 @@ def _compute_multiclass_accuracy(pred_y, true_y):
     return proportion_correct
 
 
-def _get_discrepancy_fn(discrepancy_fn, input_channels, ablation_pseudometric):
+def get_discrepancy_fn(discrepancy_fn, input_channels, ablation_pseudometric):
     if discrepancy_fn == 'L2':
         discrepancy_fn = torchshapelets.L2Discrepancy(in_channels=input_channels, pseudometric=ablation_pseudometric,
                                                       metric_type='diagonal')
@@ -146,10 +146,10 @@ def _get_discrepancy_fn(discrepancy_fn, input_channels, ablation_pseudometric):
     return discrepancy_fn
 
 
-class _LinearShapeletTransform(torch.nn.Module):
+class LinearShapeletTransform(torch.nn.Module):
     def __init__(self, in_channels, out_channels, num_shapelets, num_shapelet_samples, discrepancy_fn,
                  max_shapelet_length, num_continuous_samples, log):
-        super(_LinearShapeletTransform, self).__init__()
+        super(LinearShapeletTransform, self).__init__()
 
         self.shapelet_transform = torchshapelets.GeneralisedShapeletTransform(in_channels=in_channels,
                                                                               num_shapelets=num_shapelets,
@@ -427,7 +427,7 @@ def main(times,
     if num_continuous_samples is None:
         num_continuous_samples = times.size(0)
 
-    discrepancy_fn = _get_discrepancy_fn(discrepancy_fn, input_channels, ablation_pseudometric)
+    discrepancy_fn = get_discrepancy_fn(discrepancy_fn, input_channels, ablation_pseudometric)
 
     num_ds_samples = train_dataloader.dataset.tensors[0].size(0)
     num_shapelets = num_shapelets_per_class * num_classes
@@ -438,14 +438,14 @@ def main(times,
     else:
         out_channels = num_classes
 
-    model = _LinearShapeletTransform(in_channels=input_channels,
-                                     out_channels=out_channels,
-                                     num_shapelets=num_shapelets,
-                                     num_shapelet_samples=num_shapelet_samples,
-                                     discrepancy_fn=discrepancy_fn,
-                                     max_shapelet_length=max_shapelet_length,
-                                     num_continuous_samples=num_continuous_samples,
-                                     log=log)
+    model = LinearShapeletTransform(in_channels=input_channels,
+                                    out_channels=out_channels,
+                                    num_shapelets=num_shapelets,
+                                    num_shapelet_samples=num_shapelet_samples,
+                                    discrepancy_fn=discrepancy_fn,
+                                    max_shapelet_length=max_shapelet_length,
+                                    num_continuous_samples=num_continuous_samples,
+                                    log=log)
 
     if old_shapelets:
         # Set shapelets to all be the same length

@@ -75,6 +75,8 @@ def _process_data():
         y_index += 1
     assert batch_index == 34975, "batch_index is {}".format(batch_index)
 
+    audio_X = X
+
     # X is of shape (batch=34975, length=16000, channels=1)
     X = torchaudio.transforms.MFCC(log_mels=True)(X.squeeze(-1)).transpose(1, 2).detach()
     # X is of shape (batch=34975, length=81, channels=40). For some crazy reason it requires a gradient, so detach.
@@ -91,20 +93,23 @@ def _process_data():
         out.append((Xi - mean) / (std + 1e-5))
     X = torch.stack(out, dim=-1)
 
+    train_audio_X, val_audio_X, test_audio_X = _split_data(audio_X, y)
     train_X, val_X, test_X = _split_data(X, y)
     train_y, val_y, test_y = _split_data(y, y)
 
-    return train_X, val_X, test_X, train_y, val_y, test_y, torch.stack(means), torch.stack(stds)
+    return train_X, val_X, test_X, train_y, val_y, test_y, torch.stack(means), torch.stack(stds), train_audio_X, \
+           val_audio_X, test_audio_X
 
 
 def main():
     download()
-    train_X, val_X, test_X, train_y, val_y, test_y, means, stds = _process_data()
+    (train_X, val_X, test_X, train_y, val_y, test_y, means, stds, train_audio_X, val_audio_X,
+     test_audio_X) = _process_data()
     loc = here / '..' / 'experiments' / 'data' / 'speech_commands_data'
     if not os.path.exists(loc):
         os.mkdir(loc)
     _save_data(loc, train_X=train_X, val_X=val_X, test_X=test_X, train_y=train_y, val_y=val_y, test_y=test_y,
-               means=means, stds=stds)
+               means=means, stds=stds, train_audio_X=train_audio_X, val_audio_X=val_audio_X, test_audio_X=test_audio_X)
 
 
 if __name__ == '__main__':
