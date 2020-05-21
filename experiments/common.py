@@ -24,10 +24,12 @@ def handle_seeds(seed):
     return seed + 1
 
 
-def assert_not_done(result_folder, result_subfolder, n_done=1):
+def assert_not_done(result_folder, result_subfolder, n_done=1, seed=None):
     folder = here / 'results' / result_folder / result_subfolder
     if os.path.isdir(folder):
         num_files = sum(1 for x in os.listdir(folder) if not x.startswith('.') and 'model' not in x)
+        if num_files > seed:
+            return False
         return num_files < n_done
     else:
         return True
@@ -343,6 +345,48 @@ def save_results(result_folder, result_subfolder, results):
         json.dump(result_to_save, f, cls=_TensorEncoder)
     torch.save(model.state_dict(), loc / (str(num) + '_model'))
 
+    return loc
+
+
+def save_top_shapelets_and_minimizers(model, times, train_data, save_dir, model_path=None):
+    """Extracts the shapelet corresponding to the max log-reg value for each class and its train data minimizer.
+
+    Args:
+        model (_LinearShapeletTransform): A trained model with shapelets. This can also be an untrained model provided
+            the path argument provides the trained weights.
+        times (torch.Tensor): The times argument ot be put into the shapelet_transform forward call.
+        train_data (torch.Tensor): The full set of training data.
+        save_dir (str): Location to save the data.
+        model_path (str): A string containing the state_dict of a trained model if the model supplied is untrained.
+    """
+    # Load the model
+    if model_path is not None:
+        state_dict = torch.load(model_path)
+        model.load_state_dict(state_dict)
+
+    # Extract shapelets, logreg values, and lengths.
+    shapelets = model.shapelet_transform.shapelets.detach()
+    linear = model.linear.weight.detach()
+    lengths = model.shapelet_transform.lengths.detach()
+
+    # Get the indexes of the top shapelets for each class (argmin as log)
+    idxs = np.argmin(linear, 1)
+
+    # Find the shapelet minimizer from the training data
+    distances = model.shapelet_transform(times, train_data)
+    argmins = torch.argmin(distances, 0)
+    minimizers = train_data[argmins].detach()
+
+    # Get the subset
+    save_dict = {
+        'shapelets': shapelets[idxs],
+        'lengths': lengths[idxs],
+        'minimizers': minimizers[idxs]
+    }
+
+    for name, item in save_dict.items():
+        torch.save(item, save_dir + '/{}.pt'.format(name))
+
 
 def main(times,
          train_dataloader,
@@ -361,7 +405,8 @@ def main(times,
          ablation_pseudometric,
          ablation_learntlengths,
          ablation_similarreg,
-         old_shapelets):
+         old_shapelets,
+         save_top_logreg_shapelets):
 
     if old_shapelets:
         discrepancy_fn = 'piecewise_constant_L2_squared'
@@ -409,14 +454,14 @@ def main(times,
         model.shapelet_transform.register_buffer('lengths', new_lengths)
 
     # Choose initialisation strategy:
-    if old_shapelets:
-        # K-means is what is proposed in previous work...
-        paths = train_dataloader.dataset.tensors[0]
-        model.set_kmeans_shapelets(paths.to('cpu'), num_shapelet_samples, num_shapelets)
-    else:
-        # ...but that doesn't make much sense for variable-length shapelets.
-        sample_batch = _get_sample_batch(train_dataloader, num_shapelets_per_class, num_shapelets)
-        model.set_extract_shapelets(times.to('cpu'), sample_batch.to('cpu'))
+    # if old_shapelets:
+    #     # K-means is what is proposed in previous work...
+    paths = train_dataloader.dataset.tensors[0]
+    model.set_kmeans_shapelets(paths.to('cpu'), num_shapelet_samples, num_shapelets)
+    # else:
+    #     # ...but that doesn't make much sense for variable-length shapelets.
+    #     sample_batch = _get_sample_batch(train_dataloader, num_shapelets_per_class, num_shapelets)
+    #     model.set_extract_shapelets(times.to('cpu'), sample_batch.to('cpu'))
     # Initialisation strategy doesn't seem to matter that much anyway.
 
     if not ablation_learntlengths:
@@ -444,5 +489,11 @@ def main(times,
     results.old_shapelets = old_shapelets
     results.timespan = training_time
     if result_folder is not None:
-        save_results(result_folder, result_subfolder, results)
+        loc = save_results(result_folder, result_subfolder, results)
+
+    if save_top_logreg_shapelets:
+        train_data = train_dataloader.dataset.tensors[0]
+        save_top_shapelets_and_minimizers(model, times, train_data, loc, model_path=model_path)
+
     return results
+

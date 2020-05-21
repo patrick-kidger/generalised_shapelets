@@ -87,6 +87,54 @@ datasets_by_cost = ('ERing',
                     'MotorImagery',
                     'EigenWorms')
 
+datasets_by_length = (
+    # 'PenDigits',
+    # 'JapaneseVowels',
+    # 'InsectWingbeat',     # 200 dimensions
+    # 'RacketSports',
+    # 'LSST',
+    # 'Libras',
+    # 'FingerMovements',
+    # 'NATOPS',
+    # 'FaceDetection',      # 144 dimensions
+    # 'ERing',
+    # 'BasicMotions',
+    # 'PEMS-SF',            # 963 dimensions
+    'ArticularyWordRecognition',
+    'Handwriting',
+    'Epilepsy',             # Length 206
+    'SpokenArabicDigits',   # 13 dimensions
+    'CharacterTrajectories',
+    # 'PhonemeSpectra',
+    # 'Phoneme',
+    # 'DuckDuckGeese',
+    # 'UWaveGestureLibrary',
+    # 'HandMovementDirection',
+    # 'Heartbeat',
+    # 'AtrialFibrillation',
+    # 'SelfRegulationSCP1',
+    # 'SelfRegulationSCP2',
+    # 'Cricket',
+    # 'EthanolConcentration',
+    # 'StandWalkJump',
+    # 'MotorImagery',
+    # 'EigenWorms'
+)
+
+datasets_with_hyperparameter_shapelets_val_metrics = (
+    # ('PenDigits', 5, 0.5),
+    # ('JapaneseVowels', 2, 0.5),
+    # ('RacketSports', 3, 0.5),
+    # ('Libras', 5, 1.0),
+    # ('ERing', 2, 0.5),
+    # ('BasicMotions', 2, 0.5),
+    # ('NATOPS', 3, 0.5),
+    # ('LSST', 2, 1.0),
+    # ('FingerMovements', 3, 1.0),
+    ('Handwriting', 3, 0.5),
+    ('Epilepsy', 5, 0.5)
+)
+
 
 def get_data(dataset_name, missing_rate, noise_channels):
     assert dataset_name in valid_dataset_names, "Must specify a valid dataset name."
@@ -209,7 +257,8 @@ def main(dataset_name,                        # dataset parameters
          ablation_pseudometric=True,          # For ablation studies
          ablation_learntlengths=True,         #
          ablation_similarreg=True,            #
-         old_shapelets=False):                # Whether to toggle off all of our innovations and use old-style shapelets
+         old_shapelets=False,
+         save_top_logreg_shapelets=False):                # Whether to toggle off all of our innovations and use old-style shapelets
 
     times, train_dataloader, val_dataloader, test_dataloader, num_classes, input_channels = get_data(dataset_name,
                                                                                                      missing_rate,
@@ -232,16 +281,17 @@ def main(dataset_name,                        # dataset parameters
                        ablation_pseudometric,
                        ablation_learntlengths,
                        ablation_similarreg,
-                       old_shapelets)
+                       old_shapelets,
+                       save_top_logreg_shapelets)
 
 
 def hyperparameter_search():
     result_folder = 'uea_hyperparameter_search'
-    for dataset_name in datasets_by_cost[6:8]:
+    for dataset_name in datasets_by_length:
         for num_shapelets_per_class in (2, 3, 5):
             for max_shapelet_length_proportion in (0.15, 0.3, 0.5, 1.0):
                 result_subfolder = 'old-' + str(num_shapelets_per_class) + '-' + str(max_shapelet_length_proportion)
-                if common.assert_not_done(result_folder, dataset_name + '-' + result_subfolder, n_done=1):
+                if common.assert_not_done(result_folder, dataset_name + '-' + result_subfolder, n_done=1, seed=0):
                     print("Starting comparison: " + dataset_name + '-' + result_subfolder)
                     main(dataset_name,
                          result_folder=result_folder,
@@ -279,26 +329,121 @@ def comparison_test():
     for i in range(3):
         result_folder = 'uea_comparison'
 
-        for dataset_name in datasets_by_cost[:9]:
+        for dataset_name, shapelets_per_class, shapelet_length_proportion in datasets_with_hyperparameter_shapelets[::-1]:
             for discrepancy_fn in ('L2', 'logsig-3'):
+                if discrepancy_fn == 'logsig-3':
+                    continue
                 seed = common.handle_seeds(seed)
-                result_subfolder = discrepancy_fn
+                result_subfolder = discrepancy_fn + 'diagonal' if discrepancy_fn == 'logsig-3' else discrepancy_fn + '-diagonal'
                 dataset_detail = ''
                 full_result_subfolder = _subfolder(dataset_name, dataset_detail, result_subfolder)
-                if common.assert_not_done(result_folder, full_result_subfolder, n_done=3):
+                if common.assert_not_done(result_folder, full_result_subfolder, n_done=3, seed=i):
                     print("Starting comparison: " + full_result_subfolder)
                     main(dataset_name,
                          result_folder=result_folder,
                          result_subfolder=result_subfolder,
-                         discrepancy_fn=discrepancy_fn)
+                         discrepancy_fn=discrepancy_fn,
+                         num_shapelets_per_class=shapelets_per_class,
+                         max_shapelet_length_proportion=min(1, shapelet_length_proportion+0.1))
 
             seed = common.handle_seeds(seed)
             result_subfolder = 'old'
             dataset_detail = ''
             full_result_subfolder = _subfolder(dataset_name, dataset_detail, result_subfolder)
-            if common.assert_not_done(result_folder, full_result_subfolder, n_done=3):
+            if common.assert_not_done(result_folder, full_result_subfolder, n_done=3, seed=i):
                 print("Starting comparison: " + full_result_subfolder)
                 main(dataset_name,
                      result_folder=result_folder,
                      result_subfolder=result_subfolder,
-                     old_shapelets=True)
+                     old_shapelets=True,
+                     num_shapelets_per_class=shapelets_per_class,
+                     max_shapelet_length_proportion=shapelet_length_proportion)
+
+
+def comparison_test_new(reverse=False):
+    seed = 8
+    for i in range(0, 3):
+        result_folder = 'uea_comparison_new'
+        seed = seed + i
+
+        iter_list = datasets_with_hyperparameter_shapelets_val_metrics
+        if reverse:
+            iter_list = iter_list[::-1]
+        for dataset_name, shapelets_per_class, shapelet_length_proportion in iter_list:
+            for discrepancy_fn in ('L2', 'logsig-3'):
+                seed = common.handle_seeds(seed)
+                result_subfolder = discrepancy_fn + 'diagonal' if discrepancy_fn == 'logsig-3' else discrepancy_fn + '-diagonal'
+                dataset_detail = ''
+                full_result_subfolder = _subfolder(dataset_name, dataset_detail, result_subfolder)
+                if common.assert_not_done(result_folder, full_result_subfolder, n_done=3, seed=i):
+                    print("Starting comparison: " + full_result_subfolder)
+                    main(dataset_name,
+                         result_folder=result_folder,
+                         result_subfolder=result_subfolder,
+                         discrepancy_fn=discrepancy_fn,
+                         num_shapelets_per_class=shapelets_per_class,
+                         max_shapelet_length_proportion=min(1, shapelet_length_proportion+0.1))
+
+            seed = common.handle_seeds(seed)
+            result_subfolder = 'old'
+            dataset_detail = ''
+            full_result_subfolder = _subfolder(dataset_name, dataset_detail, result_subfolder)
+            if common.assert_not_done(result_folder, full_result_subfolder, n_done=3, seed=i):
+                print("Starting comparison: " + full_result_subfolder)
+                main(dataset_name,
+                     result_folder=result_folder,
+                     result_subfolder=result_subfolder,
+                     old_shapelets=True,
+                     num_shapelets_per_class=shapelets_per_class,
+                     max_shapelet_length_proportion=shapelet_length_proportion)
+
+
+def new_pendigits(reverse=False):
+    seed, i = 8, 8
+    result_folder = 'new_pendigits'
+    dataset_name, shapelets_per_class, shapelet_length_proportion = ('PenDigits', 5, 1)
+
+    for dataset_name, shapelets_per_class, shapelet_length_proportion in []:
+        discrepancy_fn = 'L2'
+        seed = common.handle_seeds(seed)
+        result_subfolder = discrepancy_fn + 'diagonal' if discrepancy_fn == 'logsig-3' else discrepancy_fn + '-diagonal'
+        dataset_detail = ''
+        full_result_subfolder = _subfolder(dataset_name, dataset_detail, result_subfolder)
+        if common.assert_not_done(result_folder, full_result_subfolder, n_done=3, seed=i):
+            print("Starting comparison: " + full_result_subfolder)
+            main(dataset_name,
+                 result_folder=result_folder,
+                 result_subfolder=result_subfolder,
+                 discrepancy_fn=discrepancy_fn,
+                 num_shapelets_per_class=shapelets_per_class,
+                 max_shapelet_length_proportion=min(1, shapelet_length_proportion+0.1))
+
+        seed = common.handle_seeds(seed)
+        result_subfolder = 'old'
+        dataset_detail = ''
+        full_result_subfolder = _subfolder(dataset_name, dataset_detail, result_subfolder)
+        if common.assert_not_done(result_folder, full_result_subfolder, n_done=3, seed=i):
+            print("Starting comparison: " + full_result_subfolder)
+            main(dataset_name,
+                 result_folder=result_folder,
+                 result_subfolder=result_subfolder,
+                 old_shapelets=True,
+                 num_shapelets_per_class=shapelets_per_class,
+                 max_shapelet_length_proportion=shapelet_length_proportion)
+
+
+def for_pendigits_analysis():
+    main('PenDigits',
+         result_folder=None,
+         result_subfolder='',
+         # discrepancy_fn='L2',
+         max_shapelet_length_proportion=0.5,
+         num_shapelets_per_class=5,
+         old_shapelets=True,
+         epochs=0,
+         save_top_logreg_shapelets=True
+    )
+
+
+if __name__ == '__main__':
+    for_pendigits_analysis()
