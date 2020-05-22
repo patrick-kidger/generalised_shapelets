@@ -361,7 +361,7 @@ namespace torchshapelets {
             torch::Tensor discrepancy, index;
             std::tie(discrepancy, index) = detail::continuous_min(times[0], times[-1] - length, min_fn, num_samples);
             discrepancies[shapelet_index] = discrepancy;
-            discrepancies[shapelet_index] = index;
+            indices[shapelet_index] = index;
         }
 
         // returns a tensor of shape (..., num_shapelets)
