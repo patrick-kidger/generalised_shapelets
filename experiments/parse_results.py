@@ -49,9 +49,11 @@ def main(dataset_folder):
     stds = {k: {} for k in values}
     for dataset_name, settings in values.items():
         for setting, value in settings.items():
-            means[dataset_name][setting] = statistics.mean(value[:min_num_observations])
+            # means[dataset_name][setting] = statistics.mean(value[:min_num_observations])
+            means[dataset_name][setting] = statistics.mean(value)
             if len(value) > 1:
-                stds[dataset_name][setting] = statistics.stdev(value[:min_num_observations])
+                # stds[dataset_name][setting] = statistics.stdev(value[:min_num_observations])
+                stds[dataset_name][setting] = statistics.stdev(value)
 
     headings = co.OrderedDict()  # Used as an ordered set here
     for mean in means.values():
@@ -132,9 +134,6 @@ def generate_table(save_loc, means, wins, stds, round=3):
     n_cols = len(means.columns)
     means = means.round(round)
 
-    # Slight column name hack
-    means.columns = pd.MultiIndex.from_arrays([['\\textbf{Discrepancy}'] * n_cols, means.columns])
-
     if stds is not None:
         stds = stds.round(round)
         zfill = lambda x: x.astype(str).str.ljust(width=round + 2, fillchar='0')
@@ -142,6 +141,9 @@ def generate_table(save_loc, means, wins, stds, round=3):
         for col in means.columns:
             new_means[col] = zfill(means[col]) + ' $\pm$ ' + zfill(stds[col])
         means = new_means
+
+    # Slight column name hack
+    means.columns = pd.MultiIndex.from_arrays([['\\textbf{Discrepancy}'] * n_cols, means.columns])
 
     # Convert onto a win frame
     column_format = 'l' + 'c' * n_cols
@@ -164,11 +166,14 @@ def generate_table(save_loc, means, wins, stds, round=3):
 
 
 if __name__ == '__main__':
-    assert len(sys.argv) in (2, 3)
-    dataset = sys.argv[1]
+    # assert len(sys.argv) in (2, 3)
+    # dataset = sys.argv[1]
+    # dataset = 'uea_missing_and_length'
+    dataset = 'uea_comparison_new'
     means, wins, stds = main(dataset)
 
-    if len(sys.argv) == 3 and sys.argv[2] == '--save':
-        # Save the table to results
-        save_loc = '../paper/results/data/{}.tex'.format(dataset)
-        generate_table(save_loc, means, wins, stds)
+
+    # if len(sys.argv) == 3 and sys.argv[2] == '--save':
+    # Save the table to results
+    save_loc = '../paper/results/data/{}.tex'.format(dataset)
+    generate_table(save_loc, means, wins, stds)
