@@ -121,7 +121,7 @@ datasets_by_length = (
     # 'EigenWorms'
 )
 
-datasets_with_hyperparameter_shapelets_val_metrics = (
+old_hyperparameter_output = (
     # ('PenDigits', 5, 0.5),
     # ('JapaneseVowels', 2, 0.5),
     # ('RacketSports', 3, 0.5),
@@ -329,10 +329,8 @@ def comparison_test():
     for i in range(3):
         result_folder = 'uea_comparison'
 
-        for dataset_name, shapelets_per_class, shapelet_length_proportion in datasets_with_hyperparameter_shapelets[::-1]:
+        for dataset_name, shapelets_per_class, shapelet_length_proportion in old_hyperparameter_output:
             for discrepancy_fn in ('L2', 'logsig-3'):
-                if discrepancy_fn == 'logsig-3':
-                    continue
                 seed = common.handle_seeds(seed)
                 result_subfolder = discrepancy_fn + 'diagonal' if discrepancy_fn == 'logsig-3' else discrepancy_fn + '-diagonal'
                 dataset_detail = ''
@@ -360,16 +358,11 @@ def comparison_test():
                      max_shapelet_length_proportion=shapelet_length_proportion)
 
 
-def comparison_test_new(reverse=False):
-    seed = 8
+def comparison_test_new():
+    seed = 5394
     for i in range(0, 3):
         result_folder = 'uea_comparison_new'
-        seed = seed + i
-
-        iter_list = datasets_with_hyperparameter_shapelets_val_metrics
-        if reverse:
-            iter_list = iter_list[::-1]
-        for dataset_name, shapelets_per_class, shapelet_length_proportion in iter_list:
+        for dataset_name, shapelets_per_class, shapelet_length_proportion in old_hyperparameter_output:
             for discrepancy_fn in ('L2', 'logsig-3'):
                 seed = common.handle_seeds(seed)
                 result_subfolder = discrepancy_fn + 'diagonal' if discrepancy_fn == 'logsig-3' else discrepancy_fn + '-diagonal'
@@ -397,53 +390,3 @@ def comparison_test_new(reverse=False):
                      num_shapelets_per_class=shapelets_per_class,
                      max_shapelet_length_proportion=shapelet_length_proportion)
 
-
-def new_pendigits(reverse=False):
-    seed, i = 8, 8
-    result_folder = 'new_pendigits'
-    dataset_name, shapelets_per_class, shapelet_length_proportion = ('PenDigits', 5, 1)
-
-    for dataset_name, shapelets_per_class, shapelet_length_proportion in []:
-        discrepancy_fn = 'L2'
-        seed = common.handle_seeds(seed)
-        result_subfolder = discrepancy_fn + 'diagonal' if discrepancy_fn == 'logsig-3' else discrepancy_fn + '-diagonal'
-        dataset_detail = ''
-        full_result_subfolder = _subfolder(dataset_name, dataset_detail, result_subfolder)
-        if common.assert_not_done(result_folder, full_result_subfolder, n_done=3, seed=i):
-            print("Starting comparison: " + full_result_subfolder)
-            main(dataset_name,
-                 result_folder=result_folder,
-                 result_subfolder=result_subfolder,
-                 discrepancy_fn=discrepancy_fn,
-                 num_shapelets_per_class=shapelets_per_class,
-                 max_shapelet_length_proportion=min(1, shapelet_length_proportion+0.1))
-
-        seed = common.handle_seeds(seed)
-        result_subfolder = 'old'
-        dataset_detail = ''
-        full_result_subfolder = _subfolder(dataset_name, dataset_detail, result_subfolder)
-        if common.assert_not_done(result_folder, full_result_subfolder, n_done=3, seed=i):
-            print("Starting comparison: " + full_result_subfolder)
-            main(dataset_name,
-                 result_folder=result_folder,
-                 result_subfolder=result_subfolder,
-                 old_shapelets=True,
-                 num_shapelets_per_class=shapelets_per_class,
-                 max_shapelet_length_proportion=shapelet_length_proportion)
-
-
-def for_pendigits_analysis():
-    main('PenDigits',
-         result_folder=None,
-         result_subfolder='',
-         # discrepancy_fn='L2',
-         max_shapelet_length_proportion=0.5,
-         num_shapelets_per_class=5,
-         old_shapelets=True,
-         epochs=0,
-         save_top_logreg_shapelets=True
-    )
-
-
-if __name__ == '__main__':
-    for_pendigits_analysis()
