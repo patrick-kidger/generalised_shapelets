@@ -144,6 +144,57 @@ def get_discrepancy_fn(discrepancy_fn, input_channels, ablation_pseudometric):
     return discrepancy_fn
 
 
+def save_top_shapelets_and_minimizers(model, times, train_data, save_dir, model_path=None):
+    """Extracts the shapelet corresponding to the max log-reg value for each class and its train data minimizer.
+    Args:
+        model (_LinearShapeletTransform): A trained model with shapelets. This can also be an untrained model provided
+            the path argument provides the trained weights.
+        times (torch.Tensor): The times argument ot be put into the shapelet_transform forward call.
+        train_data (torch.Tensor): The full set of training data.
+        save_dir (str): Location to save the data.
+        model_path (str): A string containing the state_dict of a trained model if the model supplied is untrained.
+    """
+    # Load the model
+    if model_path is not None:
+        state_dict = torch.load(model_path)
+        model.load_state_dict(state_dict)
+
+    # Extract shapelets, logreg values, and lengths.
+    shapelets = model.shapelet_transform.shapelets.detach()
+    linear = model.linear.weight.detach()
+    lengths = model.shapelet_transform.lengths.detach()
+
+    # Get the indexes of the top shapelets for each class (argmin as log)
+    idxs = np.argmin(linear, 1)
+
+    # Find the shapelet minimizer from the training data
+    distances, time_idxs = [], []
+    with torch.no_grad():
+        for i, data in enumerate(train_data.split(500)):
+            shapelet_similarity, time_idxs = model.shapelet_transform(times, data)
+            distances.append(shapelet_similarity)
+            time_idxs.append(time_idxs)
+    distances = torch.cat(distances)
+    time_idxs = torch.cat(time_idxs)
+
+    # distances = model.shapelet_transform(times, train_data)
+    argmins = torch.argmin(distances, 0)
+    minimizers = train_data[argmins].detach()
+
+    # Get the subset
+    save_dict = {
+        'shapelets': shapelets[idxs],
+        'lengths': lengths[idxs],
+        'minimizers': minimizers[idxs],
+        'time_idxs': time_idxs[idxs]
+    }
+
+    print('saving')
+    save_dir = './results/speech_commands_shapelets'
+    for name, item in save_dict.items():
+        torch.save(item, save_dir + '/{}.pt'.format(name))
+
+
 class LinearShapeletTransform(torch.nn.Module):
     def __init__(self, in_channels, out_channels, num_shapelets, num_shapelet_samples, discrepancy_fn,
                  max_shapelet_length, num_continuous_samples, log):
@@ -393,6 +444,9 @@ def main(times,
     else:
         out_channels = num_classes
 
+    # HACK
+    num_shapelets = 40
+
     model = LinearShapeletTransform(in_channels=input_channels,
                                     out_channels=out_channels,
                                     num_shapelets=num_shapelets,
@@ -407,6 +461,10 @@ def main(times,
         new_lengths = torch.full_like(model.shapelet_transform.lengths, max_shapelet_length)
         del model.shapelet_transform.lengths
         model.shapelet_transform.register_buffer('lengths', new_lengths)
+
+    # Hacky bit
+    train_data = train_dataloader.dataset.tensors[0]
+    save_top_shapelets_and_minimizers(model, times, train_data, save_dir='', model_path='./results/shapelet_sc')
 
     # Choose initialisation strategy:
     if old_shapelets:

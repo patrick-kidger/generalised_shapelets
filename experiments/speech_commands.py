@@ -190,3 +190,13 @@ def comparison_test(seed, old):
     main(result_folder='speech_commands',
          result_subfolder='old' if old else 'L2',
          old_shapelets=old)
+
+def analyse():
+    main(result_folder='speech_commands',
+         result_subfolder='L2',
+         epochs=0,
+         old_shapelets=False)
+
+if __name__ == '__main__':
+    # invert('./results/shapelet_sc', find_closest=False)
+    analyse()
