@@ -146,7 +146,7 @@ namespace torchshapelets {
             middle_results[0] = fn(start);
             #pragma omp parallel for default(none) shared(middle_results, points, fn, num_samples)
             for (int64_t point_index = 1; point_index < num_samples - 1; ++point_index) {
-                middle_results[point_index - 1] = fn(points[point_index]);
+                middle_results[point_index] = fn(points[point_index]);
             }
             middle_results[num_samples - 1] = fn(end);
             auto out = torch::stack(middle_results, /*dim=*/0).min(/*dim=*/0);
