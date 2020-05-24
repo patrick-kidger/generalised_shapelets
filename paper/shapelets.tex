@@ -253,18 +253,19 @@
 
 	
 	\boldheading{Choice of $F^\theta$}\label{section:choice-of-f}
-	Interpretability of the model will depend on an interpretable choice of $F^\theta$. In our experiments we used a linear model on the logarithm of every feature, so that a very negative coefficient of $\log \sigma^A_{S_k}(f^n, w^{k, \rho, S_k})$ corresponds to the importance of $f^n$ and $w^{k, \rho, S_k}$ being similar to each other.\footnote{The logarithm maps the discrepancies $\sigma^A_{S_k}(f^n, w^{k, \rho, S_k}) \in [0, \infty)$ into $\reals$. As a technical point, a small number such as $10^{-5}$ may need to first be added to prevent $\log \colon 0 \mapsto -\infty$.}
+	Interpretability of the model will depend on an interpretable choice of $F^\theta$. In our experiments we used a linear model on the logarithm of every feature, so that a very negative coefficient corresponds to the importance of $f^n$ and $w^{k, \rho, S_k}$ being similar to each other.
+	%Interpretability of the model will depend on an interpretable choice of $F^\theta$. In our experiments we used a linear model on the logarithm of every feature, so that a very negative coefficient of $\log \sigma^A_{S_k}(f^n, w^{k, \rho, S_k})$ corresponds to the importance of $f^n$ and $w^{k, \rho, S_k}$ being similar to each other.\footnote{The logarithm maps the discrepancies $\sigma^A_{S_k}(f^n, w^{k, \rho, S_k}) \in [0, \infty)$ into $\reals$. As a technical point, a small number such as $10^{-5}$ may need to first be added to prevent $\log \colon 0 \mapsto -\infty$.}
 	
 	
-\section{Experiments}
+\section{Experiments}\label{section:experiments}
 We compare our generalised shapelet transform to the classical shapelet transform, in terms of both performance and interpretability, on a large range of time series classification problems. Every experiment is run three times, and we report the mean and standard deviation of test accuracy. We take the interpolation scheme $\iota$ to be piecewise linear interpolation; in particular efficient algorithms for computing the logsignature transform only exist for piecewise linear paths \cite{signatory}. The regularisation parameter $\gamma$ is taken to be $10^{-4}$. This was selected by starting at $10^{-3}$ and reducing the value until test accuracy no longer improved, so as to ensure that it did not compromise performance.
 
 The loss was cross entropy, the optimiser was Adam \cite{kingma2015} with learning rate 0.05 and batch size 1024. If validation loss stagnated for 20 epochs then the learning rate was reduced by a factor of 10 and training resumed, down to a minimum learning rate of 0.001. We note that these relatively large learning rates are proportional to the large batch size, as is standard practice. If validation loss and accuracy failed to decrease over 60 epochs then training was halted. Once training was completed then the model parameters were rolled back to those which produced the highest validation accuracy.
 
-Precise experimental details may be found in Appendix \ref{TODO}.
+Precise experimental details may be found in Appendix \ref{appendix:experimental}.
 
 \subsection{The UEA Time Series Archive}
-This is a collection of 30 fully-observed regularly-sampled datasets with varying properties \cite{bagnall2018uea}. Evaluating on the full collection of datasets would take a prohibitively long time, and so we select 9 representing a range of difficulties.
+This is a collection of 30 fully-observed regularly-sampled datasets with varying properties \cite{bagnall2018uea}. Evaluating on the full collection of datasets would take a prohibitively long time, and so we select 9 representing a range of difficulties. Details of these (number of training samples, etc.) can be found in Appendix \ref{appendix:experimental}.
 
 We begin by performing hyperparameter optimisation (number of shapelets, length of shapelets) for the classical shapelet transform, separately for each dataset. We then use the same hyperparameters for the generalised shapelet transform. For the generalised shapelet transform, the length hyperparameter is used to determine the initial length of the shapelet, but this may of course vary as it is learnt.
 
@@ -351,5 +352,56 @@ TODO
 	\normalsize
 	\newpage
 	\appendix
-
+	
+	\section{Experimental details}\label{appendix:experimental}
+	\subsection{General notes}
+	Many details of the experiments are already specified in Section \ref{section:experiments}, and we do not repeat those details here.
+	
+	\boldheading{Code} Code to reproduce every experimental can found at \texttt{https://github.com/jambo6/generalised\_shapelets}.
+	
+	\boldheading{Computer infrastructure} Experiments were run on the CPU of a variety of different machines, all using Ubuntu 18.04 LTS, and running PyTorch 1.3.1.
+	
+	\subsection{UEA}
+	The datasets can be downloaded from \texttt{https://timeseriesclassification.com}.
+	
+	All UEA datasets were used unnormalised. Those samples which were shorter than the maximum length of the sequence were padded to the maximum length by repeating their final entry.
+	
+	Hyperparameters were found by performing a grid search over 2, 3, 5 shapelets \emph{per class}, with a maximum total number of shapelets of 30, and shapelets being set to (classical shapelet transform) / initialised at (generalised shapelet transform) 0.15, 0.3, 0.5, 1.0 times the maximum length of the time series.
+	
+	The dataset comes with default train/test splits, which we respect here. The training data is split 80\%/20\% into train and validation sets, stratified by class label.
+	
+	The maximum number of epochs allowed for training was 250.
+	
+	The details of each dataset are as below. We note that the train/test splits are sometimes of unusual proportion; we do not know the reason for this odd choice.
+	
+	TODO: hyperparams below
+	
+	\begin{tabular}{lccccccc}
+\toprule
+Dataset & Train size & Test size & Dimensions & Length & Classes & \parbox{10mm}{Shaplets per class} & \parbox{10mm}{Shapelet length fraction} \\ \midrule
+BasicMotions    & 40 & 40 & 6 & 100 & 4\\
+ERing           & 30 & 30 & 4 & 65 & 6\\
+Epilepsy        & 137 & 138 & 3 & 206 & 4 \\
+Handwriting     & 150 & 850 & 3 & 152 & 26 \\
+JapaneseVowels  & 270 & 370 & 12 & 29 & 9 \\
+Libras          & 180 & 180 & 2 & 45 & 15 \\
+LSST            & 2459 & 2466 & 6 & 36 & 14 \\
+PenDigits       & 7494 & 3498 & 2 & 8 & 10 \\
+RacketSports    & 151 & 152 & 6 & 30 & 4 \\
+\bottomrule
+\end{tabular}
+	
+	\subsection{Speech Commands}
+	The dataset can be downloaded from\\ \texttt{http://download.tensorflow.org/data/speech\_commands\_v0.02.tar.gz}.
+	
+	We began by selecting every sample from the `yes', `no', `up', `down', `left', `right', `on', `off', `stop' and `go' categories, and discarding the samples which were not of the maximum length (16000; not many samples were shorter than this). This gives a total of 34975 samples.
+	
+	The samples were preprocessed by computing the MFC with a Hann window of length 400, hop length 200, and 400 frequency bins. Every sample is then of length 81 with 40 channels. Every channel was then normalised to have mean zero and variance one.
+	
+	No hyperparameter searching was performed, due to the inordinately high cost of doing so - shapelets are an expensive algorithm that is primarily a `small data' technique, and this represented the upper limit of problem size that we could consider! This is at least partly an implementation issue, and we believe that more efficient GPU implementations should be possible, but the need for different behaviour of different batch elements (which will in general have minimisers at different sections of the time series, making it necessary to keep track of the union of these points for every batch element) makes this difficult to express with typical machine learning frameworks \cite{tensorflow, pytorch, jax}; this is an embarrasingly parallel problem that is best handled via na{\"i}ve parallelism at the top level, rather than vectorising every operation. We note that not needing to perform hyperparameter optimisation on the length is an advantage of our generalised shapelet transform, thus reducing this kind of computaiton burden.
+	
+	The maximum number of epochs allowed for training was 1000. The number of shapelets used per class was 4, for a total of 40 shapelets. The length of each shapelet (set to for the classical shapelet transform; initialised at for the generalised shapelet transform) was taken to be 0.3 of the full length of the dataset.
+	
+	The data is combined into a single dataset and a 70\%/15\%/15\% training/validation/test split taken, stratified by class label.
+	
 \end{document}
