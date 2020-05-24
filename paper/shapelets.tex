@@ -91,39 +91,35 @@
 	\begin{abstract}
 		The shapelet transform is a form of feature extraction for time series, in which a time series is described by its similarity to each of a collection of `shapelets'. However it has previously suffered from a number of limitations, such as being limited to regularly-spaced fully-observed time series, and having to choose between efficient training and interpretability. Here, we extend the method to continuous time, and in doing so handle the general case of irregularly-sampled partially-observed multivariate time series. This additionally then allows for learning the length of each shapelet (previously a discrete object) in a differentiable manner. Furthermore, we show that a simple regularisation penalty may be used to train efficiently without sacrificing interpretability. Finally, we generalise the measure of similarity between time series so as to be a learnt pseudometric. We validate our method by demonstrating its empirical performance on several datasets.
 	\end{abstract}
-	\section{Introduction} % TODO: need to put in a lot more references.
-	Shaplets are a form of feature extraction for time series, first introduced by \cite{TODO}. Given some fixed hyperparameter $K$, describing how many shapelets we are willing to consider, then each time series is represented by a vector of length $K$ describing how similar it is to each of the $k$ selected shapelets.
+	\section{Introduction}
+	Shaplets are a form of feature extraction for time series \cite{ye2009firstshapelet, grabocka2014learningshapelet, hou2016efficient, bagnall2016bakeoff}. Given some fixed hyperparameter $K$, describing how many shapelets we are willing to consider, then each time series is represented by a vector of length $K$ describing how similar it is to each of the $k$ selected shapelets.
 	
-	We begin by stating the classical definition of shapelets.
-	\subsection{Classical shapelets}
+	We begin by recalling the classical definition of the shapelet transform \cite{hills2014classification}.
+	\subsection{Classical shapelet transform}\label{section:classical-introduction}
 	Given $N$ regularly sampled multivariate time series, with $D$ observed channels, where the $n$-th time series is of length $T_n$, then the $n$-th time series is a matrix 
 	\begin{equation}\label{eq:f-n}
 	f^n = (f^n_{t})_{t \in \{0, \ldots, T_n - 1\}} = (f^n_{t, d})_{t \in \{0, \ldots, T_n - 1\}, d \in \{1, \ldots, D\}},
 	\end{equation}
-	with each $f^n_{t, d} \in \reals$. We assume without loss of generality that $0, \ldots, T_n - 1$ are the times at which each sample is observed, so that the index $t$ corresponds to the time of an observation.
+	with each $f^n_{t, d} \in \reals$.% Assume without loss of generality that $0, \ldots, T_n - 1$ are the times at which each sample is observed, so that the index $t$ corresponds to the time of an observation.
 	
-	Fix some hyperparameter $K \in \naturals$, which will describe the number of shapelets. Fix some $S \in \{0, \ldots, \min_{i \in \{1, \ldots, N\}}T_n - 1\}$, which will describe the length of each shapelet. We define the $k$-th shapelet as a matrix
+	Fix some hyperparameter $K \in \naturals$, which will describe the number of shapelets. Fix some $S \in \{0, \ldots, \min_{i \in \{1, \ldots, N\}}T_n - 1\}$, which will describe the length of each shapelet. Then the $k$-th shapelet is a matrix
 	\begin{equation*}
 	w^{k} = (w^{k}_t)_{t \in \{0, \ldots, S - 1\}} = (w^{k}_{t, d})_{t \in \{0, \ldots, S - 1\}, d \in \{1, \ldots, D\}},
 	\end{equation*}
 	with each $w^{k}_{t, d} \in \reals$.
 	
-	Then the discrepancy between $f^n$ and $w^{k}$ is defined by:
+	Then the discrepancy between $f^n$ and $w^{k}$ is given by (sometimes without the square):
 	\begin{equation}\label{eq:classical-shapelets}
 	\sigma_S(f^n, w^{k}) = \min_{s \in \{0, \ldots, T_n - S\}} \sum_{t = 0}^{S - 1} \norm{f^n_{s + t} - w^{k}_t}_2^2,
 	\end{equation}
 	where $\norm{\,\cdot\,}_2$ describes the $L^2$ norm on $\reals^D$. A small discrepancy implies that $f^n$ and $w^{k}$ are similar to one another. This corresponds to sweeping $w^{k}$ over $f^n$, and finding the offset $s$ at which $w^{k}$ best matches $f^n$. The collection of $(\sigma_S(f^n, w^{1}), \ldots, \sigma_S(f^n, w^{K})) \in \reals^K$ is now a feature describing $f^n$. This may now be passed to some model to perform classification or regression.
 	
-	In \cite{TODO}, a procedure is described for selecting shapelets as particular small intervals from particular training samples. However doing so is very expensive, requiring $\bigO(N^2 \cdot \max_n T_n^4)$ work. As such, \cite{TODO} instead observe that the discrepancy $\sigma_S$ of equation \eqref{eq:classical-shapelets} is differentiable with respect to $w^{k}$, and so the shapelets may be selected differentiably, as part of an end-to-end optimisation of the final loss function of the model that uses the shapelets as features.\footnote{Although they include a `softmin' procedure which we believe to be unnecessary, as the minimum function is already almost everywhere differentiable.}
-	
-	The shapelet method is attractive for several reasons. First, it is invariant to the value of $T_n$, and as such provides a way to normalise variable-length time series. Second, it is interpretable, as use of a particular feature corresponds to the importance of the similarity to the shapelet $w^{k}$, which may for example describe some shape that is characteristic of a particular class; furthermore the value of $s$ gives where the similarity occurs. Third, it typically demonstrates good performance \cite{TODO}.
-	
 	\subsection{Limitations}
-	However, the classical shapelet method also suffers from a number of limitations.
+	The classical shapelet method suffers from a number of limitations.
 	\begin{enumerate}
 	\item The technique only applies to regularly spaced time series.
 	\item The choice of $S$ is a hyperparameter; it is discrete, and choosing it is thus a relatively expensive optimisation procedure.
-	\item Learning $w^{k}$ differentiably (and thus efficiently) typically sacrifices interpretability. The predictive power of the distance between a shapelet and a time series need not correlate with a similarity between the two \cite{TODO}, so there is no pressure towards interpretability.  % TODO: there's also the adversarial interpretability paper that seems a bit naff
+	\item Learning $w^{k}$ by searching \cite{ye2009firstshapelet} is expensive, whilst optimising differentiably \cite{grabocka2014learningshapelet} typically sacrifices interpretability \cite{wang2019interp}.
 %	\item The technique is not robust to irrelevant channels (which will typically exist in many real world datasets, for example medical time series): equation \eqref{eq:classical-shapelets} attempts to fit a $w^{k}_{t, d}$ even for uninformative channels $d$.
 	\end{enumerate}
 	Besides this, the choice of $L^2$ norm is ad-hoc and a general formulation should allow for other notions of similarity.
@@ -131,26 +127,35 @@
 	\subsection{Contributions}
 	We demonstrate how classical shapelets may be generalised in multiple ways, so as to address the collection of limitations just described.
 
-	First, by extending the method to continuous time rather than discrete time, then both regularly-sampled fully-observed multivariate time series and irregularly-sampled partially-observed multvariate time series may both be put on the same footing, and the method is capable of handling both. Second, this continuous-time formulation means that the length of each shapelet (previously a discrete value) now takes its values in a continuous range, and may in fact be trained differentiably.
+	First, we extend the method to continuous time rather than discrete time, allowing the treatment of irregularly-sampled partially-observed multivariate time series on the same footing as regular time series. Second, this continuous-time formulation means that the length of each shapelet (previously a discrete value) takes its values in a continuous range, and may now be trained differentiably.
 	
-	Third, we demonstrate how simple regularisation is enough to achieve shapelets that resemble characteristic features of the data, so as to achieve the desired interpretability. Finally, the discrepancy between a shapelet and a time series is generalised to be a learnt pseudometric. This introduces a great deal of flexibility into the method; for example we show how this allows for domain adaptation by using a Fourier transform-based pseudometric with audio signals.
+	Third, we demonstrate how simple regularisation is enough to achieve shapelets that resemble characteristic features of the data, achieving both interpretability and pattern discovery. Finally, we generalise the discrepancy between a shapelet and a time series to be a learnt pseudometric.% This introduces a great deal of flexibility into the method; for example we show how this allows for domain adaptation by using a Fourier transform-based pseudometric with audio signals.
 	
 	Our code is available at \texttt{https://github.com/jambo6/generalised\_shapelets}.
 	
-	\section{Method}
-	We move on to describing our method, which we present in a general form. In the next section we will discuss the specific choices made in our experiments.
+	\section{Prior work}
+	Shapelets may be selected as small intervals extracted from training samples \cite{ye2009firstshapelet}. However doing so is very expensive, requiring $\bigO(N^2 \cdot \max_n T_n^4)$ work. Much work on shapelets sought speedup techniques \cite{mueen2011logical, grabocka2015scalable, grabocka2016speedshapelet}, for example via random algorithms \cite{rak2013fast, wistuba2015ultrafast}.
 	
+	However \cite{grabocka2014learningshapelet} observe that the discrepancy $\sigma_S$ of equation \eqref{eq:classical-shapelets} is differentiable with respect to $w^{k}$, so that shapelets may be differentiably optimised jointly with the subsequent model, as part of an end-to-end optimisation of the final loss function. (Although \cite{grabocka2014learningshapelet} include a `softmin' procedure which we believe to be unnecessary, as the minimum function is already almost everywhere differentiable.) This costs only $\bigO(N \cdot \max_n T_n^2)$ to train, and is the approach that we extend here.
+	
+	This method is attractive for its speed and its ease of trainability via modern deep learning frameworks \cite{tensorflow, pytorch, jax}. However, \cite{wang2019interp} observe that the predictive power of the distance between a shapelet and a time series need not correlate with a similarity between the two, so there is no pressure towards interpretability. \cite{wang2019interp} propose to solve this via adversarial regularisation; we will present a simpler alternative later. Without such procedures, then efficient training and interpretability become mutually exclusive.
+	
+	The method may additionally be generalised by considering alternative notions of similarity between a shapelet and a time series; for example \cite{grabocka2016dtwshapelet} replace the $L^2$ norm with dynamic time warping.
+	
+	The shapelet method is attractive for its normalisation of variable-length time series and demonstratation of typically good performance \cite{bagnall2016bakeoff, bostrom2015shapelet}. Additionally, it is (depending on training procedure) interpretable, as use of a particular feature corresponds to the importance of the similarity to the shapelet $w^{k}$. This may describe some shape that is characteristic of a particular class, and can discover previously unknown patterns in the data (we will see examples later).
+	
+	\section{Method}
 	\subsection{Continuous-time objects}
-	We interpret a time series as a discretised sample from an underlying process, observed only through the time series. Similarly, the shapelet previously constructed may be thought of as a discretisation of some underlying function. The first important step in our procedure is to construct continuous-time approximations to these underlying objects.
+	We interpret a time series as a discretised sample from an underlying process, observed only through the time series. Similarly, a shapelet constructed as in Section \ref{section:classical-introduction} may be thought of as a discretisation of some underlying function. The first important step in our procedure is to construct continuous-time approximations to these underlying objects.
 	
 	\boldheading{Continuous-time path interpolants}
 	Formally speaking, we assume that for $n \in \{1, \ldots, N\}$ indexing different time series, we observe a collection of time series
 	\begin{equation*}
 	f^n = (f^n_{t_\tau})_{\tau \in \{1, \ldots, T_n\}},
 	\end{equation*}
-	where $t_\tau \in \reals$ is the observation time of $f^n_{t_\tau} \in (\reals \cup \{*\})^D$, where $*$ denotes the possibility of a missing observation.% This description allows irregularly-sampled partially-observed time series to be treated on the same footing as regularly sampled and completely observed time series.
+	where $t_\tau \in \reals$ is the observation time of $f^n_{t_\tau} \in (\reals \cup \{*\})^D$, where $*$ denotes the possiblity of a missing observation.% This description allows irregularly-sampled partially-observed time series to be treated on the same footing as regularly sampled and completely observed time series.
 	
-	Next, interpolate to get a function $\iota(f^n) \colon [0, T_n - 1] \to \reals^D$ such that $\iota(f^n)(t_\tau) = f^n_{t_\tau}$ for all $\tau \in \{0, \ldots, T_n - 1\}$ such that $f^n_{t_\tau}$ is observed. There are many possible choices for interpolations, for example splines \cite{TODO}, kernel methods \cite{interpolation-prediction}, or Gaussian processes \cite{gp-adapter1, gp-adapter2}. In our experiments, we use piecewise linear interpolation.
+	Next, interpolate to get a function $\iota(f^n) \colon [0, T_n - 1] \to \reals^D$ such that $\iota(f^n)(t_\tau) = f^n_{t_\tau}$ for all $\tau \in \{0, \ldots, T_n - 1\}$ such that $f^n_{t_\tau}$ is observed. There are many possible choices for interpolations, for example splines, kernel methods \cite{interpolation-prediction}, or Gaussian processes \cite{li2016scalable, futoma2017mgp}. In our experiments, we use piecewise linear interpolation.
 	
 	\boldheading{Continuous-time shapelets}
 	The shapelets themselves we are free to control, and so for $k \in \{1, \ldots, K\}$ indexing different shapelets, we take each $w^{k, \rho} \colon [0, 1] \to \reals^D$ to be some learnt function depending on learnt parameters $\rho$. For example, this could be an interpolated sequence of learnt points, an expansion in some basis functions, or a neural network. In our experiments we use linear interpolation of a sequence of a learnt points.
@@ -166,7 +171,7 @@
 	
 	We denote this discrepancy function by $\pi^A_{S}$. It depends upon a length $S$ and a learnt parameter $A$, consumes two paths $[0, S] \to \reals^D$, and returns a real number describing some notion of closeness between them. We are being deliberately vague about the regularity of the domain of $\pi^A_{S_k}$, as it is a function space whose regularity will depend on $\iota$.	
 	
-	Given some $\pi^A_{S}$, then we define the discrepancy between $f^n$ and $w^{k, \rho, S_k}$ as
+	Given some $\pi^A_{S}$, then the discrepancy between $f^n$ and $w^{k, \rho, S_k}$ is defined as
 	\begin{equation}\label{eq:new-sigma}
 	\sigma^A_{S_k}(f^n, w^{k, \rho, S_k}) = \min_{s \in [0, T_n - S_k]} \pi^A_{S_k}(\restr{\iota(f^n)}{[s, s + S_k]}(s + \cdot), w^{k, \rho, S_k}).
 	\end{equation}
@@ -188,12 +193,12 @@
 	That is, allowing some learnt linear transformation before measuring the discrepancy. In this way, particularly informative dimensions may be emphasised. In our experiments we take $A$ to be diagonal. Allowing a general matrix was found during initial experiments to produce slightly worse performance.
 	
 	\boldheading{More complicated discrepancies}
-	Moving on, we consider other more general choices of discrepancy, which may be motivated by the problem at hand. In particular we will discuss discrepancies based on the logsignature transform \cite{TODO}, and mel-frequency cepstrums (MFC) \cite{TODO}.
+	Moving on, we consider other more general choices of discrepancy, which may be motivated by the problem at hand. In particular we will discuss discrepancies based on the logsignature transform \cite{logsig-rnn}, and mel-frequency cepstrums (MFC) \cite{mfc}.
 	
-	Our exposition on these two discrepancies will be deliberately brief, as the finer details on exactly when and how to use the logsignature and MFC transforms is not important to us here. The point is that our framework has the flexibility to consider general discrepancies motivated by other discplines, or which are known to extract information which is particular useful to the domain in question. An understanding of either logsignatures or mel-frequency cepstrums will not be necessary to follow the paper.
+	Our exposition on these two discrepancies will be deliberately brief, as the finer details on exactly when and how to use them is domain-specific. The point is that our framework has the flexibility to consider general discrepancies motivated by other discplines, or which are known to extract information which is particular useful to the domain in question. An understanding of either logsignatures or mel-frequency cepstrums will not be necessary to follow the paper.
 	
 	\boldheading{Logsignature discrepancies}
-	The logsignature transform is a transform on paths, known to characterise its input whilst extracting statistics which describe how the path controls differential equations \cite{levy-lyons, deep-signatures, signatory, logsig-rnn}. Let $\mu$ denote the M{\"o}bius function, and let
+	The logsignature transform is a transform on paths, known to characterise its input whilst extracting statistics which describe how the path controls differential equations \cite{logsig-rnn, levy-lyons, kidger2019deep, signatory}. Let $\mu$ denote the M{\"o}bius function, and let
 	\begin{equation*}
 	\beta_{D, R} = \sum_{r = 1}^R \frac{1}{r} \sum_{\rho \vert r} \mu\left(\frac{r}{\rho}\right) D^\rho,
 	\end{equation*}
@@ -207,23 +212,20 @@
 	\end{equation}
 	
 	\boldheading{MFC discrepancies}
-	The computation of a MFC is a function-to-function map derived from the short-time Fourier transform, with additional processing to focus on frequencies that are particularly relevant to human hearing. Letting $\mfc$ represent the computation of an MFC, then we compose this with the $L^2$ based discrepancy of equation \eqref{eq:learnt-discrepancy} to produce
+	The computation of an MFC is a function-to-function map derived from the short-time Fourier transform, with additional processing to focus on frequencies that are particularly relevant to human hearing \cite{mfc}. Composing this with the $L^2$ based discrepancy of equation \eqref{eq:learnt-discrepancy} produces
 	\begin{equation}\label{eq:mfc-discrepancy}
 	\pi^A_{S}(f, w) = (\int_{0}^{S} \norm{A(\mfc(f)(t) - \mfc(w)(t))}_2^2 \dee t)^{\frac{1}{2}}.
 	\end{equation}
 	
 	\boldheading{The generalised shapelet transform}
-	Whatever the choice of $\pi^A_S$, and in analogy to classical shapelet methods, we call the map
+	Whatever the choice of $\pi^A_S$, and in analogy to the classical shapelet transform \cite{hills2014classification}, we call the map
 	\begin{equation*}
 	f \mapsto (\sigma^A_{S_1}(f, w^{1, \rho, S_1}), \ldots, \sigma^A_{S_K}(f, w^{K, \rho, S_K}))
 	\end{equation*}
 	the \emph{generalised shapelet transform}.
 	
 	\subsection{Interpretable regularisation}
-	Selecting shapelets by searching as in \cite{TODO} is incredibly expensive. Selecting them as part of a differentiable optimisation procedure is much more attractive for its speed, and is faciliated by deep learning tools that typically optimise in the same way. However, it has been noted in \cite{TODO} that this method sacrifices much of the interpretability, as the shapelets that are then selected need not look like any small extracts from the training data. 
-In \cite{TODO} they propose to solve this issue via adversarial regularisation.
-
-	We instead propose a much simpler method; train differentiably as before, and simply add on
+	As previously described, learning shapelets differentiably can sacrifice interpretability \cite{wang2019interp}, as the learnt shapelets need not resemble the training data. We propose a novel regularisation penalty to solve this: simply add on
 	\begin{equation}
 		\label{eq:interpretable_reg}
 		\sum_{k = 1}^K \min_{n \in \{1, \ldots, N\}} \sigma^A_S(f^n, w^{k, \rho, s})
@@ -231,7 +233,7 @@ In \cite{TODO} they propose to solve this issue via adversarial regularisation.
 	as a regularisation term, so that minimising the discrepancy between $f^n$ and $w^{k, \rho, S}$ is also important. Note the choice of minimisation over $n$, rather than a sum over $n$. A sum over $n$ would ask that every shapelet should look like every training sample. Taking a minimum instead asks only that every shapelet should be similar to a single training sample.
 	
 	\subsection{Minimisation objective and training procedure}
-	Overall, suppose we have some parametric (typically linear) model $F^\theta$, some loss function $\mathcal{L}$, and some observed time series $f^1, \ldots, f^N$ with targets $y_1, \ldots, y_N$.	
+	Overall, suppose we have some differentiable model $F^\theta$ parameterised by $\theta$, some loss function $\mathcal{L}$, and some observed time series $f^1, \ldots, f^N$ with targets $y_1, \ldots, y_N$.	
 	
 	Then letting $\gamma > 0$ control the amount of regularisation, we propose to minimise
 	\newcommand{\objective}{&\frac{1}{N}\sum_{n = 1}^N \mathcal{L}(y_n, F^\theta(\sigma^A_{S_1}(f^n, w^{1, \rho, S_1}), \ldots, \sigma^A_{S_K}(f^n, w^{K, \rho, S_K}))) + \gamma \sum_{k = 1}^K \min_{n \in \{1, \ldots, N\}} \sigma^A_{S_k}(f^n, w^{k, \rho, S_k})}
@@ -251,13 +253,13 @@ In \cite{TODO} they propose to solve this issue via adversarial regularisation.
 
 	
 	\boldheading{Choice of $F^\theta$}\label{section:choice-of-f}
-	Interpretability of the model will depend on an interpretable choice of $F^\theta$. In our experiments we used a linear model on the natural logarithm of every feature, so that a very negative coefficient of $\log \sigma^A_{S_k}(f^n, w^{k, \rho, S_k})$ corresponds to the importance of $f^n$ and $w^{k, \rho, S_k}$ being similar to each other.\footnote{The logarithm maps the discrepancies $\sigma^A_{S_k}(f^n, w^{k, \rho, S_k}) \in [0, \infty)$ into $\reals$. As a technical point, a small number such as $10^{-5}$ may need to first be added to prevent $\log \colon 0 \mapsto -\infty$.}
+	Interpretability of the model will depend on an interpretable choice of $F^\theta$. In our experiments we used a linear model on the logarithm of every feature, so that a very negative coefficient of $\log \sigma^A_{S_k}(f^n, w^{k, \rho, S_k})$ corresponds to the importance of $f^n$ and $w^{k, \rho, S_k}$ being similar to each other.\footnote{The logarithm maps the discrepancies $\sigma^A_{S_k}(f^n, w^{k, \rho, S_k}) \in [0, \infty)$ into $\reals$. As a technical point, a small number such as $10^{-5}$ may need to first be added to prevent $\log \colon 0 \mapsto -\infty$.}
 	
 	
 \section{Experiments}
 We compare our generalised shapelet transform to the classical shapelet transform, in terms of both performance and interpretability, on a large range of time series classification problems. Every experiment is run three times, and we report the mean and standard deviation of test accuracy. We take the interpolation scheme $\iota$ to be piecewise linear interpolation; in particular efficient algorithms for computing the logsignature transform only exist for piecewise linear paths \cite{signatory}. The regularisation parameter $\gamma$ is taken to be $10^{-4}$. This was selected by starting at $10^{-3}$ and reducing the value until test accuracy no longer improved, so as to ensure that it did not compromise performance.
 
-The loss was cross entropy, the optimiser was Adam \cite{TODO} with learning rate 0.05 and batch size 1024. If validation loss stagnated for 20 epochs then the learning rate was reduced by a factor of 10 and training resumed, down to a minimum learning rate of 0.001. We note that these relatively large learning rates are proportional to the large batch size, as is standard practice. If validation loss and accuracy failed to decrease over 60 epochs then training was halted. Once training was completed then the model parameters were rolled back to those which produced the highest validation accuracy.
+The loss was cross entropy, the optimiser was Adam \cite{kingma2015} with learning rate 0.05 and batch size 1024. If validation loss stagnated for 20 epochs then the learning rate was reduced by a factor of 10 and training resumed, down to a minimum learning rate of 0.001. We note that these relatively large learning rates are proportional to the large batch size, as is standard practice. If validation loss and accuracy failed to decrease over 60 epochs then training was halted. Once training was completed then the model parameters were rolled back to those which produced the highest validation accuracy.
 
 Precise experimental details may be found in Appendix \ref{TODO}.
 
@@ -266,10 +268,10 @@ This is a collection of 30 fully-observed regularly-sampled datasets with varyin
 
 We begin by performing hyperparameter optimisation (number of shapelets, length of shapelets) for the classical shapelet transform, separately for each dataset. We then use the same hyperparameters for the generalised shapelet transform. For the generalised shapelet transform, the length hyperparameter is used to determine the initial length of the shapelet, but this may of course vary as it is learnt.
 
-For the generalised shapelet transform, we consider two different discrepancy functions, namely the $L^2$ discrepancy and $p$-logsignature discrepancies of equations \eqref{eq:learnt-discrepancy} and \eqref{eq:logsignature-discrepancy}. For the latter, we take $p=2$ and the depth $R=3$. We did not try to optimise $p$ and $R$, as we use the logsignature discrepancy simply to highlight the possibility of using more unusual discrepancies if desired.
+For the generalised shapelet transform, we consider two different discrepancy functions, namely the learnt $L^2$ discrepancy and $p$-logsignature discrepancies of equations \eqref{eq:learnt-discrepancy} and \eqref{eq:logsignature-discrepancy}. For the latter, we take $p=2$ and the depth $R=3$. We did not try to optimise $p$ and $R$, as we use the logsignature discrepancy simply to highlight the possibility of using more unusual discrepancies if desired.
 
-The results are given in Table \ref{tab:uea_comparison_results}. We see that the generalised shapelet transform with $L^2$ discrepancy function achieves within one standard deviation of the top performing algorithm on 7 of the 9 datasets, whilst the classical approach does so for only 3.
-\begin{table}[ht]
+The results are given in Table \ref{tab:uea_comparison_results}. We see that the generalised shapelet transform with $L^2$ discrepancy function achieves within one standard deviation of the top performing algorithm on 7 of the 9 datasets, whilst the classical approach does so for only 3. As crude summary statistics, the average performance gain across all datasets was 4.6\% points, the maximum performance drop was only 5.9\% points (on BasicMotions), and the maximum performance gain was 15.4\% points (on ERing).
+\begin{table}[t]
     \centering
     \caption{Test accuracy (mean $\pm$ std, computed over three runs) on UEA. A `win' is the number of times each algorithm was within 1 standard deviation of the top performer for each dataset.}
     \label{tab:uea_comparison_results}
@@ -277,9 +279,9 @@ The results are given in Table \ref{tab:uea_comparison_results}. We see that the
 \end{table}
 
 \boldheading{Interpretability on PenDigits}
-We demonstrate interpretability by examining the PenDigits dataset. (Chosen because of its nice visuals.) This is a dataset of handwritten digits 0--9, sampled at 8 points along their trajectory. For both the generalised shapelet transform, with $L^2$ discrepancy, and the classical shapelet transform, we select the most informative shapelet for each of the ten classes, as in Section \ref{section:choice-of-f}. We then locate the training sample that it is most similar to, and plot an overlay of the two. See Figure \ref{fig:pendigits}.
+We demonstrate interpretability by examining the PenDigits dataset. (Chosen because of its nice visuals.) This is a dataset of handwritten digits 0--9, sampled at 8 points along their trajectory. We select the most informative shapelet for each of the ten classes (as in Section \ref{section:choice-of-f}), for both the classical shapelet transform and the generalised shapelet transform, with $L^2$ discrepancy. We then locate the training sample that it is most similar to, and plot an overlay of the two. See Figure \ref{fig:pendigits}.
 
-\begin{figure}[ht]
+\begin{figure}[t]
     \begin{subfigure}[b]{\linewidth}
         \centering
         \includegraphics[width=\linewidth]{images/old_pendigits.png}
@@ -302,9 +304,9 @@ In contrast, the generalised shapelet approach is abundantly clear. Every class 
 
 We see that this is a benefit of allowing learnt lengths, so that particularly distinguishing features, such as the double bend of a 3, may be resolved. Contrast with the most significant shapelet for the class 3 under the classical shapelet transform: it is almost perfectly located in the middle of that which was learnt for the generalised shapelet transform, which we speculate is a `best fit' under the fixed length constraint.
 
-A point of significant interest is the difference between the shapelets for the digits 5 and 6, for the generalised shapelet transform. Whilst visually very similar, we see that the difference between them is their direction. In other words, whilst a 5 and a 6 may appear visually similar on the page (with a loop in the bottom half of the digit), they may clearly be distinguished by the direction in which they tend to be written. This is a perfect example of discovering something about the data that was not previously known!
+A point of significant interest is the difference between the shapelets for the digits 5 and 6, for the generalised shapelet transform. Whilst visually very similar, we see that the difference between them is their direction. In other words, whilst a 5 and a 6 may appear visually similar on the page (with a loop in the bottom half of the digit), they may clearly be distinguished by the direction in which they tend to be written. This is a perfect example of discovering something about the data that was not necessarily already known!
 
-Another good example of such discovery is the shapelet corresponding to the class 7, for the generalised shapelet transform. This is perhaps surprising to see as a distinguising feature of a `7'. However - in particular examining the directions of the shapelets corresponding to the other classes - one can see that no other digit features a stroke in that direction, in that place! (Figuring this out was a fun moment for the authors, sketching figures in the air.) A similar case can be made for the `2' shapelet.
+Another good example of such discovery is the shapelet corresponding to the class 7, for the generalised shapelet transform. This is perhaps surprising to see as a distinguising feature of a `7'. However it turns out that no other digit features a stroke in that direction, in that place! (Figuring this out was a fun moment for the authors, sketching figures in the air.) A similar case can be made for the `2' shapelet.
 
 \subsection{Missing Data and Length Ablation}
 TODO - not touched this part
@@ -319,7 +321,7 @@ We now demonstrate both the ability of the proposed framework to handle partiall
 
 
 \subsection{Speech Commands}
-Next we consider the Speech Commands dataset \ref{warden2018speech}. This is comprised of one-second audio files, corresponding to words such as `yes', `no', `left', `right', and so on. We consider 10 classes so as to create a balanced classification problem.
+Next we consider the Speech Commands dataset \cite{warden2018speech}. This is comprised of one-second audio files, corresponding to words such as `yes', `no', `left', `right', and so on. We consider 10 classes so as to create a balanced classification problem.
 
 For the generalised shapelet transform, we use the MFC discrepancy described in equation \eqref{eq:mfc-discrepancy}. Knowing that this is a problem to do with spoken audio, choosing a discrepancy in this way allows us to exploit domain knowledge.
 
@@ -328,8 +330,7 @@ For this more complicated dataset, we found that the generalised shapelet transf
 \boldheading{Interpretability of Speech Commands}
 TODO
 
-\section{Related Work}
-TODO
+% Limiations: no DTW; speed+memory of training lengths
 
 
 	\section{Conclusion}

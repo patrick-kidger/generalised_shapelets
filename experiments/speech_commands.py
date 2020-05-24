@@ -138,7 +138,7 @@ def invert(model_filename, find_closest=True):
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optim, factor=0.5, patience=1000, cooldown=1000,
                                                            verbose=True, min_lr=1e-3)
     mfcc_transform = torchaudio.transforms.MFCC(log_mels=True, n_mfcc=40)
-    scaling = torch.linspace(1, 0.5, 40) ** 2
+    scaling = (torch.linspace(2, 0.5, 40) ** 2) / 40
     print('Starting inversion')
     trange = tqdm.trange(25_000)
     for i in trange:
