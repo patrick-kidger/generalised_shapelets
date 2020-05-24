@@ -6,6 +6,8 @@ import re
 import scipy.io.wavfile
 import torch
 import torchaudio
+import torchshapelets
+import tqdm
 
 import common
 
@@ -42,8 +44,7 @@ def invert(model_filename, find_closest=True):
     """Inverts the MFCC shapelet to find the corresponding audio shapelet."""
 
     # Get the shapelets we're going to invert
-    # state_dict = torch.load(here / 'results/speech_commands' / (model_filename + '_model'))
-    state_dict = torch.load(here / 'results/shapelet_sc')
+    state_dict = torch.load(here / 'results/speech_commands' / (model_filename + '_model'))
     weight = state_dict['linear.weight']
     most_informative = weight.argmin(dim=1)
     shapelets = state_dict['shapelet_transform.shapelets']
@@ -55,79 +56,104 @@ def invert(model_filename, find_closest=True):
     tensors = _load_data(here / 'data/speech_commands_data')
     train_audio_X = tensors['train_audio_X']
     train_X = tensors['train_X']
-    times = torch.linspace(0, train_X.size(1) - 1, train_X.size(1), dtype=train_X.dtype, device=train_X.device)
     means = tensors['means']
     stds = tensors['stds']
 
-    # Get the details of the model we trained
-    with open(here / 'results/speech_commands' / model_filename, 'rb') as f:
-        results = json.load(f)
-    model_string = results['model']
-    def find(value):
-        return re.search(value + '=([\.\w]+)', model_string).group(1)
-    out_channels = int(find('out_features'))
-    num_shapelets, num_shapelet_samples, in_channels = shapelets.shape
-    ablation_pseudometric = bool(find('pseudometric'))
-    # Assume L2 discrepancy
-    discrepancy_fn = common.get_discrepancy_fn('L2', in_channels, ablation_pseudometric)
-    max_shapelet_length = float(find('max_shapelet_length'))
-    num_continuous_samples = int(find('num_continuous_samples'))
-    # Assume log=True. Not that this actually affects what we're about to do.
-    log = True
-
-    # Recreate the model
-    model = common.LinearShapeletTransform(in_channels, out_channels, num_shapelets, num_shapelet_samples,
-                                           discrepancy_fn, max_shapelet_length, num_continuous_samples, log)
-    model.load_state_dict(state_dict)
-
-    # Run all of our training samples through the model and pick the ones that have the closest MFCC.
     if find_closest:
+        # Run all of our training samples through the model and pick the ones that have the closest MFCC.
+
+        # Get the details of the model we trained
+        with open(here / 'results/speech_commands' / model_filename, 'rb') as f:
+            results = json.load(f)
+        model_string = results['model']
+
+        def find(value):
+            return re.search(value + '=([\.\w]+)', model_string).group(1)
+
+        out_channels = int(find('out_features'))
+        num_shapelets, num_shapelet_samples, in_channels = shapelets.shape
+        ablation_pseudometric = bool(find('pseudometric'))
+        # Assume L2 discrepancy
+        discrepancy_fn = common.get_discrepancy_fn('L2', in_channels, ablation_pseudometric)
+        max_shapelet_length = float(find('max_shapelet_length'))
+        num_continuous_samples = int(find('num_continuous_samples'))
+        # Doesn't actually affect anything here
+        log = True
+
+        # Recreate the model
+        model = common.LinearShapeletTransform(in_channels, out_channels, num_shapelets, num_shapelet_samples,
+                                               discrepancy_fn, max_shapelet_length, num_continuous_samples, log)
+        model.load_state_dict(state_dict)
+
         shapelet_similarities = []
+        closest_indices = []
+        print('Finding init points')
+        times = torch.linspace(0, train_X.size(1) - 1, train_X.size(1), dtype=train_X.dtype, device=train_X.device)
         with torch.no_grad():
-            for train_Xi in train_X.split(200):
-                _, shapelet_similarity = model(times, train_Xi)
+            for train_Xi in tqdm.tqdm(train_X.split(200)):
+                _, shapelet_similarity, closest_index = model(times, train_Xi)
                 shapelet_similarities.append(shapelet_similarity)
+                closest_indices.append(closest_index)
         shapelet_similarities = torch.cat(shapelet_similarities)
+        closest_indices = torch.cat(closest_indices)
         closeset_per_shapelet = shapelet_similarities.argmin(dim=0)
+        closest_indices = closest_indices[closeset_per_shapelet, range(len(closeset_per_shapelet))]
         closeset_per_shapelet = closeset_per_shapelet[most_informative]  # just keep the ones for the shapelets we care about
+        closest_indices = closest_indices[most_informative]
+        print(closeset_per_shapelet)
+        print(closest_indices)
     else:
         # These were the ones we found were closest for one of our runs. If you don't want to do a search then you can
         # try using these instead.
         closeset_per_shapelet = torch.tensor([14429, 16271, 22411, 16943, 22223, 18688, 661, 17331, 2731, 6936])
-        shapelet_similarities = []
-        with torch.no_grad():
-            for train_Xi in train_X[closeset_per_shapelet]:
-                _, shapelet_similarity = model(times, train_Xi)
-                shapelet_similarities.append(shapelet_similarity)
-            shapelet_similarities = torch.cat(shapelet_similarities)
+        closest_indices = torch.tensor([36, 43, 25, 67, 40, 54, 50, 65, 11, 50])
 
-
-    init_audio = train_audio_X[closeset_per_shapelet].squeeze(2)
+    # Assumes that each shapelet as sampled at as many points as the series is long, i.e. that we used
+    # num_shapelet_samples=None
+    init_audio = train_audio_X[closeset_per_shapelet]
+    initial_time = closest_indices * (train_X.size(1) - 1 - length) / train_X.size(1)
+    ratio = train_audio_X.size(1) / train_X.size(1)
+    initial_time = initial_time * ratio
+    audio_length = length * ratio
+    audio_times = torch.linspace(0, train_audio_X.size(1) - 1, train_audio_X.size(1), dtype=train_audio_X.dtype,
+                                 device=train_audio_X.device)
+    init_audio_extract = []
+    for audio, init_time, l in zip(init_audio, initial_time, audio_length):
+        shapelet_times = torch.linspace(init_time.item(), init_time.item() + l.item(), train_audio_X.size(1))
+        audio_extract = torchshapelets._impl.unsafe_add_knots((audio_times[0], audio_times[1:-1], audio_times[-1]),
+                                                              (audio[0], audio[1:-1], audio[-1]),
+                                                              shapelet_times,
+                                                              False)[1]
+        init_audio_extract.append(audio_extract)
+    init_audio_extract = torch.stack(init_audio_extract).squeeze(-1)
 
     # Initialise our candidate for inversion at the thing that has the closest MFCC. (This sort of thing is necessary as
     # we're solving an inverse problem here, so we have to use some sort of prior.)
     learnt_audio = torch.empty(10, 16000, requires_grad=True)
     with torch.no_grad():
-        learnt_audio.copy_(init_audio)
+        learnt_audio.copy_(init_audio_extract)
 
     # Apply SGD to match the MFCC of our candiate with the MFCC of the shapelet
     optim = torch.optim.SGD([learnt_audio], lr=1.)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optim, factor=0.5, patience=1000, cooldown=1000,
                                                            verbose=True, min_lr=1e-3)
     mfcc_transform = torchaudio.transforms.MFCC(log_mels=True, n_mfcc=40)
-    for i in range(25_000):
+    scaling = torch.linspace(1, 0.5, 40) ** 2
+    print('Starting inversion')
+    trange = tqdm.trange(25_000)
+    for i in trange:
         learnt_mfcc = mfcc_transform(learnt_audio).transpose(1, 2)
-        # lower frequencies we compare against our target
-        # higher frequencies we regularise to be close to zero
         learnt_mfcc = (learnt_mfcc - means) / (stds + 1e-5)
-        loss = torch.nn.functional.mse_loss(learnt_mfcc, shapelet_mfcc)
+        diff = (learnt_mfcc - shapelet_mfcc) ** 2
+        diff = diff.mean(dim=[0, 1])
+        loss = diff.dot(scaling)  # matching lower frequencies is more important than higher frequencies
         # Regularise to be similar to the closest. Again, this corresponds to a prior. There _is_ a potential issue that
-        # we just end up learning something that sounds like the init_audio, which we mitigate by taking a very small
-        # scaling factor, so that we should just end up selecting the thing that is most similar to init_audio along the
+        # we just end up learning something that sounds like the init_audio, which we mitigate by taking a small scaling
+        # factor, so that we should just end up selecting the thing that is most similar to init_audio along the
         # manifold of those things that match the MFCC, which is the more important criterion here.
-        loss = loss + 0.001 * torch.nn.functional.mse_loss(learnt_audio, init_audio)
+        loss = loss + 0.001 * torch.nn.functional.mse_loss(learnt_audio, init_audio_extract)
         if i % 1000 == 0:
-            print("Epoch: {} Loss: {}".format(i, loss.item()))
+            trange.write("Epoch: {} Loss: {}".format(i, loss.item()))
         loss.backward()
         optim.step()
         scheduler.step(loss.item())
@@ -167,8 +193,8 @@ def main(result_folder=None,                  # saving parameters
          ablation_pseudometric=True,          # For ablation studies
          ablation_learntlengths=True,         #
          ablation_similarreg=True,            #
-         old_shapelets=False,
-         save_top_logreg_shapelets=False):                # Whether to toggle off all of our innovations and use old-style shapelets
+         old_shapelets=False,                 # Whether to toggle off all of our innovations and use old-style shapelets
+         save_top_logreg_shapelets=False):
 
     times, train_dataloader, val_dataloader, test_dataloader = get_data()
 

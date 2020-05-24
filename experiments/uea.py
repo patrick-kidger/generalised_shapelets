@@ -257,8 +257,8 @@ def main(dataset_name,                        # dataset parameters
          ablation_pseudometric=True,          # For ablation studies
          ablation_learntlengths=True,         #
          ablation_similarreg=True,            #
-         old_shapelets=False,
-         save_top_logreg_shapelets=False):                # Whether to toggle off all of our innovations and use old-style shapelets
+         old_shapelets=False,                 # Whether to toggle off all of our innovations and use old-style shapelets
+         save_top_logreg_shapelets=False):
 
     times, train_dataloader, val_dataloader, test_dataloader, num_classes, input_channels = get_data(dataset_name,
                                                                                                      missing_rate,

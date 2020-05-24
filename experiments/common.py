@@ -164,7 +164,7 @@ class LinearShapeletTransform(torch.nn.Module):
         self.log = log
 
     def forward(self, times, X):
-        shapelet_similarity = self.shapelet_transform(times, X)
+        shapelet_similarity, closest_index = self.shapelet_transform(times, X)
         if self.log:
             log_shapelet_similarity = (shapelet_similarity + 1e-5).log()
         else:
@@ -172,7 +172,7 @@ class LinearShapeletTransform(torch.nn.Module):
         out = self.linear(log_shapelet_similarity)
         if out.size(-1) == 1:
             out = out.squeeze(-1)
-        return out, shapelet_similarity
+        return out, shapelet_similarity, closest_index
 
     def clip_length(self):
         self.shapelet_transform.clip_length()
@@ -207,7 +207,7 @@ def _evaluate_metrics(dataloader, model, times, loss_fn, num_classes):
         for batch in dataloader:
             X, y = batch
             batch_size = y.size(0)
-            pred_y, _ = model(times, X)
+            pred_y, _, _ = model(times, X)
             if num_classes == 2:
                 y = y.to(pred_y.dtype)
             total_accuracy += accuracy_fn(pred_y, y) * batch_size
@@ -218,8 +218,8 @@ def _evaluate_metrics(dataloader, model, times, loss_fn, num_classes):
         return _AttrDict(loss=total_loss, accuracy=total_accuracy)
 
 
-def _train_loop(train_dataloader, val_dataloader, test_dataloader, model, times, optimizer, loss_fn, epochs,
-                num_classes, ablation_similarreg):
+def _train_loop(train_dataloader, val_dataloader, model, times, optimizer, loss_fn, epochs, num_classes,
+                ablation_similarreg):
     model.train()
     best_model = model
     best_val_loss = math.inf
@@ -244,7 +244,7 @@ def _train_loop(train_dataloader, val_dataloader, test_dataloader, model, times,
             if breaking:
                 break
             X, y = batch
-            pred_y, shapelet_similarity = model(times, X)
+            pred_y, shapelet_similarity, _ = model(times, X)
             if num_classes == 2:
                 y = y.to(pred_y.dtype)
             loss = loss_fn(pred_y, y)
@@ -369,7 +369,7 @@ def save_top_shapelets_and_minimizers(model, times, train_data, save_dir, model_
     linear = model.linear.weight.detach()
     lengths = model.shapelet_transform.lengths.detach()
 
-    # Get the indexes of the top shapelets for each class (argmin as log)
+    # Get the indexes of the top shapelets for each class
     idxs = np.argmin(linear, 1)
 
     # Find the shapelet minimizer from the training data
@@ -380,7 +380,6 @@ def save_top_shapelets_and_minimizers(model, times, train_data, save_dir, model_
             distances.append(shapelet_similarity)
     distances = torch.cat(distances)
 
-    # distances = model.shapelet_transform(times, train_data)
     argmins = torch.argmin(distances, 0)
     minimizers = train_data[argmins].detach()
 
@@ -460,17 +459,8 @@ def main(times,
         del model.shapelet_transform.lengths
         model.shapelet_transform.register_buffer('lengths', new_lengths)
 
-
-    # Choose initialisation strategy:
-    # if old_shapelets:
-    #     # K-means is what is proposed in previous work...
     paths = train_dataloader.dataset.tensors[0]
     model.set_kmeans_shapelets(paths.to('cpu'), num_shapelet_samples, num_shapelets)
-    # else:
-    #     # ...but that doesn't make much sense for variable-length shapelets.
-    #     sample_batch = _get_sample_batch(train_dataloader, num_shapelets_per_class, num_shapelets)
-    #     model.set_extract_shapelets(times.to('cpu'), sample_batch.to('cpu'))
-    # Initialisation strategy doesn't seem to matter that much anyway.
 
     if not ablation_learntlengths:
         model.shapelet_transform.lengths.requires_grad_(False)
@@ -483,8 +473,8 @@ def main(times,
     optimizer = torch.optim.Adam(model.parameters(), lr=0.05)
 
     start_time = time.time()
-    history, best_model = _train_loop(train_dataloader, val_dataloader, test_dataloader, model, times, optimizer,
-                                      loss_fn, epochs, num_classes, ablation_similarreg)
+    history, best_model = _train_loop(train_dataloader, val_dataloader, model, times, optimizer, loss_fn, epochs,
+                                      num_classes, ablation_similarreg)
     training_time = time.time() - start_time
     results = _evaluate_model(train_dataloader, val_dataloader, test_dataloader, best_model, times, loss_fn, history,
                               num_classes)
@@ -498,10 +488,9 @@ def main(times,
     results.timespan = training_time
     if result_folder is not None:
         loc = save_results(result_folder, result_subfolder, results)
-
-    if save_top_logreg_shapelets:
-        train_data = train_dataloader.dataset.tensors[0]
-        save_top_shapelets_and_minimizers(model, times, train_data, loc)
+        if save_top_logreg_shapelets:
+            train_data = train_dataloader.dataset.tensors[0]
+            save_top_shapelets_and_minimizers(model, times, train_data, loc)
 
     return results
 

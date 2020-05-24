@@ -86,12 +86,10 @@
 % d index of D channels
 % i index of I, the size of the wavelet basis
 
-% TODO: need way more this-is-cool
-% TODO: make sure this handles irregularly sampled time series properly
 \begin{document}
 	\maketitle
 	\begin{abstract}
-		The shapelet transform is a form of feature extraction for time series, in which a time series is described by its similarity to each of a collection of `shapelets'. However it has previously suffered from a number of limitations, such as being limited to regularly-spaced fully-observed time series, and having to choose between efficient training and interpretability. Here, we extend the method to continuous time, and in doing so handle the general case of irregularly-sampled partially-observed multivariate time series. Furthermore, this then allows for learning the length of each shapelet (previously a discrete object) in a differentiable manner. Next, we generalise the measure of similarity between time series so as to be a learnt pseudometric. Finally, we show that a simple regularisation penalty may be used to train efficiently without sacrificing interpretability. We validate our method by demonstrating its empirical performance on several datasets.
+		The shapelet transform is a form of feature extraction for time series, in which a time series is described by its similarity to each of a collection of `shapelets'. However it has previously suffered from a number of limitations, such as being limited to regularly-spaced fully-observed time series, and having to choose between efficient training and interpretability. Here, we extend the method to continuous time, and in doing so handle the general case of irregularly-sampled partially-observed multivariate time series. This additionally then allows for learning the length of each shapelet (previously a discrete object) in a differentiable manner. Furthermore, we show that a simple regularisation penalty may be used to train efficiently without sacrificing interpretability. Finally, we generalise the measure of similarity between time series so as to be a learnt pseudometric. We validate our method by demonstrating its empirical performance on several datasets.
 	\end{abstract}
 	\section{Introduction} % TODO: need to put in a lot more references.
 	Shaplets are a form of feature extraction for time series, first introduced by \cite{TODO}. Given some fixed hyperparameter $K$, describing how many shapelets we are willing to consider, then each time series is represented by a vector of length $K$ describing how similar it is to each of the $k$ selected shapelets.
@@ -259,7 +257,7 @@ In \cite{TODO} they propose to solve this issue via adversarial regularisation.
 \section{Experiments}
 We compare our generalised shapelet transform to the classical shapelet transform, in terms of both performance and interpretability, on a large range of time series classification problems. Every experiment is run three times, and we report the mean and standard deviation of test accuracy. We take the interpolation scheme $\iota$ to be piecewise linear interpolation; in particular efficient algorithms for computing the logsignature transform only exist for piecewise linear paths \cite{signatory}. The regularisation parameter $\gamma$ is taken to be $10^{-4}$. This was selected by starting at $10^{-3}$ and reducing the value until test accuracy no longer improved, so as to ensure that it did not compromise performance.
 
-The loss was cross entropy, the optimiser was Adam \cite{TODO} with learning rate 0.05 and batch size 1024. If validation loss stagnated for 20 epochs then the learning rate was reduced by a factor of 10 and training resumed, down to a minimum learning rate of 0.001. We note that these unusually large learning rates are proportional to the large batch size, as is standard practice. If validation loss and accuracy failed to decrease over 60 epochs then training was halted. Once training was completed then the model parameters were rolled back to those which produced the highest validation accuracy.
+The loss was cross entropy, the optimiser was Adam \cite{TODO} with learning rate 0.05 and batch size 1024. If validation loss stagnated for 20 epochs then the learning rate was reduced by a factor of 10 and training resumed, down to a minimum learning rate of 0.001. We note that these relatively large learning rates are proportional to the large batch size, as is standard practice. If validation loss and accuracy failed to decrease over 60 epochs then training was halted. Once training was completed then the model parameters were rolled back to those which produced the highest validation accuracy.
 
 Precise experimental details may be found in Appendix \ref{TODO}.
 
@@ -321,25 +319,36 @@ We now demonstrate both the ability of the proposed framework to handle partiall
 
 
 \subsection{Speech Commands}
-Next we consider the Speech Commands dataset \ref{warden2018speech}. This is comprised of one-second audio files, corresponding to the words `yes', `no', `left', `right', and so on. We consider 10 classes so as to create a balanced classification problem.
+Next we consider the Speech Commands dataset \ref{warden2018speech}. This is comprised of one-second audio files, corresponding to words such as `yes', `no', `left', `right', and so on. We consider 10 classes so as to create a balanced classification problem.
 
 For the generalised shapelet transform, we use the MFC discrepancy described in equation \eqref{eq:mfc-discrepancy}. Knowing that this is a problem to do with spoken audio, choosing a discrepancy in this way allows us to exploit domain knowledge.
 
-For this more complicated dataset, we found that the generalised shapelet transform substantially outperformed the classical shapelet transform. (To keep things fair, the classical shaplet transform is performed in MFC-space; the performance gap is not due to this.)
-\begin{table}[ht]
-    \caption{Test accuracy (mean $\pm$ std, computed over three runs) on the Speech Commands dataset.}
-    \label{tab:speech_commands}
-    \centering
-    \input{results/speech_commands.tex}
-\end{table}
+For this more complicated dataset, we found that the generalised shapelet transform substantially outperformed the classical shapelet transform. (To keep things fair, the classical shaplet transform is performed in MFC-space; the performance gap is not due to this.) We find that  the classical shapelet transform produces a test accuracy of 44.8\% $\pm$ 8.6\%, whilst our more flexible generalised shapelet transform, with $L^2$ discrepancy, produces a test accuracy of 91.9\% $\pm$ 2.4\% (mean $\pm$ std, averaged over three runs).
 
 \boldheading{Interpretability of Speech Commands}
-
+TODO
 
 \section{Related Work}
+TODO
 
 
 	\section{Conclusion}
-
+	In this work we have extended and generalised the classical shapelet method in several ways. We have generalised it from discrete time to continuous time, and in doing so extend the method to the general case of irregularly-sampled partially-observed multivariate time series; furthermore this allows for the length of each shapelet to be treated as a parameter rather than a hyperparameter and optimised differentiably. We have introduced generalised discrepancies to allow for domain adaptation. Finally we have introduced a simple regularisation penalty that produces interpretable results capable of giving new insight into the data.
+	
+	\section*{Broader Impact}
+	Interpretability is important in the application of machine learning systems, so that the reason for choices made on the basis of that system can be justified, fairly, and without undue bias. Furthermore, methods which give new insight into the data are valuable for their ability to help the subequent development of theory. The generalised shapelet transform, with interpretable regularisation, is capable of supporting both of these objectives, and so it is our hope that a substantial part of the broader impact of this work will be its contributions towards these strategic goals.
+	
+	
+	\begin{ack}
+	PK was supported by the EPSRC grant EP/L015811/1. JM was supported by the EPSRC grant EP/L015803/1 in collaboration with Iterex Therapuetics. PK, JM, TL were supported by the Alan Turing Institute under the EPSRC grant EP/N510129/1.
+	\end{ack}
+	
+	\small
+	\bibliographystyle{ieeetr}
+	\bibliography{references} 
+	
+	\normalsize
+	\newpage
+	\appendix
 
 \end{document}
