@@ -377,19 +377,19 @@ TODO
 	TODO: hyperparams below
 	
 	\begin{tabular}{lccccccc}
-\toprule
-Dataset & Train size & Test size & Dimensions & Length & Classes & \parbox{10mm}{Shaplets per class} & \parbox{10mm}{Shapelet length fraction} \\ \midrule
-BasicMotions    & 40 & 40 & 6 & 100 & 4\\
-ERing           & 30 & 30 & 4 & 65 & 6\\
-Epilepsy        & 137 & 138 & 3 & 206 & 4 \\
-Handwriting     & 150 & 850 & 3 & 152 & 26 \\
-JapaneseVowels  & 270 & 370 & 12 & 29 & 9 \\
-Libras          & 180 & 180 & 2 & 45 & 15 \\
-LSST            & 2459 & 2466 & 6 & 36 & 14 \\
-PenDigits       & 7494 & 3498 & 2 & 8 & 10 \\
-RacketSports    & 151 & 152 & 6 & 30 & 4 \\
-\bottomrule
-\end{tabular}
+	\toprule
+	Dataset & Train size & Test size & Dimensions & Length & Classes & \parbox{10mm}{Shaplets per class} & \parbox{10mm}{Shapelet length fraction} \\ \midrule
+	BasicMotions    & 40 & 40 & 6 & 100 & 4 & 3 & 0.5 \\
+	ERing           & 30 & 30 & 4 & 65 & 6 & 2 & 0.5\\
+	Epilepsy        & 137 & 138 & 3 & 206 & 4 & 5 & 0.5 \\
+	Handwriting     & 150 & 850 & 3 & 152 & 26 & 3 & 0.5 \\
+	JapaneseVowels  & 270 & 370 & 12 & 29 & 9 & 2 & 0.5 \\
+	Libras          & 180 & 180 & 2 & 45 & 15 & 5 & 1.0 \\
+	LSST            & 2459 & 2466 & 6 & 36 & 14 & 2 & 1.0 \\
+	PenDigits       & 7494 & 3498 & 2 & 8 & 10 & 5 & 0.5 \\
+	RacketSports    & 151 & 152 & 6 & 30 & 4 & 3 & 0.5 \\
+	\bottomrule
+	\end{tabular}
 	
 	\subsection{Speech Commands}
 	The dataset can be downloaded from\\ \texttt{http://download.tensorflow.org/data/speech\_commands\_v0.02.tar.gz}.
