@@ -1,0 +1,20 @@
+\BOOKMARK [1][-]{section.1}{Introduction}{}% 1
+\BOOKMARK [2][-]{subsection.1.1}{Classical shapelet transform}{section.1}% 2
+\BOOKMARK [2][-]{subsection.1.2}{Limitations}{section.1}% 3
+\BOOKMARK [2][-]{subsection.1.3}{Contributions}{section.1}% 4
+\BOOKMARK [1][-]{section.2}{Prior work}{}% 5
+\BOOKMARK [1][-]{section.3}{Method}{}% 6
+\BOOKMARK [2][-]{subsection.3.1}{Continuous-time objects}{section.3}% 7
+\BOOKMARK [2][-]{subsection.3.2}{Generalised discrepancy}{section.3}% 8
+\BOOKMARK [2][-]{subsection.3.3}{Interpretable regularisation}{section.3}% 9
+\BOOKMARK [2][-]{subsection.3.4}{Minimisation objective and training procedure}{section.3}% 10
+\BOOKMARK [1][-]{section.4}{Experiments}{}% 11
+\BOOKMARK [2][-]{subsection.4.1}{The UEA Time Series Archive}{section.4}% 12
+\BOOKMARK [2][-]{subsection.4.2}{Missing Data and Length Ablation}{section.4}% 13
+\BOOKMARK [2][-]{subsection.4.3}{Speech Commands}{section.4}% 14
+\BOOKMARK [1][-]{section.5}{Conclusion}{}% 15
+\BOOKMARK [1][-]{appendix.A}{Experimental details}{}% 16
+\BOOKMARK [2][-]{subsection.A.1}{General notes}{appendix.A}% 17
+\BOOKMARK [2][-]{subsection.A.2}{UEA}{appendix.A}% 18
+\BOOKMARK [2][-]{subsection.A.3}{Speech Commands}{appendix.A}% 19
+\BOOKMARK [2][-]{subsection.A.4}{Further speech commands interpretability.}{appendix.A}% 20
