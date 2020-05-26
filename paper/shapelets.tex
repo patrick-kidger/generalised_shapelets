@@ -18,13 +18,13 @@
 \usepackage[utf8]{inputenc} % allow utf-8 input
 \usepackage{hyperref}       % hyperlinks
 \usepackage{url}            % simple URL typesetting
-\usepackage{booktabs}       % professional-quality tables
-\usepackage{amsfonts}       % blackboard math symbols
 \usepackage{amsmath}
+\usepackage{multirow}
 \usepackage{graphicx,wrapfig,lipsum}
 \usepackage{amsfonts}
 \usepackage{booktabs}
 \usepackage{empheq}
+\usepackage{rotating}
 \usepackage{amsthm}
 \usepackage{caption}
 \usepackage{subcaption}
@@ -264,7 +264,7 @@ The loss was cross entropy, the optimiser was Adam \cite{kingma2015} with learni
 
 Precise experimental details may be found in Appendix \ref{appendix:experimental}.
 
-\subsection{The UEA Time Series Archive}
+\subsection{The UEA Time Series Archive} \label{subsec:uea_classification}
 This is a collection of 30 fully-observed regularly-sampled datasets with varying properties \cite{bagnall2018uea}. Evaluating on the full collection of datasets would take a prohibitively long time, and so we select 9 representing a range of difficulties. Details of these (number of training samples, etc.) can be found in Appendix \ref{appendix:experimental}.
 
 We begin by performing hyperparameter optimisation (number of shapelets, length of shapelets) for the classical shapelet transform, separately for each dataset. We then use the same hyperparameters for the generalised shapelet transform. For the generalised shapelet transform, the length hyperparameter is used to determine the initial length of the shapelet, but this may of course vary as it is learnt.
@@ -309,27 +309,46 @@ A point of significant interest is the difference between the shapelets for the 
 
 Another good example of such discovery is the shapelet corresponding to the class 7, for the generalised shapelet transform. This is perhaps surprising to see as a distinguising feature of a `7'. However it turns out that no other digit features a stroke in that direction, in that place! (Figuring this out was a fun moment for the authors, sketching figures in the air.) A similar case can be made for the `2' shapelet.
 
-\subsection{Missing Data and Length Ablation}
-TODO - not touched this part
+\subsection{Missing Data and Length Ablation} \label{subsec:uea_missing_and_length}
+	We now demonstrate the ability of our proposed method to handle partially observed data, as well as show the effectivness of enabling learnt lengths. To test this we consider 3 datasets from the UEA archive and run experiments where we drop $10\%$, $30\%$, and $50\%$ of the data for the cases when learnt lengths are enabled and length is left as fixed.
 
-We now demonstrate both the ability of the proposed framework to handle partially observed data, as well as understand the effectiveness of having learnable shapelet lengths. We consider three datasets from the UEA archive and the two learnt discrepancy functions we have been using in this section (L2-diagonal and logsig-3). For each dataset and discrepancy function we run six experiments where we drop $10\%$, $30\%$, and $50\%$ of the data in the situation where we allow length to be learnt and when we keep the length fixed. The results are given in Table \ref{tab:uea_noise}. Firstly, we note that the model is extremely robust to missing data as the performance is in general maintained, or close to maintained, even as we drop $50\%$ of the data-points. Allowing the length to be learnt does not appear to improve the performance of the model in terms of accuracy, however we postulate that allowing for learnt lengths can take the place of the hyperparamter search over the length.
+	We first run a small hyperparameter study to determine the optimal number of shaplets and shapelet length for the fixed model. The best parameters on the validation set are then used to train the fixed model and we train the learnt model with the same number of classes but initialise the lengths of the shapelets to the worst performing length value as found in the hyperparameter study. The hope is that the learnt model will be able to find the best length, starting at the worst length, without the need for the additional hyperparameter tuning step.
+
+	 The results are given in Table~\ref{tab:missing_and_length}. Firstly we note the effectiveness with which the model can deal with missing data with the accuracy being maintained well as more data is dropped. We also see that the learnt length starting at the worst shapelet length, leads to comparable performance with the model starting at the best length, demonstrating the effectiveness of this addition to the method.
 \begin{table}[ht]
-    \caption{}
-    \label{tab:uea_noise}
+    \label{tab:missing_and_length}
     \centering
     \input{results/uea_missing_and_length.tex}
+	\caption{Test accuracy (mean $\pm$ std, computed over three runs) on 3 of the UEA datasets for different proportions of dropped data and the cases where learnt length is enabled and when length is fixed. A `win' is defined as the number of times each algorithm was within 1 standard deviation of the top performer for each dataset.}
 \end{table}
 
 
 \subsection{Speech Commands}
-Next we consider the Speech Commands dataset \cite{warden2018speech}. This is comprised of one-second audio files, corresponding to words such as `yes', `no', `left', `right', and so on. We consider 10 classes so as to create a balanced classification problem.
+Next we consider the Speech Commands dataset~\cite{warden2018speech}. This is comprised of one-second audio files, corresponding to words such as `yes', `no', `left', `right', and so on. We consider 10 classes so as to create a balanced classification problem.
 
-For the generalised shapelet transform, we use the MFC discrepancy described in equation \eqref{eq:mfc-discrepancy}. Knowing that this is a problem to do with spoken audio, choosing a discrepancy in this way allows us to exploit domain knowledge.
+For the generalised shapelet transform, we use the MFC discrepancy described in equation~\eqref{eq:mfc-discrepancy}. Knowing that this is a problem to do with spoken audio, choosing a discrepancy in this way allows us to exploit domain knowledge.
 
 For this more complicated dataset, we found that the generalised shapelet transform substantially outperformed the classical shapelet transform. (To keep things fair, the classical shaplet transform is performed in MFC-space; the performance gap is not due to this.) We find that  the classical shapelet transform produces a test accuracy of 44.8\% $\pm$ 8.6\%, whilst our more flexible generalised shapelet transform, with $L^2$ discrepancy, produces a test accuracy of 91.9\% $\pm$ 2.4\% (mean $\pm$ std, averaged over three runs).
 
 \boldheading{Interpretability of Speech Commands}
-TODO
+To examine the interpretability of speech commands, we refer to Figure \ref{fig:speech_commands} which shows the first 10 MFC coefficiets for a given shapelet (left) the corresponding training set discrepancy minimizer (middle) along with the difference between the two (right). It is clear from the difference plot that the new method produces shapelets far more similar to the closest training example and thus, we expect, far easier to interpret it's meaning in terms of audio. We have converted the shapelet MFC coefficients back into audio format and you can hear the sounds at ???. Whilst it is not as easy to identify what aspect of the sound belongs to what word, clear differences can certainly be made out, we expect someone more well versed in audio analysis than ourselves would be able to better analyse these resulting sound bites. We refer to Appendix \ref{apx:further_speech_commands_interpretability} for the full plots of each MFC coefficient for the shapelet against the training set example.
+	\begin{figure}[t]
+		\begin{subfigure}[b]{\linewidth}
+			\centering
+			\includegraphics[width=\linewidth]{images/old_speech_commands_heatmap.png}
+			\caption{Classical shapelet transform.}
+			\label{fig:old_speech_commands}
+		\end{subfigure}
+		\begin{subfigure}[b]{\linewidth}
+			\centering
+			\includegraphics[width=\linewidth]{images/new_speech_commands_heatmap.png}
+			\caption{Generalised shapelet transform with $L^2$ discrepancy.}
+			\label{fig:new_speech_commands}
+		\end{subfigure}
+		\caption{First 10 MFC coefficients for the shapelet (left), training set minimizer (middle), and the difference between them (right).}
+		\label{fig:speech_commands}
+	\end{figure}
+
 
 % Limiations: no DTW; speed+memory of training lengths
 
@@ -361,7 +380,7 @@ TODO
 	
 	\boldheading{Computer infrastructure} Experiments were run on the CPU of a variety of different machines, all using Ubuntu 18.04 LTS, and running PyTorch 1.3.1.
 	
-	\subsection{UEA}
+	\subsection{UEA} \label{apx:uea}
 	The datasets can be downloaded from \texttt{https://timeseriesclassification.com}.
 	
 	All UEA datasets were used unnormalised. Those samples which were shorter than the maximum length of the sequence were padded to the maximum length by repeating their final entry.
@@ -373,24 +392,62 @@ TODO
 	The maximum number of epochs allowed for training was 250.
 	
 	The details of each dataset are as below. We note that the train/test splits are sometimes of unusual proportion; we do not know the reason for this odd choice.
-	
-	TODO: hyperparams below
-	
-	\begin{tabular}{lccccccc}
-\toprule
-Dataset & Train size & Test size & Dimensions & Length & Classes & \parbox{10mm}{Shaplets per class} & \parbox{10mm}{Shapelet length fraction} \\ \midrule
-BasicMotions    & 40 & 40 & 6 & 100 & 4\\
-ERing           & 30 & 30 & 4 & 65 & 6\\
-Epilepsy        & 137 & 138 & 3 & 206 & 4 \\
-Handwriting     & 150 & 850 & 3 & 152 & 26 \\
-JapaneseVowels  & 270 & 370 & 12 & 29 & 9 \\
-Libras          & 180 & 180 & 2 & 45 & 15 \\
-LSST            & 2459 & 2466 & 6 & 36 & 14 \\
-PenDigits       & 7494 & 3498 & 2 & 8 & 10 \\
-RacketSports    & 151 & 152 & 6 & 30 & 4 \\
-\bottomrule
-\end{tabular}
-	
+
+	\begin{table}[ht]
+		\caption{}
+		\label{tab:uea_hyperparams_old}
+		\centering
+		\begin{tabular}{lccccccc}
+			\toprule
+			Dataset & Train size & Test size & Dimensions & Length & Classes & \parbox{10mm}{Shapelets per class} & \parbox{10mm}{Shapelet length fraction} \\ \midrule
+			BasicMotions    & 40 & 40 & 6 & 100 & 4 & 3 & 0.5 \\
+			ERing           & 30 & 30 & 4 & 65 & 6 & 2 & 0.5 \\
+			Epilepsy        & 137 & 138 & 3 & 206 & 4 & 5 & 0.5 \\
+			Handwriting     & 150 & 850 & 3 & 152 & 26 & 3 & 0.5 \\
+			JapaneseVowels  & 270 & 370 & 12 & 29 & 9 & 2 & 0.5 \\
+			Libras          & 180 & 180 & 2 & 45 & 15 & 5 & 1.0 \\
+			LSST            & 2459 & 2466 & 6 & 36 & 14 & 2 & 1.0 \\
+			PenDigits       & 7494 & 3498 & 2 & 8 & 10 & 5 & 0.5 \\
+			RacketSports    & 151 & 152 & 6 & 30 & 4 & 3 & 0.5 \\
+			\bottomrule
+		\end{tabular}
+	\end{table}
+
+
+	We also give the hyperparameters used for Section \ref{sec:missing_and_length} below. These were chosen to optimize the validation score for the generalised $L^2$ discrepancy rather than on classical shapelets and as such are different to those noted above.
+
+	\begin{table}[ht]
+		\caption{}
+		\label{tab:uea_hyperparams_l2}
+		\centering
+		\begin{tabular}{lccc}
+			\toprule
+			Dataset & Shapelets per class & Best length fraction & Worst length fraction \\
+			\midrule
+			JapaneseVowels  & 3 & 0.15 & 0.5 \\
+			Libras          & 2 & 1.0 & 0.15 \\
+			LSST            & 2 & 0.3 & 1.0 \\
+			\bottomrule
+		\end{tabular}
+	\end{table}
+
+	For completeness, we also give the full results from both hyperparamters in Tables \ref{tab:uea_hyperparameter_old, tab:uea_hyperparameter_l2}.
+
+	\begin{sidewaystable}
+		\centering
+		\label{tab:uea_hyperparams_old_results}
+		\input{results/uea_hyperparameter_old.tex}
+		\caption{Accuracy on the validation set for the hyperparmeter runs performed to determine the hyperparameters used in Section \ref{subsec:uea_classification}. The top column value represents the number of classes per shapelet for the run, with the lower values being the shapelet length proportion for that number of classes. The best run is given in bold. When multiple options achieved the highest score, the hyperparameters were chosen randomly from that top performing set.}
+
+		\bigskip\bigskip  % provide some separation between the two tables
+
+		\centering
+		\label{tab:uea_hyperparams_l2_results}
+		\input{results/uea_hyperparameter_l2.tex}
+		\caption{Accuracy on the validation set for the hyperparmeter runs performed to determine the hyperparameters used in Section \ref{subsec:uea_missing_and_length}. The top column value represents the number of classes per shapelet for the run, with the lower values being the shapelet length proportion for that number of classes. The best hyperparameters are denoted in bold with a $^*$ and the worst length hyperperameter for the same number of shapelets per class denoted as bold followed by a $_*$. When multiple options achieved the highest score, the hyperparameters were chosen randomly from that top performing set.}
+	\end{sidewaystable}
+
+
 	\subsection{Speech Commands}
 	The dataset can be downloaded from\\ \texttt{http://download.tensorflow.org/data/speech\_commands\_v0.02.tar.gz}.
 	
@@ -403,5 +460,25 @@ RacketSports    & 151 & 152 & 6 & 30 & 4 \\
 	The maximum number of epochs allowed for training was 1000. The number of shapelets used per class was 4, for a total of 40 shapelets. The length of each shapelet (set to for the classical shapelet transform; initialised at for the generalised shapelet transform) was taken to be 0.3 of the full length of the dataset.
 	
 	The data is combined into a single dataset and a 70\%/15\%/15\% training/validation/test split taken, stratified by class label.
-	
+
+
+    \subsection{A further look at speech commands interpretability.} \label{apx:further_speech_commands_interpretability}
+	In Figure \ref{fig:speech_commands_axisplot} we show all 40 MFC coefficients for the shapelet (blue) and the training set minimizer (orange, dashed) for the classical and generalised $L^2$ methods. This was omitted from the body of the text due to the size of the figures and also that the MFC plots are easier to digest.
+	\begin{figure}[t]
+		\begin{subfigure}[b]{\linewidth}
+			\centering
+			\includegraphics[width=\linewidth]{images/new_speech_commands_axisplots.png}
+			\caption{Classical shapelet transform.}
+			\label{fig:old_speech_commands_axisplot}
+		\end{subfigure}
+		\begin{subfigure}[b]{\linewidth}
+			\centering
+			\includegraphics[width=\linewidth]{images/new_speech_commands_axisplots.png}
+			\caption{Generalised shapelet transform with $L^2$ discrepancy.}
+			\label{fig:new_speech_commands_axisplot}
+		\end{subfigure}
+		\caption{All MFC coefficients for the shapelet (blue) and the training set minimizer (orange, dashed).}
+		\label{fig:speech_commands_axisplot}
+	\end{figure}
+
 \end{document}

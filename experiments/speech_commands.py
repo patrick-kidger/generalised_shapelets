@@ -190,6 +190,7 @@ def main(result_folder=None,                  # saving parameters
          discrepancy_fn='L2',                 #
          max_shapelet_length_proportion=0.3,  #
          num_continuous_samples=None,         #
+         initialization_proportion=None,
          ablation_pseudometric=True,          # For ablation studies
          ablation_learntlengths=True,         #
          ablation_similarreg=True,            #
@@ -214,6 +215,7 @@ def main(result_folder=None,                  # saving parameters
                        num_shapelet_samples,
                        discrepancy_fn,
                        max_shapelet_length_proportion,
+                       initialization_proportion,
                        num_continuous_samples,
                        ablation_pseudometric,
                        ablation_learntlengths,

@@ -56,83 +56,59 @@ large_datasets = {'InsectWingbeat', 'ElectricDevices', 'PenDigits', 'SpokenArabi
 
 
 # Ordered by channels * dataset size * num_classes * length ** 2, i.e. the cost of evaluating shaplets on them.
+# The uncommented datasets are those used in the paper.
 datasets_by_cost = ('ERing',
                     'RacketSports',
                     'PenDigits',
                     'BasicMotions',
                     'Libras',
                     'JapaneseVowels',
-                    'AtrialFibrillation',
+                    # 'AtrialFibrillation',   # Length 640
                     'FingerMovements',
-                    'NATOPS',
+                    # 'NATOPS',               # Dimension 24 (logsig-3 failed).
                     'Epilepsy',
                     'LSST',
                     'Handwriting',
-                    'UWaveGestureLibrary',
-                    'StandWalkJump',
-                    'HandMovementDirection',
-                    'ArticularyWordRecognition',
-                    'SelfRegulationSCP1',
-                    'CharacterTrajectories',
-                    'SelfRegulationSCP2',
-                    'Heartbeat',
-                    'FaceDetection',
-                    'SpokenArabicDigits',
-                    'EthanolConcentration',
-                    'Cricket',
-                    'DuckDuckGeese',
-                    'PEMS-SF',
-                    'InsectWingbeat',
-                    'PhonemeSpectra',
-                    'MotorImagery',
-                    'EigenWorms')
+                    # 'UWaveGestureLibrary',
+                    # 'StandWalkJump',
+                    # 'HandMovementDirection',
+                    # 'ArticularyWordRecognition',
+                    # 'SelfRegulationSCP1',
+                    # 'CharacterTrajectories',
+                    # 'SelfRegulationSCP2',
+                    # 'Heartbeat',
+                    # 'FaceDetection',
+                    # 'SpokenArabicDigits',
+                    # 'EthanolConcentration',
+                    # 'Cricket',
+                    # 'DuckDuckGeese',
+                    # 'PEMS-SF',
+                    # 'InsectWingbeat',
+                    # 'PhonemeSpectra',
+                    # 'MotorImagery',
+                    # 'EigenWorms'
+                    )
 
-datasets_by_length = (
-    # 'PenDigits',
-    # 'JapaneseVowels',
-    # 'InsectWingbeat',     # 200 dimensions
-    # 'RacketSports',
-    # 'LSST',
-    # 'Libras',
-    # 'FingerMovements',
-    # 'NATOPS',
-    # 'FaceDetection',      # 144 dimensions
-    # 'ERing',
-    # 'BasicMotions',
-    # 'PEMS-SF',            # 963 dimensions
-    'ArticularyWordRecognition',
-    'Handwriting',
-    'Epilepsy',             # Length 206
-    'SpokenArabicDigits',   # 13 dimensions
-    'CharacterTrajectories',
-    # 'PhonemeSpectra',
-    # 'Phoneme',
-    # 'DuckDuckGeese',
-    # 'UWaveGestureLibrary',
-    # 'HandMovementDirection',
-    # 'Heartbeat',
-    # 'AtrialFibrillation',
-    # 'SelfRegulationSCP1',
-    # 'SelfRegulationSCP2',
-    # 'Cricket',
-    # 'EthanolConcentration',
-    # 'StandWalkJump',
-    # 'MotorImagery',
-    # 'EigenWorms'
-)
 
+# Best parameters from the 'old' hyperparameter search
 old_hyperparameter_output = (
-    # ('PenDigits', 5, 0.5),
-    # ('JapaneseVowels', 2, 0.5),
-    # ('RacketSports', 3, 0.5),
-    # ('Libras', 5, 1.0),
-    # ('ERing', 2, 0.5),
-    # ('BasicMotions', 2, 0.5),
-    # ('NATOPS', 3, 0.5),
-    # ('LSST', 2, 1.0),
-    # ('FingerMovements', 3, 1.0),
+    ('PenDigits', 5, 0.5),
+    ('JapaneseVowels', 2, 0.5),
+    ('RacketSports', 3, 0.5),
+    ('Libras', 5, 1.0),
+    ('ERing', 2, 0.5),
+    ('BasicMotions', 2, 0.5),
+    ('NATOPS', 3, 0.5),
+    ('LSST', 2, 1.0),
+    ('FingerMovements', 3, 1.0),
     ('Handwriting', 3, 0.5),
     ('Epilepsy', 5, 0.5)
+)
+
+l2_hyperparameter_output = (
+    ('JapaneseVowels', 3, 0.15, 0.5),
+    ('Libras', 2, 1.0, 0.15),
+    ('LSST', 2, 0.3, 1.0)
 )
 
 
@@ -253,6 +229,7 @@ def main(dataset_name,                        # dataset parameters
          num_shapelet_samples=None,           #
          discrepancy_fn='L2',                 #
          max_shapelet_length_proportion=1.0,  #
+         initialization_proportion=None,
          num_continuous_samples=None,         #
          ablation_pseudometric=True,          # For ablation studies
          ablation_learntlengths=True,         #
@@ -277,6 +254,7 @@ def main(dataset_name,                        # dataset parameters
                        num_shapelet_samples,
                        discrepancy_fn,
                        max_shapelet_length_proportion,
+                       initialization_proportion,
                        num_continuous_samples,
                        ablation_pseudometric,
                        ablation_learntlengths,
@@ -285,9 +263,9 @@ def main(dataset_name,                        # dataset parameters
                        save_top_logreg_shapelets)
 
 
-def hyperparameter_search():
+def hyperparameter_search_old():
     result_folder = 'uea_hyperparameter_search'
-    for dataset_name in datasets_by_length:
+    for dataset_name in datasets_by_cost:
         for num_shapelets_per_class in (2, 3, 5):
             for max_shapelet_length_proportion in (0.15, 0.3, 0.5, 1.0):
                 result_subfolder = 'old-' + str(num_shapelets_per_class) + '-' + str(max_shapelet_length_proportion)
@@ -301,67 +279,53 @@ def hyperparameter_search():
                          old_shapelets=True)
 
 
+def hyperparameter_search_l2():
+    result_folder = 'uea_hyperparameter_search_l2'
+    for dataset_name in datasets_by_cost:
+        for num_shapelets_per_class in (2, 3, 5):
+            for max_shapelet_length_proportion in (0.15, 0.3, 0.5, 1.0):
+                result_subfolder = 'old-' + str(num_shapelets_per_class) + '-' + str(max_shapelet_length_proportion)
+                if common.assert_not_done(result_folder, dataset_name + '-' + result_subfolder, n_done=1, seed=0):
+                    print("Starting comparison: " + dataset_name + '-' + result_subfolder)
+                    main(dataset_name,
+                         result_folder=result_folder,
+                         result_subfolder=result_subfolder,
+                         num_shapelets_per_class=num_shapelets_per_class,
+                         max_shapelet_length_proportion=max_shapelet_length_proportion,
+                         discrepancy_fn='L2',
+                         old_shapelets=False)
+
+
 def missing_and_length_test():
     seed = 5678
     for i in range(3):
         result_folder = 'uea_missing_and_length'
-        for dataset_name in ('JapaneseVowels', 'BasicMotions', 'FingerMovements'):
+        for dataset_name, num_shapelets_per_class, best_length_proportion, worst_length_proportion in l2_hyperparameter_output:
             for missing_rate in (0.1, 0.3, 0.5):
-                for discrepancy_fn in ('L2', 'logsig-3'):
-                    for learntlengths in (True, False):
-                        seed = common.handle_seeds(seed)
-                        result_subfolder = discrepancy_fn + '-' + str(learntlengths)
-                        dataset_detail = str(int(missing_rate * 100))
-                        full_result_subfolder = _subfolder(dataset_name, dataset_detail, result_subfolder)
-                        if common.assert_not_done(result_folder, full_result_subfolder, n_done=3):
-                            print("Starting comparison: " + full_result_subfolder)
-                            main(dataset_name,
-                                 result_folder=result_folder,
-                                 result_subfolder=result_subfolder,
-                                 dataset_detail=dataset_detail,
-                                 missing_rate=missing_rate,
-                                 discrepancy_fn=discrepancy_fn,
-                                 ablation_learntlengths=learntlengths)
+                discrepancy_fn = 'L2'
+                for learntlengths in (True, False):
+                    seed = common.handle_seeds(seed)
+                    result_subfolder = discrepancy_fn + '-' + str(learntlengths)
+                    dataset_detail = str(int(missing_rate * 100))
+                    full_result_subfolder = _subfolder(dataset_name, dataset_detail, result_subfolder)
+                    if common.assert_not_done(result_folder, full_result_subfolder, n_done=3):
+                        print("Starting comparison: " + full_result_subfolder)
+                        main(dataset_name,
+                             result_folder=result_folder,
+                             result_subfolder=result_subfolder,
+                             dataset_detail=dataset_detail,
+                             missing_rate=missing_rate,
+                             discrepancy_fn=discrepancy_fn,
+                             max_shapelet_length_proportion=1.0 if learntlengths else best_length_proportion,
+                             num_shapelets_per_class=num_shapelets_per_class,
+                             initialization_propotion=None if not learntlengths else worst_length_proportion,
+                             ablation_learntlengths=learntlengths)
 
 
 def comparison_test():
-    seed = 5678
-    for i in range(3):
-        result_folder = 'uea_comparison'
-
-        for dataset_name, shapelets_per_class, shapelet_length_proportion in old_hyperparameter_output:
-            for discrepancy_fn in ('L2', 'logsig-3'):
-                seed = common.handle_seeds(seed)
-                result_subfolder = discrepancy_fn + 'diagonal' if discrepancy_fn == 'logsig-3' else discrepancy_fn + '-diagonal'
-                dataset_detail = ''
-                full_result_subfolder = _subfolder(dataset_name, dataset_detail, result_subfolder)
-                if common.assert_not_done(result_folder, full_result_subfolder, n_done=3, seed=i):
-                    print("Starting comparison: " + full_result_subfolder)
-                    main(dataset_name,
-                         result_folder=result_folder,
-                         result_subfolder=result_subfolder,
-                         discrepancy_fn=discrepancy_fn,
-                         num_shapelets_per_class=shapelets_per_class,
-                         max_shapelet_length_proportion=min(1, shapelet_length_proportion+0.1))
-
-            seed = common.handle_seeds(seed)
-            result_subfolder = 'old'
-            dataset_detail = ''
-            full_result_subfolder = _subfolder(dataset_name, dataset_detail, result_subfolder)
-            if common.assert_not_done(result_folder, full_result_subfolder, n_done=3, seed=i):
-                print("Starting comparison: " + full_result_subfolder)
-                main(dataset_name,
-                     result_folder=result_folder,
-                     result_subfolder=result_subfolder,
-                     old_shapelets=True,
-                     num_shapelets_per_class=shapelets_per_class,
-                     max_shapelet_length_proportion=shapelet_length_proportion)
-
-
-def comparison_test_new():
     seed = 5394
     for i in range(0, 3):
-        result_folder = 'uea_comparison_new'
+        result_folder = 'uea_comparison'
         for dataset_name, shapelets_per_class, shapelet_length_proportion in old_hyperparameter_output:
             for discrepancy_fn in ('L2', 'logsig-3'):
                 seed = common.handle_seeds(seed)
@@ -375,7 +339,7 @@ def comparison_test_new():
                          result_subfolder=result_subfolder,
                          discrepancy_fn=discrepancy_fn,
                          num_shapelets_per_class=shapelets_per_class,
-                         max_shapelet_length_proportion=min(1, shapelet_length_proportion+0.1))
+                         max_shapelet_length_proportion=min(1, shapelet_length_proportion + 0.1))
 
             seed = common.handle_seeds(seed)
             result_subfolder = 'old'

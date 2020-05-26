@@ -407,6 +407,7 @@ def main(times,
          num_shapelet_samples,
          discrepancy_fn,
          max_shapelet_length_proportion,
+         initialization_proportion,
          num_continuous_samples,
          ablation_pseudometric,
          ablation_learntlengths,
@@ -428,8 +429,11 @@ def main(times,
     timespan = times[-1] - times[0]
     max_shapelet_length = timespan * max_shapelet_length_proportion
     if num_shapelet_samples is None:
-        num_shapelet_samples = int(max_shapelet_length_proportion * times.size(0))
-        num_shapelet_samples = max(num_shapelet_samples, 7)  # make sure they have a minimum amount of expressivity
+        if initialization_proportion is not None:
+            num_shapelet_samples = int(initialization_proportion * times.size(0))
+        else:
+            num_shapelet_samples = int(max_shapelet_length_proportion * times.size(0))
+            num_shapelet_samples = max(num_shapelet_samples, 7)  # make sure they have a minimum amount of expressivity
     if num_continuous_samples is None:
         num_continuous_samples = times.size(0)
 
