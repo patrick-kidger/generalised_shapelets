@@ -47,10 +47,6 @@ INPUT /usr/local/texlive/2018/texmf-dist/tex/latex/hyperref/hpdftex.def
 INPUT /usr/local/texlive/2018/texmf-dist/tex/latex/hyperref/hpdftex.def
 INPUT /usr/local/texlive/2018/texmf-dist/tex/latex/oberdiek/rerunfilecheck.sty
 INPUT /usr/local/texlive/2018/texmf-dist/tex/latex/oberdiek/rerunfilecheck.sty
-INPUT /usr/local/texlive/2018/texmf-dist/tex/latex/booktabs/booktabs.sty
-INPUT /usr/local/texlive/2018/texmf-dist/tex/latex/booktabs/booktabs.sty
-INPUT /usr/local/texlive/2018/texmf-dist/tex/latex/amsfonts/amsfonts.sty
-INPUT /usr/local/texlive/2018/texmf-dist/tex/latex/amsfonts/amsfonts.sty
 INPUT /usr/local/texlive/2018/texmf-dist/tex/latex/amsmath/amsmath.sty
 INPUT /usr/local/texlive/2018/texmf-dist/tex/latex/amsmath/amsmath.sty
 INPUT /usr/local/texlive/2018/texmf-dist/tex/latex/amsmath/amstext.sty
@@ -61,6 +57,8 @@ INPUT /usr/local/texlive/2018/texmf-dist/tex/latex/amsmath/amsbsy.sty
 INPUT /usr/local/texlive/2018/texmf-dist/tex/latex/amsmath/amsbsy.sty
 INPUT /usr/local/texlive/2018/texmf-dist/tex/latex/amsmath/amsopn.sty
 INPUT /usr/local/texlive/2018/texmf-dist/tex/latex/amsmath/amsopn.sty
+INPUT /usr/local/texlive/2018/texmf-dist/tex/latex/multirow/multirow.sty
+INPUT /usr/local/texlive/2018/texmf-dist/tex/latex/multirow/multirow.sty
 INPUT /usr/local/texlive/2018/texmf-dist/tex/latex/graphics/graphicx.sty
 INPUT /usr/local/texlive/2018/texmf-dist/tex/latex/graphics/graphicx.sty
 INPUT /usr/local/texlive/2018/texmf-dist/tex/latex/graphics/graphics.sty
@@ -75,6 +73,10 @@ INPUT /usr/local/texlive/2018/texmf-dist/tex/latex/wrapfig/wrapfig.sty
 INPUT /usr/local/texlive/2018/texmf-dist/tex/latex/wrapfig/wrapfig.sty
 INPUT /usr/local/texlive/2018/texmf-dist/tex/latex/lipsum/lipsum.sty
 INPUT /usr/local/texlive/2018/texmf-dist/tex/latex/lipsum/lipsum.sty
+INPUT /usr/local/texlive/2018/texmf-dist/tex/latex/amsfonts/amsfonts.sty
+INPUT /usr/local/texlive/2018/texmf-dist/tex/latex/amsfonts/amsfonts.sty
+INPUT /usr/local/texlive/2018/texmf-dist/tex/latex/booktabs/booktabs.sty
+INPUT /usr/local/texlive/2018/texmf-dist/tex/latex/booktabs/booktabs.sty
 INPUT /usr/local/texlive/2018/texmf-dist/tex/latex/mathtools/empheq.sty
 INPUT /usr/local/texlive/2018/texmf-dist/tex/latex/mathtools/empheq.sty
 INPUT /usr/local/texlive/2018/texmf-dist/tex/latex/mathtools/mhsetup.sty
@@ -83,6 +85,10 @@ INPUT /usr/local/texlive/2018/texmf-dist/tex/latex/mathtools/mathtools.sty
 INPUT /usr/local/texlive/2018/texmf-dist/tex/latex/mathtools/mathtools.sty
 INPUT /usr/local/texlive/2018/texmf-dist/tex/latex/tools/calc.sty
 INPUT /usr/local/texlive/2018/texmf-dist/tex/latex/tools/calc.sty
+INPUT /usr/local/texlive/2018/texmf-dist/tex/latex/graphics/rotating.sty
+INPUT /usr/local/texlive/2018/texmf-dist/tex/latex/graphics/rotating.sty
+INPUT /usr/local/texlive/2018/texmf-dist/tex/latex/base/ifthen.sty
+INPUT /usr/local/texlive/2018/texmf-dist/tex/latex/base/ifthen.sty
 INPUT /usr/local/texlive/2018/texmf-dist/tex/latex/amscls/amsthm.sty
 INPUT /usr/local/texlive/2018/texmf-dist/tex/latex/amscls/amsthm.sty
 INPUT /usr/local/texlive/2018/texmf-dist/tex/latex/caption/caption.sty
@@ -293,6 +299,10 @@ INPUT /usr/local/texlive/2018/texmf-dist/fonts/tfm/adobe/times/ptmri7t.tfm
 INPUT /usr/local/texlive/2018/texmf-dist/fonts/vf/adobe/times/ptmri7t.vf
 INPUT /usr/local/texlive/2018/texmf-dist/fonts/tfm/adobe/times/ptmri8r.tfm
 INPUT /usr/local/texlive/2018/texmf-dist/fonts/tfm/public/cm/cmtt9.tfm
+INPUT results/uea_hyperparameter_old.tex
+INPUT results/uea_hyperparameter_old.tex
+INPUT results/uea_hyperparameter_l2.tex
+INPUT results/uea_hyperparameter_l2.tex
 INPUT images/new_speech_commands_axisplots.png
 INPUT ./images/new_speech_commands_axisplots.png
 INPUT ./images/new_speech_commands_axisplots.png

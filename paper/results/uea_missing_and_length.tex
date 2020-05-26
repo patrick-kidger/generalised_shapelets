@@ -1,18 +1,20 @@
-\begin{tabular}{lcccc}
+\begin{tabular}{lccc}
 \toprule
-{} & \multicolumn{4}{c}{\textbf{Discrepancy}} \\
-\textbf{Dataset} &       logsig-3-False &           L2-False &      logsig-3-True &            L2-True \\
+& {} & \multicolumn{2}{c}{\textbf{Learnt Lengths}} \\  \cmidrule{3-4}
+\textbf{Dataset} & \textbf{Dropped data} &              True &           False \\
 \midrule
-BasicMotions10    &    0.783 $\pm$ 0.038 &  0.933 $\pm$ 0.038 &  0.767 $\pm$ 0.101 &  0.883 $\pm$ 0.118 \\
-BasicMotions30    &    0.825 $\pm$ 0.050 &  0.958 $\pm$ 0.029 &  0.758 $\pm$ 0.063 &  0.942 $\pm$ 0.029 \\
-BasicMotions50    &    0.733 $\pm$ 0.115 &  0.942 $\pm$ 0.038 &  0.733 $\pm$ 0.063 &  0.925 $\pm$ 0.066 \\
-JapaneseVowels10  &    0.677 $\pm$ 0.082 &  0.955 $\pm$ 0.037 &  0.634 $\pm$ 0.017 &  0.950 $\pm$ 0.034 \\
-JapaneseVowels30  &    0.639 $\pm$ 0.025 &  0.968 $\pm$ 0.001 &  0.628 $\pm$ 0.063 &  0.969 $\pm$ 0.002 \\
-JapaneseVowels50  &    0.611 $\pm$ 0.061 &  0.968 $\pm$ 0.003 &  0.620 $\pm$ 0.006 &  0.966 $\pm$ 0.003 \\
-LSST10            &    0.365 $\pm$ 0.005 &  0.363 $\pm$ 0.001 &  0.359 $\pm$ 0.009 &  0.358 $\pm$ 0.007 \\
-LSST30            &    0.360 $\pm$ 0.007 &  0.360 $\pm$ 0.001 &  0.360 $\pm$ 0.007 &  0.407 $\pm$ 0.010 \\
-LSST50            &    0.354 $\pm$ 0.007 &  0.362 $\pm$ 0.008 &  0.358 $\pm$ 0.004 &  0.381 $\pm$ 0.034 \\ 
+\multirow{3}{*}{JapaneseVowels} & 10\% & \textbf{93.2\% $\pm$ 2.1\%} & \textbf{93.1\% $\pm$ 0.9\%} \\
+                                & 30\% & \textbf{91.2\% $\pm$ 4.1\%} & \textbf{91.4\% $\pm$ 2.8\%} \\
+                                & 50\% & \textbf{93.5\% $\pm$ 1.1\%} & 92.0\% $\pm$ 1.1\% \\
+\multirow{3}{*}{LSST}           & 10\% & 40.2\% $\pm$ 3.5\% & \textbf{44.0\% $\pm$ 1.0\%} \\
+                                & 30\% & \textbf{38.1\% $\pm$ 0.3\%} & \textbf{40.2\% $\pm$ 5.6\%} \\
+                                & 50\% & 41.5\% $\pm$ 2.7\% & \textbf{44.4\% $\pm$ 0.5\%} \\
+\multirow{3}{*}{Libras}         & 10\% & 57.4\% $\pm$ 4.2\% & \textbf{59.3\% $\pm$ 1.6\%} \\
+                                & 30\% & \textbf{81.2\% $\pm$ 7.6\%} & 63.9\% $\pm$ 8.2\% \\
+                                & 50\% & \textbf{62.5\% $\pm$ 14.8\%} & \textbf{65.3\% $\pm$ 8.6\%} \\
 \midrule
-Wins &               1 &         5 &              0 &        4 \\
+Wins                            &    & 6 & 7 \\
 \bottomrule
 \end{tabular}
+
+

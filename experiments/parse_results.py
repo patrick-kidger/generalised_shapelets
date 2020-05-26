@@ -17,7 +17,7 @@ def get(foldername):
         if 'model' not in filename:
             with open(foldername / filename, 'r') as f:
                 content = json.load(f)
-            yield content['test_metrics']['accuracy']
+            yield content['val_metrics']['accuracy']
 
 
 def main(dataset_folder):
@@ -134,6 +134,7 @@ def generate_table(save_loc, means, wins, stds, round=3):
     n_cols = len(means.columns)
     means = means.round(round)
 
+    stds = None
     if stds is not None:
         stds = stds.round(round)
         zfill = lambda x: x.astype(str).str.ljust(width=round + 2, fillchar='0')
@@ -143,6 +144,7 @@ def generate_table(save_loc, means, wins, stds, round=3):
         means = new_means
 
     # Slight column name hack
+    means = means[sorted([x for x in means.columns])]
     means.columns = pd.MultiIndex.from_arrays([['\\textbf{Discrepancy}'] * n_cols, means.columns])
 
     # Convert onto a win frame
@@ -168,6 +170,7 @@ def generate_table(save_loc, means, wins, stds, round=3):
 if __name__ == '__main__':
     assert len(sys.argv) in (2, 3)
     dataset = sys.argv[1]
+    dataset = 'uea_missing_and_length'
     means, wins, stds = main(dataset)
 
     if len(sys.argv) == 3 and sys.argv[2] == '--save':
