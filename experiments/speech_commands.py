@@ -151,7 +151,7 @@ def invert(model_filename, find_closest=True):
         # we just end up learning something that sounds like the init_audio, which we mitigate by taking a small scaling
         # factor, so that we should just end up selecting the thing that is most similar to init_audio along the
         # manifold of those things that match the MFCC, which is the more important criterion here.
-        loss = loss + 0.001 * torch.nn.functional.mse_loss(learnt_audio, init_audio_extract)
+        loss = loss + 0.01 * torch.nn.functional.mse_loss(learnt_audio, init_audio_extract)
         if i % 1000 == 0:
             trange.write("Epoch: {} Loss: {}".format(i, loss.item()))
         loss.backward()
