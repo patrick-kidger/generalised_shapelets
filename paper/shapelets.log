@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.14159265-2.6-1.40.19 (TeX Live 2018) (preloaded format=pdflatex 2018.7.19)  26 MAY 2020 12:53
+This is pdfTeX, Version 3.14159265-2.6-1.40.19 (TeX Live 2018) (preloaded format=pdflatex 2018.7.19)  26 MAY 2020 13:20
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -749,25 +749,25 @@ Package pdftex.def Info: images/new_pendigits.png  used on input line 294.
 (pdftex.def)             Requested size: 397.48499pt x 49.63199pt.
  [6]
 
-Package caption Warning: \label without proper reference on input line 315.
+Package caption Warning: \label without proper reference on input line 319.
 See the caption package documentation for explanation.
 
 
-LaTeX Warning: Reference `tab:uea_noise' on page 7 undefined on input line 313.
+LaTeX Warning: Reference `tab:missing_and_length' on page 7 undefined on input line 317.
 
 (./results/uea_missing_and_length.tex)
-Underfull \vbox (badness 5563) has occurred while \output is active []
+Underfull \vbox (badness 10000) has occurred while \output is active []
 
  [7 <./images/old_pendigits.png> <./images/new_pendigits.png>]
-<images/old_speech_commands_heatmap.png, id=240, 1432.1505pt x 278.9622pt>
+<images/old_speech_commands_heatmap.png, id=238, 1432.1505pt x 278.9622pt>
 File: images/old_speech_commands_heatmap.png Graphic file (type png)
 <use images/old_speech_commands_heatmap.png>
-Package pdftex.def Info: images/old_speech_commands_heatmap.png  used on input line 334.
+Package pdftex.def Info: images/old_speech_commands_heatmap.png  used on input line 338.
 (pdftex.def)             Requested size: 397.48499pt x 77.42357pt.
-<images/new_speech_commands_heatmap.png, id=241, 1432.1505pt x 278.9622pt>
+<images/new_speech_commands_heatmap.png, id=239, 1432.1505pt x 278.9622pt>
 File: images/new_speech_commands_heatmap.png Graphic file (type png)
 <use images/new_speech_commands_heatmap.png>
-Package pdftex.def Info: images/new_speech_commands_heatmap.png  used on input line 340.
+Package pdftex.def Info: images/new_speech_commands_heatmap.png  used on input line 344.
 (pdftex.def)             Requested size: 397.48499pt x 77.42357pt.
  [8] (./shapelets.bbl [9 <./images/old_speech_commands_heatmap.png> <./images/new_speech_commands_heatmap.png>]
 Underfull \hbox (badness 10000) in paragraph at lines 127--131
@@ -780,58 +780,58 @@ Underfull \hbox (badness 10000) in paragraph at lines 127--131
  []
 
 ) [10]
-Underfull \hbox (badness 10000) in paragraph at lines 375--376
+Underfull \hbox (badness 10000) in paragraph at lines 379--380
 []\OT1/ptm/b/n/10 Code  \OT1/ptm/m/n/10 Code to re-pro-duce ev-ery ex-per-i-men-tal can found at
  []
 
 
-Overfull \hbox (9.8767pt too wide) in paragraph at lines 398--398
+Overfull \hbox (9.8767pt too wide) in paragraph at lines 402--402
 []\OT1/ptm/m/n/10 Shapelets
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 398--398
+Underfull \hbox (badness 10000) in paragraph at lines 402--402
 \OT1/ptm/m/n/10 per
  []
 
 
-Overfull \hbox (5.9868pt too wide) in paragraph at lines 398--398
+Overfull \hbox (5.9868pt too wide) in paragraph at lines 402--402
 []\OT1/ptm/m/n/10 Shapelet
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 398--398
+Underfull \hbox (badness 10000) in paragraph at lines 402--402
 \OT1/ptm/m/n/10 length
  []
 
 
-Overfull \hbox (2.64684pt too wide) in paragraph at lines 398--398
+Overfull \hbox (2.64684pt too wide) in paragraph at lines 402--402
 \OT1/ptm/m/n/10 frac-tion 
  []
 
 
-LaTeX Warning: Reference `sec:missing_and_length' on page 11 undefined on input line 413.
+LaTeX Warning: Reference `sec:missing_and_length' on page 11 undefined on input line 417.
 
 
-LaTeX Warning: Reference `tab:uea_hyperparameter_old, tab:uea_hyperparameter_l2' on page 11 undefined on input line 430.
+LaTeX Warning: Reference `tab:uea_hyperparameter_old, tab:uea_hyperparameter_l2' on page 11 undefined on input line 434.
 
 (./results/uea_hyperparameter_old.tex) (./results/uea_hyperparameter_l2.tex) [11] [12]
-<images/new_speech_commands_axisplots.png, id=283, 1416.2511pt x 575.9919pt>
+<images/new_speech_commands_axisplots.png, id=282, 1416.2511pt x 575.9919pt>
 File: images/new_speech_commands_axisplots.png Graphic file (type png)
 <use images/new_speech_commands_axisplots.png>
-Package pdftex.def Info: images/new_speech_commands_axisplots.png  used on input line 466.
+Package pdftex.def Info: images/new_speech_commands_axisplots.png  used on input line 470.
 (pdftex.def)             Requested size: 397.48499pt x 161.65454pt.
 File: images/new_speech_commands_axisplots.png Graphic file (type png)
 <use images/new_speech_commands_axisplots.png>
-Package pdftex.def Info: images/new_speech_commands_axisplots.png  used on input line 472.
+Package pdftex.def Info: images/new_speech_commands_axisplots.png  used on input line 476.
 (pdftex.def)             Requested size: 397.48499pt x 161.65454pt.
  [13]
-Package atveryend Info: Empty hook `BeforeClearDocument' on input line 480.
+Package atveryend Info: Empty hook `BeforeClearDocument' on input line 484.
  [14 <./images/new_speech_commands_axisplots.png>]
-Package atveryend Info: Empty hook `AfterLastShipout' on input line 480.
+Package atveryend Info: Empty hook `AfterLastShipout' on input line 484.
  (./shapelets.aux)
-Package atveryend Info: Executing hook `AtVeryEndDocument' on input line 480.
-Package atveryend Info: Executing hook `AtEndAfterFileList' on input line 480.
+Package atveryend Info: Executing hook `AtVeryEndDocument' on input line 484.
+Package atveryend Info: Executing hook `AtEndAfterFileList' on input line 484.
 Package rerunfilecheck Info: File `shapelets.out' has not changed.
 (rerunfilecheck)             Checksum: FDCD4DA0FEEF3A471DD6084E65D8E578;1308.
 
@@ -841,21 +841,21 @@ LaTeX Font Warning: Some font shapes were not available, defaults substituted.
 
 LaTeX Warning: There were undefined references.
 
-Package atveryend Info: Empty hook `AtVeryVeryEnd' on input line 480.
+Package atveryend Info: Empty hook `AtVeryVeryEnd' on input line 484.
  ) 
 Here is how much of TeX's memory you used:
  19042 strings out of 492649
- 352575 string characters out of 6129622
- 542989 words of memory out of 5000000
+ 352584 string characters out of 6129622
+ 542998 words of memory out of 5000000
  22462 multiletter control sequences out of 15000+600000
  23044 words of font info for 59 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 55i,11n,54p,1285b,475s stack positions out of 5000i,500n,10000p,200000b,80000s
+ 55i,11n,54p,1076b,475s stack positions out of 5000i,500n,10000p,200000b,80000s
 {/usr/local/texlive/2018/texmf-dist/fonts/enc/dvips/base/8r.enc}</usr/local/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmex10.pfb></usr/local/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi10.pfb></usr/local/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi5.pfb></usr/local/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi7.pfb></usr/local/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi9.pfb></usr/local/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmr10.pfb></usr/local/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmr5.pfb></usr/local/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmr6.pfb></usr/local/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmr7.pfb></usr/local/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb></usr/local/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy6.pfb></usr/local/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy7.pfb></usr/local/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmtt10.pfb></usr/local/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/cm/cmtt9.pfb></usr/local/texlive/2018/texmf-dist/fonts/type1/public/amsfonts/symbols/msbm10.pfb></usr/local/texlive/2018/texmf-dist/fonts/type1/urw/times/utmb8a.pfb></usr/local/texlive/2018/texmf-dist/fonts/type1/urw/times/utmr8a.pfb></usr/local/texlive/2018/texmf-dist/fonts/type1/urw/times/utmri8a.pfb>
-Output written on shapelets.pdf (14 pages, 2137320 bytes).
+Output written on shapelets.pdf (14 pages, 2137294 bytes).
 PDF statistics:
- 375 PDF objects out of 1000 (max. 8388607)
- 325 compressed objects within 4 object streams
+ 374 PDF objects out of 1000 (max. 8388607)
+ 324 compressed objects within 4 object streams
  86 named destinations out of 1000 (max. 500000)
  198 words of extra memory for PDF output out of 10000 (max. 10000000)
 

@@ -310,9 +310,13 @@ A point of significant interest is the difference between the shapelets for the 
 Another good example of such discovery is the shapelet corresponding to the class 7, for the generalised shapelet transform. This is perhaps surprising to see as a distinguising feature of a `7'. However it turns out that no other digit features a stroke in that direction, in that place! (Figuring this out was a fun moment for the authors, sketching figures in the air.) A similar case can be made for the `2' shapelet.
 
 \subsection{Missing Data and Length Ablation} \label{subsec:uea_missing_and_length}
-	We now demonstrate the ability of our proposed method to handle partially observed data, as well as show the effectivness of enabling learnable shapelet lengths. To test this we consider 3 datasets from the UEA archive and run experiments where we dropped $10\%$, $30\%$, and $50\%$ of the data for the cases when learnt lengths are enabled and length is left as fixed. For the fixed case we ran a small hyperparameter study (full details are given in Appendix \ref{apx:uea}) to optimize shapelet length and number of classes and ran the models with these parameters. We then took the worst performing length for the given number of classes and initialised the shapelets with this length before running the learnt model. Thope bieng that the learnt model will be able to find this best length without the need for hyperparameter tuning. The results are given in Table \ref{tab:uea_noise}. Firstly we note the effectiveness with which the model can deal with missing data with the accuracy being maintained well as more data is dropped. We also see that the learnt length starting at the worst shapelet length, leads to comparable performance with the model starting at the best length, demonstrating the effectiveness of this addition to the method.
+	We now demonstrate the ability of our proposed method to handle partially observed data, as well as show the effectivness of enabling learnt lengths. To test this we consider 3 datasets from the UEA archive and run experiments where we drop $10\%$, $30\%$, and $50\%$ of the data for the cases when learnt lengths are enabled and length is left as fixed.
+
+	We first run a small hyperparameter study to determine the optimal number of shaplets and shapelet length for the fixed model. The best parameters on the validation set are then used to train the fixed model and we train the learnt model with the same number of classes but initialise the lengths of the shapelets to the worst performing length value as found in the hyperparameter study. The hope is that the learnt model will be able to find the best length, starting at the worst length, without the need for the additional hyperparameter tuning step.
+
+	 The results are given in Table~\ref{tab:missing_and_length}. Firstly we note the effectiveness with which the model can deal with missing data with the accuracy being maintained well as more data is dropped. We also see that the learnt length starting at the worst shapelet length, leads to comparable performance with the model starting at the best length, demonstrating the effectiveness of this addition to the method.
 \begin{table}[ht]
-    \label{tab:uea_noise}
+    \label{tab:missing_and_length}
     \centering
     \input{results/uea_missing_and_length.tex}
 	\caption{Test accuracy (mean $\pm$ std, computed over three runs) on 3 of the UEA datasets for different proportions of dropped data and the cases where learnt length is enabled and when length is fixed. A `win' is defined as the number of times each algorithm was within 1 standard deviation of the top performer for each dataset.}
@@ -320,9 +324,9 @@ Another good example of such discovery is the shapelet corresponding to the clas
 
 
 \subsection{Speech Commands}
-Next we consider the Speech Commands dataset \cite{warden2018speech}. This is comprised of one-second audio files, corresponding to words such as `yes', `no', `left', `right', and so on. We consider 10 classes so as to create a balanced classification problem.
+Next we consider the Speech Commands dataset~\cite{warden2018speech}. This is comprised of one-second audio files, corresponding to words such as `yes', `no', `left', `right', and so on. We consider 10 classes so as to create a balanced classification problem.
 
-For the generalised shapelet transform, we use the MFC discrepancy described in equation \eqref{eq:mfc-discrepancy}. Knowing that this is a problem to do with spoken audio, choosing a discrepancy in this way allows us to exploit domain knowledge.
+For the generalised shapelet transform, we use the MFC discrepancy described in equation~\eqref{eq:mfc-discrepancy}. Knowing that this is a problem to do with spoken audio, choosing a discrepancy in this way allows us to exploit domain knowledge.
 
 For this more complicated dataset, we found that the generalised shapelet transform substantially outperformed the classical shapelet transform. (To keep things fair, the classical shaplet transform is performed in MFC-space; the performance gap is not due to this.) We find that  the classical shapelet transform produces a test accuracy of 44.8\% $\pm$ 8.6\%, whilst our more flexible generalised shapelet transform, with $L^2$ discrepancy, produces a test accuracy of 91.9\% $\pm$ 2.4\% (mean $\pm$ std, averaged over three runs).
 

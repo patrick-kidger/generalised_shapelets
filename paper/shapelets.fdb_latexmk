@@ -1,12 +1,12 @@
 # Fdb version 3
-["bibtex shapelets"] 1590490261 "shapelets.aux" "shapelets.bbl" "shapelets" 1590494031
+["bibtex shapelets"] 1590495566 "shapelets.aux" "shapelets.bbl" "shapelets" 1590495661
   "/usr/local/texlive/2018/texmf-dist/bibtex/bst/base/ieeetr.bst" 1480098433 18361 1a00e58565e7f19bf2b3e1bfb82254ae ""
   "references.bib" 1590406480 8845 94b3a0a480f2064317827494fc333697 ""
-  "shapelets.aux" 1590494031 12379 6896c00fbadc6286152d2b26ab6b77ac ""
+  "shapelets.aux" 1590495660 12397 e55c26cde33284308f831d54bd96725e ""
   (generated)
   "shapelets.bbl"
   "shapelets.blg"
-["pdflatex"] 1590494026 "shapelets.tex" "shapelets.pdf" "shapelets" 1590494031
+["pdflatex"] 1590495656 "shapelets.tex" "shapelets.pdf" "shapelets" 1590495661
   "/usr/local/texlive/2018/texmf-dist/fonts/enc/dvips/base/8r.enc" 1480098666 4850 80dc9bab7f31fb78a000ccfed0e27cab ""
   "/usr/local/texlive/2018/texmf-dist/fonts/map/fontname/texfonts.map" 1511824771 3332 103109f5612ad95229751940c61aada0 ""
   "/usr/local/texlive/2018/texmf-dist/fonts/tfm/adobe/times/ptmb7t.tfm" 1480098689 2172 fd0c924230362ff848a33632ed45dc23 ""
@@ -191,10 +191,10 @@
   "results/uea_hyperparameter_l2.tex" 1590488903 869 e1d80824b9b209f2d1cb5bd745e573ad ""
   "results/uea_hyperparameter_old.tex" 1590488740 2372 a985619b86894ae0f1401007e1e1a6dc ""
   "results/uea_missing_and_length.tex" 1590494024 1151 3017913cb13d2e767758ebb82105dfc5 ""
-  "shapelets.aux" 1590494031 12379 6896c00fbadc6286152d2b26ab6b77ac ""
-  "shapelets.bbl" 1590490261 6463 3c187af4bc96b9f6dffefdb7a25d4e50 "bibtex shapelets"
-  "shapelets.out" 1590494031 1308 fdcd4da0feef3a471dd6084e65d8e578 ""
-  "shapelets.tex" 1590490245 43675 6f8ecca40fa5624ba8133cc51b38f122 ""
+  "shapelets.aux" 1590495660 12397 e55c26cde33284308f831d54bd96725e ""
+  "shapelets.bbl" 1590495566 6463 3c187af4bc96b9f6dffefdb7a25d4e50 "bibtex shapelets"
+  "shapelets.out" 1590495660 1308 fdcd4da0feef3a471dd6084e65d8e578 ""
+  "shapelets.tex" 1590495655 43771 d11f11c30d8a81ec60133719605d5e55 ""
   (generated)
   "shapelets.out"
   "shapelets.pdf"
