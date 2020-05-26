@@ -309,18 +309,18 @@ A point of significant interest is the difference between the shapelets for the 
 
 Another good example of such discovery is the shapelet corresponding to the class 7, for the generalised shapelet transform. This is perhaps surprising to see as a distinguising feature of a `7'. However it turns out that no other digit features a stroke in that direction, in that place! (Figuring this out was a fun moment for the authors, sketching figures in the air.) A similar case can be made for the `2' shapelet.
 
-\subsection{Missing data and benefit of learning lengths} \label{subsec:uea_missing_and_length}
-We now investigate the efficacy of our proposed method when there is missing data. Classical shapelet
+\subsection{Learning lengths, with irregularly sampled partially observed time series} \label{subsec:uea_missing_and_length}
+We now investigate the benefit of learning lengths. To do so, we begin by taking our usual model - linear on top of the generalised shapelet transform - but fix the lengths, rather than learning them differentiably. We then perform a hyperparameter search to determine the best and worst lengths for this model on each dataset.
 
-	We now demonstrate the ability of our proposed method to handle partially observed data, as well as show the effectivness of enabling learnt lengths. To test this we consider 3 datasets from the UEA archive and run experiments where we drop $10\%$, $30\%$, and $50\%$ of the data for the cases when learnt lengths are enabled and length is left as fixed.
+We then train a model with differentiably learnt lengths initialised at the \emph{worst} lengths, and compare it to the \emph{best} performer from the hyperparameter search. We will see that the performance is comparable! This demonstrates lengths learnt differentiably perform just as effectively as those selected by hyperparameter search, but without the additional step of having to do so.
 
-	We first run a small hyperparameter study to determine the optimal number of shaplets and shapelet length for the fixed model. The best parameters on the validation set are then used to train the fixed model and we train the learnt model with the same number of classes but initialise the lengths of the shapelets to the worst performing length value as found in the hyperparameter study. The hope is that the learnt model will be able to find the best length, starting at the worst length, without the need for the additional hyperparameter tuning step.
+The classical shapelet transform does not apply to irregularly sampled or partially observed time series, prevent direct comparisons. So as to keep things interesting, and to provide benchmarks on such datasets, we use such datasets for our investigation into differentiably learning lengths. We consider the JapaneseVowels, Libras and LSST datasets from the UEA archive as before (selected as representing a range of difficulties), and drop either 10\%, 30\% or 50\% of the data for each channel of the dataset. The data dropped is independently selected for every channel of each time series, and is the same for every model and repeat.
 
-	 The results are given in Table~\ref{tab:missing_and_length}. Firstly we note the effectiveness with which the model can deal with missing data with the accuracy being maintained well as more data is dropped. We also see that the learnt length starting at the worst shapelet length, leads to comparable performance with the model starting at the best length, demonstrating the effectiveness of this addition to the method.
+	 The results are given in Table~\ref{tab:missing_and_length}.
 \begin{table}[ht]
     \centering
     \input{results/uea_missing_and_length.tex}
-	\caption{Test accuracy (mean $\pm$ std, computed over three runs) on 3 of the UEA datasets for different proportions of dropped data and the cases where learnt length is enabled and when length is fixed. A `win' is defined as the number of times each algorithm was within 1 standard deviation of the top performer for each dataset.}\label{tab:missing_and_length}
+	\caption{Test accuracy (mean $\pm$ std, computed over three runs) on three UEA datasets with missing data. A `win' is defined as the number of times each algorithm was within 1 standard deviation of the top performer for each dataset.}\label{tab:missing_and_length}
 \end{table}
 
 
