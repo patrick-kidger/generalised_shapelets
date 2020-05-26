@@ -139,9 +139,6 @@ namespace torchshapelets {
 
             auto points = torch::linspace(start_detached, end_detached, num_samples, start.options());
 
-            // We compute the minimum over the middle region separately, as there's good odds that this bit won't
-            // require gradients. If I understand PyTorch's autograd well enough (and this really might be wrong on my
-            // part), then this saves the creation of a zero-initialised tensor for each one, during backpropagation.
             std::vector<torch::Tensor> results (num_samples);
             results[0] = fn(start);
             #pragma omp parallel for default(none) shared(results, points, fn, num_samples)
