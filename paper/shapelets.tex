@@ -89,7 +89,7 @@
 \begin{document}
 	\maketitle
 	\begin{abstract}
-		The shapelet transform is a form of feature extraction for time series, in which a time series is described by its similarity to each of a collection of `shapelets'. However it has previously suffered from a number of limitations, such as being limited to regularly-spaced fully-observed time series, and having to choose between efficient training and interpretability. Here, we extend the method to continuous time, and in doing so handle the general case of irregularly-sampled partially-observed multivariate time series. This additionally then allows for learning the length of each shapelet (previously a discrete object) in a differentiable manner. Furthermore, we show that a simple regularisation penalty may be used to train efficiently without sacrificing interpretability. Finally, we generalise the measure of similarity between time series so as to be a learnt pseudometric. We validate our method by demonstrating its empirical performance on several datasets.
+		The shapelet transform is a form of feature extraction for time series, in which a time series is described by its similarity to each of a collection of `shapelets'. However it has previously suffered from a number of limitations, such as being limited to regularly-spaced fully-observed time series, and having to choose between efficient training and interpretability. Here, we extend the method to continuous time, and in doing so handle the general case of irregularly-sampled partially-observed multivariate time series.  Furthermore, we show that a simple regularisation penalty may be used to train efficiently without sacrificing interpretability. The continuous-time formulation additionally allows for learning the length of each shapelet (previously a discrete object) in a differentiable manner. Finally, we demonstrate that the measure of similarity between time series may be generalised to a learnt pseudometric. We validate our method by demonstrating its empirical performance on several datasets.
 	\end{abstract}
 	\section{Introduction}
 	Shaplets are a form of feature extraction for time series \cite{ye2009firstshapelet, grabocka2014learningshapelet, hou2016efficient, bagnall2016bakeoff}. Given some fixed hyperparameter $K$, describing how many shapelets we are willing to consider, then each time series is represented by a vector of length $K$ describing how similar it is to each of the $k$ selected shapelets.
@@ -112,14 +112,20 @@
 	\begin{equation}\label{eq:classical-shapelets}
 	\sigma_S(f^n, w^{k}) = \min_{s \in \{0, \ldots, T_n - S\}} \sum_{t = 0}^{S - 1} \norm{f^n_{s + t} - w^{k}_t}_2^2,
 	\end{equation}
-	where $\norm{\,\cdot\,}_2$ describes the $L^2$ norm on $\reals^D$. A small discrepancy implies that $f^n$ and $w^{k}$ are similar to one another. This corresponds to sweeping $w^{k}$ over $f^n$, and finding the offset $s$ at which $w^{k}$ best matches $f^n$. The collection of $(\sigma_S(f^n, w^{1}), \ldots, \sigma_S(f^n, w^{K})) \in \reals^K$ is now a feature describing $f^n$. This may now be passed to some model to perform classification or regression.
+	where $\norm{\,\cdot\,}_2$ describes the $L^2$ norm on $\reals^D$. A small discrepancy implies that $f^n$ and $w^{k}$ are similar to one another. This corresponds to sweeping $w^{k}$ over $f^n$, and finding the offset $s$ at which $w^{k}$ best matches $f^n$.
+	
+	In this article we will refer to the map
+	\begin{equation}\label{eq:classical-shapelet-transform}
+	f \mapsto (\sigma_S(f, w^{1}), \ldots, \sigma_S(f, w^{K}))
+	\end{equation}
+	as the \emph{classical shapelet transform}. The result is now a feature describing $f$, which may now be passed to some model to perform classification or regression.
 	
 	\subsection{Limitations}
 	The classical shapelet method suffers from a number of limitations.
 	\begin{enumerate}
 	\item The technique only applies to regularly spaced time series.
-	\item The choice of $S$ is a hyperparameter; it is discrete, and choosing it is thus a relatively expensive optimisation procedure.
-	\item Learning $w^{k}$ by searching \cite{ye2009firstshapelet} is expensive, whilst optimising differentiably \cite{grabocka2014learningshapelet} typically sacrifices interpretability \cite{wang2019interp}.
+	\item The choice of shapelet length $S$ is discrete and a hyperparameter. As such optimising it involves a relatively expensive hyperparameter search.
+	\item Learning the shapelets $w^{k}$ by searching is expensive \cite{ye2009firstshapelet}, whilst optimising differentiably \cite{grabocka2014learningshapelet} typically sacrifices interpretability \cite{wang2019interp}.
 %	\item The technique is not robust to irrelevant channels (which will typically exist in many real world datasets, for example medical time series): equation \eqref{eq:classical-shapelets} attempts to fit a $w^{k}_{t, d}$ even for uninformative channels $d$.
 	\end{enumerate}
 	Besides this, the choice of $L^2$ norm is ad-hoc and a general formulation should allow for other notions of similarity.
@@ -129,7 +135,9 @@
 
 	First, we extend the method to continuous time rather than discrete time, allowing the treatment of irregularly-sampled partially-observed multivariate time series on the same footing as regular time series. Second, this continuous-time formulation means that the length of each shapelet (previously a discrete value) takes its values in a continuous range, and may now be trained differentiably.
 	
-	Third, we demonstrate how simple regularisation is enough to achieve shapelets that resemble characteristic features of the data, achieving both interpretability and pattern discovery. Finally, we generalise the discrepancy between a shapelet and a time series to be a learnt pseudometric.% This introduces a great deal of flexibility into the method; for example we show how this allows for domain adaptation by using a Fourier transform-based pseudometric with audio signals.
+	Third, we demonstrate how simple regularisation is enough to achieve shapelets that resemble characteristic features of the data. This gives interpretability as to a classification result, and also pattern discovery in determining previously unknown information about the data.
+	
+	Finally, we generalise the discrepancy between a shapelet and a time series to be a learnt pseudometric.% This introduces a great deal of flexibility into the method; for example we show how this allows for domain adaptation by using a Fourier transform-based pseudometric with audio signals.
 	
 	Our code is available at \texttt{https://github.com/jambo6/generalised\_shapelets}.
 	
@@ -142,14 +150,14 @@
 	
 	The method may additionally be generalised by considering alternative notions of similarity between a shapelet and a time series; for example \cite{grabocka2016dtwshapelet} replace the $L^2$ norm with dynamic time warping.
 	
-	The shapelet method is attractive for its normalisation of variable-length time series and demonstratation of typically good performance \cite{bagnall2016bakeoff, bostrom2015shapelet}. Additionally, it is (depending on training procedure) interpretable, as use of a particular feature corresponds to the importance of the similarity to the shapelet $w^{k}$. This may describe some shape that is characteristic of a particular class, and can discover previously unknown patterns in the data (we will see examples later).
+	The shapelet method is attractive for its normalisation of variable-length time series, and demonstratation of typically good performance \cite{bagnall2016bakeoff, bostrom2015shapelet}. Arguably its most important advantage is interpretability, as use of a particular feature corresponds to the importance of the similarity to the shapelet $w^{k}$. This may describe some shape that is characteristic of a particular class, and can discover previously unknown patterns in the data (we will see examples later).
 	
 	\section{Method}
 	\subsection{Continuous-time objects}
 	We interpret a time series as a discretised sample from an underlying process, observed only through the time series. Similarly, a shapelet constructed as in Section \ref{section:classical-introduction} may be thought of as a discretisation of some underlying function. The first important step in our procedure is to construct continuous-time approximations to these underlying objects.
 	
 	\boldheading{Continuous-time path interpolants}
-	Formally speaking, we assume that for $n \in \{1, \ldots, N\}$ indexing different time series, we observe a collection of time series
+	Formally speaking, we assume that for $n \in \{1, \ldots, N\}$ indexing different time series, each of length $T_n$, we observe a collection of time series
 	\begin{equation*}
 	f^n = (f^n_{t_\tau})_{\tau \in \{1, \ldots, T_n\}},
 	\end{equation*}
@@ -176,7 +184,7 @@
 	\sigma^A_{S_k}(f^n, w^{k, \rho, S_k}) = \min_{s \in [0, T_n - S_k]} \pi^A_{S_k}(\restr{\iota(f^n)}{[s, s + S_k]}(s + \cdot), w^{k, \rho, S_k}).
 	\end{equation}
 	
-	The collection of discrepancies $(\sigma^A_{S_k}(f^n, w^{1, \rho, S_k}), \ldots, \sigma^A_{S_k}(f^n, w^{K, \rho, S_k}))$ is now a feature describing $f^n$, and is invariant to the length $T_n$. Use of the particular feature $\sigma^A_{S_k}(f^n, w^{k, \rho, S_k})$ corresponds to the importance of the similarity between $f^n$ and $w^{k, \rho, S_k}$. In this way, the choice of $\pi^A_{S_k}$ gives a great deal of flexibility, as we are about to see.
+	The collection of discrepancies $(\sigma^A_{S_k}(f^n, w^{1, \rho, S_k}), \ldots, \sigma^A_{S_k}(f^n, w^{K, \rho, S_k}))$ is now a feature describing $f^n$, and is invariant to the length $T_n$. Use of the particular feature $\sigma^A_{S_k}(f^n, w^{k, \rho, S_k})$ corresponds to the importance of the similarity between $f^n$ and $w^{k, \rho, S_k}$. In this way, the choice of $\pi^A_{S_k}$ gives a great deal of flexibility.
 	
 	\boldheading{Existing shapelets fit into this framework}
 	A simple example, in analogy to the classical shapelet method of equation \eqref{eq:classical-shapelets}, is to take
@@ -219,9 +227,9 @@
 	
 	\boldheading{The generalised shapelet transform}
 	Whatever the choice of $\pi^A_S$, and in analogy to the classical shapelet transform \cite{hills2014classification}, we call the map
-	\begin{equation*}
+	\begin{equation}\label{eq:generalised-shapelet-transform}
 	f \mapsto (\sigma^A_{S_1}(f, w^{1, \rho, S_1}), \ldots, \sigma^A_{S_K}(f, w^{K, \rho, S_K}))
-	\end{equation*}
+	\end{equation}
 	the \emph{generalised shapelet transform}.
 	
 	\subsection{Interpretable regularisation}
@@ -253,25 +261,32 @@
 
 	
 	\boldheading{Choice of $F^\theta$}\label{section:choice-of-f}
-	Interpretability of the model will depend on an interpretable choice of $F^\theta$. In our experiments we used a linear model on the logarithm of every feature, so that a very negative coefficient corresponds to the importance of $f^n$ and $w^{k, \rho, S_k}$ being similar to each other.
+	Interpretability of the model will depend on an interpretable choice of $F^\theta$. In our experiments we thus used a linear model on the logarithm of every feature, so that a very negative coefficient corresponds to the importance of $f^n$ and $w^{k, \rho, S_k}$ being similar to each other.
 	%Interpretability of the model will depend on an interpretable choice of $F^\theta$. In our experiments we used a linear model on the logarithm of every feature, so that a very negative coefficient of $\log \sigma^A_{S_k}(f^n, w^{k, \rho, S_k})$ corresponds to the importance of $f^n$ and $w^{k, \rho, S_k}$ being similar to each other.\footnote{The logarithm maps the discrepancies $\sigma^A_{S_k}(f^n, w^{k, \rho, S_k}) \in [0, \infty)$ into $\reals$. As a technical point, a small number such as $10^{-5}$ may need to first be added to prevent $\log \colon 0 \mapsto -\infty$.}
 	
 	
 \section{Experiments}\label{section:experiments}
-We compare our generalised shapelet transform to the classical shapelet transform, in terms of both performance and interpretability, on a large range of time series classification problems. Every experiment is run three times, and we report the mean and standard deviation of test accuracy. We take the interpolation scheme $\iota$ to be piecewise linear interpolation; in particular efficient algorithms for computing the logsignature transform only exist for piecewise linear paths \cite{signatory}. The regularisation parameter $\gamma$ is taken to be $10^{-4}$. This was selected by starting at $10^{-3}$ and reducing the value until test accuracy no longer improved, so as to ensure that it did not compromise performance.
+We compare the generalised shapelet transform to the classical shapelet transform, in terms of both performance and interpretability, on a large range of time series classification problems. The shapelets of the classical shapelet transform are learnt differentiably.
 
-The loss was cross entropy, the optimiser was Adam \cite{kingma2015} with learning rate 0.05 and batch size 1024. If validation loss stagnated for 20 epochs then the learning rate was reduced by a factor of 10 and training resumed, down to a minimum learning rate of 0.001. We note that these relatively large learning rates are proportional to the large batch size, as is standard practice. If validation loss and accuracy failed to decrease over 60 epochs then training was halted. Once training was completed then the model parameters were rolled back to those which produced the highest validation accuracy.
+In every case the model is linear, for interpretability as previously described, on either the generalised (equation \eqref{eq:generalised-shapelet-transform}) or classical (equation \eqref{eq:classical-shapelet-transform}) shapelet transforms.
 
-Precise experimental details may be found in Appendix \ref{appendix:experimental}.
+%Every experiment is run three times, and we report the mean and standard deviation of test accuracy.
+The interpolation scheme $\iota$ is taken to be piecewise linear interpolation. %; in particular efficient algorithms for computing the logsignature transform only exist for piecewise linear paths \cite{signatory}.
+The regularisation parameter $\gamma$ is taken to be $10^{-4}$. This was selected by starting at $10^{-3}$ and reducing the value until test accuracy no longer improved, so as to ensure that it did not compromise performance.
+
+The loss was cross entropy, the optimiser was Adam \cite{kingma2015} with learning rate 0.05 and batch size 1024. If validation loss stagnated for 20 epochs then the learning rate was reduced by a factor of 10 and training resumed, down to a minimum learning rate of 0.001. We note that these relatively large learning rates are (as is standard practice) proportional to the large batch size. If validation loss and accuracy failed to decrease over 60 epochs then training was halted. Once training was completed then the model parameters were rolled back to those which produced the highest validation accuracy.
+
+Further experimental details may be found in Appendix \ref{appendix:experimental}.
 
 \subsection{The UEA Time Series Archive} \label{subsec:uea_classification}
-This is a collection of 30 fully-observed regularly-sampled datasets with varying properties \cite{bagnall2018uea}. Evaluating on the full collection of datasets would take a prohibitively long time, and so we select 9 representing a range of difficulties. Details of these (number of training samples, etc.) can be found in Appendix \ref{appendix:experimental}.
+This is a collection of 30 fully-observed regularly-sampled datasets with varying properties \cite{bagnall2018uea}, see Appendix \ref{appendix:experimental}. Evaluating on the full collection of datasets would take a prohibitively long time, and so we select 9 representing a range of difficulties.
 
-We begin by performing hyperparameter optimisation (number of shapelets, length of shapelets) for the classical shapelet transform, separately for each dataset. We then use the same hyperparameters for the generalised shapelet transform. For the generalised shapelet transform, the length hyperparameter is used to determine the initial length of the shapelet, but this may of course vary as it is learnt.
+We begin by performing hyperparameter optimisation %(number of shapelets, length of shapelets)
+for the classical shapelet transform, separately for each dataset. We then use the same hyperparameters for the generalised shapelet transform. For the generalised shapelet transform, the length hyperparameter is used to determine the initial length of the shapelet, but this may of course vary as it is learnt.
 
-For the generalised shapelet transform, we consider two different discrepancy functions, namely the learnt $L^2$ discrepancy and $p$-logsignature discrepancies of equations \eqref{eq:learnt-discrepancy} and \eqref{eq:logsignature-discrepancy}. For the latter, we take $p=2$ and the depth $R=3$. We did not try to optimise $p$ and $R$, as we use the logsignature discrepancy simply to highlight the possibility of using more unusual discrepancies if desired.
+For the generalised shapelet transform, we consider two different discrepancy functions, specifically the learnt $L^2$ discrepancy and $p$-logsignature discrepancies of equations \eqref{eq:learnt-discrepancy} and \eqref{eq:logsignature-discrepancy}. For the latter, we take $p=2$ and the depth $R=3$. We did not try to optimise $p$ and $R$, as we use the logsignature discrepancy simply to highlight the possibility of using more unusual discrepancies if desired.
 
-The results are given in Table \ref{tab:uea_comparison_results}. We see that the generalised shapelet transform with $L^2$ discrepancy function achieves within one standard deviation of the top performing algorithm on 7 of the 9 datasets, whilst the classical approach does so for only 3. As crude summary statistics, the average performance gain across all datasets was 4.6\% points, the maximum performance drop was only 5.9\% points (on BasicMotions), and the maximum performance gain was 15.4\% points (on ERing).
+The results are given in Table \ref{tab:uea_comparison_results}. We see that the generalised shapelet transform with $L^2$ discrepancy function achieves within one standard deviation of the top performing algorithm on 7 of the 9 datasets, whilst the classical approach does so for only 3.% As crude summary statistics, the average performance gain across all datasets was 4.6\% points, the maximum performance drop was only 5.9\% points (on BasicMotions), and the maximum performance gain was 15.4\% points (on ERing).
 \begin{table}[t]
     \centering
     \caption{Test accuracy (mean $\pm$ std, computed over three runs) on UEA. A `win' is the number of times each algorithm was within 1 standard deviation of the top performer for each dataset.}
@@ -280,7 +295,7 @@ The results are given in Table \ref{tab:uea_comparison_results}. We see that the
 \end{table}
 
 \boldheading{Interpretability on PenDigits}
-We demonstrate interpretability by examining the PenDigits dataset. (Chosen because of its nice visuals.) This is a dataset of handwritten digits 0--9, sampled at 8 points along their trajectory. We select the most informative shapelet for each of the ten classes (as in Section \ref{section:choice-of-f}), for both the classical shapelet transform and the generalised shapelet transform, with $L^2$ discrepancy. We then locate the training sample that it is most similar to, and plot an overlay of the two. See Figure \ref{fig:pendigits}.
+We demonstrate interpretability by examining the PenDigits dataset. This is a dataset of handwritten digits 0--9, sampled at 8 points along their trajectory. We select the most informative shapelet for each of the ten classes (as in Section \ref{section:choice-of-f}), for both the classical shapelet transform and the generalised shapelet transform, with $L^2$ discrepancy. We then locate the training sample that it is most similar to, and plot an overlay of the two. See Figure \ref{fig:pendigits}.
 
 \begin{figure}[t]
     \begin{subfigure}[b]{\linewidth}
@@ -301,22 +316,21 @@ We demonstrate interpretability by examining the PenDigits dataset. (Chosen beca
 
 We can clearly see multiple issues with the shapelets learnt with the classical approach. The most significant shapelet for the classes 0 and 1 is the same shapelet, and for classes 1, 5, 6, 7, 9, the most significant shapelet is not even closest to a member of that class. Visually, the shapelets for 3 and 4 seem to have identified distinguishing features of those classes, but the shapelets corresponding to the other classes appear to be little more than random noise.
 
-In contrast, the generalised shapelet approach is abundantly clear. Every class has a unique most significant shapelet, and every such shapelet is close to a member of the correct class. In the case of class 3, the shapelet has essentially reproduced the entire digit.
+In contrast, the results of the generalised shapelet approach are abundantly clear. Every class has a unique most significant shapelet, and every such shapelet is close to a member of the correct class. In the case of class 3, the shapelet has essentially reproduced the entire digit.
 
-We see that this is a benefit of allowing learnt lengths, so that particularly distinguishing features, such as the double bend of a 3, may be resolved. Contrast with the most significant shapelet for the class 3 under the classical shapelet transform: it is almost perfectly located in the middle of that which was learnt for the generalised shapelet transform, which we speculate is a `best fit' under the fixed length constraint.
+%This is a potential benefit of allowing learnt lengths, so that features such as the double bend of a 3 may be resolved. Contrast with the most significant shapelet for the class 3 under the classical shapelet transform: it is almost perfectly located in the middle of that which was learnt for the generalised shapelet transform, which we speculate is a `best fit' under the fixed length constraint.
 
-A point of significant interest is the difference between the shapelets for the digits 5 and 6, for the generalised shapelet transform. Whilst visually very similar, we see that the difference between them is their direction. In other words, whilst a 5 and a 6 may appear visually similar on the page (with a loop in the bottom half of the digit), they may clearly be distinguished by the direction in which they tend to be written. This is a perfect example of discovering something about the data that was not necessarily already known!
+A point of interest is the difference between the shapelets for the digits 5 and 6, for the generalised shapelet transform. Whilst visually very similar, the difference between them is their direction. Whilst a 5 and a 6 may appear visually similar on the page (with a loop in the bottom half of the digit), they may clearly be distinguished by the direction in which they tend to be written. This is a nice example of discovering something about the data that was not necessarily already known!
 
-Another good example of such discovery is the shapelet corresponding to the class 7, for the generalised shapelet transform. This is perhaps surprising to see as a distinguising feature of a `7'. However it turns out that no other digit features a stroke in that direction, in that place! (Figuring this out was a fun moment for the authors, sketching figures in the air.) A similar case can be made for the `2' shapelet.
+Another such example is the shapelet corresponding to the class 7, for the generalised shapelet transform. This is perhaps surprising to see as a distinguising feature of a 7. However it turns out that no other digit uses a stroke in that direction, in that place! (Figuring this out was a fun moment for the authors, sketching figures in the air.) A similar case can be made for the 2 shapelet.
 
 \subsection{Learning lengths, with irregularly sampled partially observed time series} \label{subsec:uea_missing_and_length}
-We now investigate the benefit of learning lengths. To do so, we begin by taking our usual model - linear on top of the generalised shapelet transform - but fix the lengths, rather than learning them differentiably. We then perform a hyperparameter search to determine the best and worst lengths for this model on each dataset.
+We now investigate the strategy of learning lengths differentiably.
 
-We then train a model with differentiably learnt lengths initialised at the \emph{worst} lengths, and compare it to the \emph{best} performer from the hyperparameter search. We will see that the performance is comparable! This demonstrates lengths learnt differentiably perform just as effectively as those selected by hyperparameter search, but without the additional step of having to do so.
+So as to keep things interesting, and to additionally provide benchmarks on irregularly sampled partially-observed datasets (to which the classical shapelet transform cannot be applied), the datasets we use for this test are three UEA datasets, in which we drop either 10\%, 30\% or 50\% of the data for each channel of the dataset. The data dropped is independently selected for every channel of each time series, and is the same for every model and repeat. The datasets used are the JapaneseVowels, Libras and LSST datasets, selected for representing a range of difficulties.
 
-The classical shapelet transform does not apply to irregularly sampled or partially observed time series, prevent direct comparisons. So as to keep things interesting, and to provide benchmarks on such datasets, we use such datasets for our investigation into differentiably learning lengths. We consider the JapaneseVowels, Libras and LSST datasets from the UEA archive as before (selected as representing a range of difficulties), and drop either 10\%, 30\% or 50\% of the data for each channel of the dataset. The data dropped is independently selected for every channel of each time series, and is the same for every model and repeat.
+We use the generalised shapelet transform, except we fix the lengths rather than learning them differentiably. We then perform a hyperparameter search to determine the best and worst lengths for this model on each dataset. We then train a model with differentiably learnt lengths initialised at the \emph{worst} lengths, and compare it to the \emph{best} performer from the hyperparameter search. See Table~\ref{tab:missing_and_length}. We see that the performance is comparable! This demonstrates lengths learnt differentiably perform just as effectively as those selected by hyperparameter search, but without the relatively more expensive search.
 
-	 The results are given in Table~\ref{tab:missing_and_length}.
 \begin{table}[ht]
     \centering
     \input{results/uea_missing_and_length.tex}
@@ -327,38 +341,47 @@ The classical shapelet transform does not apply to irregularly sampled or partia
 \subsection{Speech Commands}
 Next we consider the Speech Commands dataset~\cite{warden2018speech}. This is comprised of one-second audio files, corresponding to words such as `yes', `no', `left', `right', and so on. We consider 10 classes so as to create a balanced classification problem.
 
-For the generalised shapelet transform, we use the MFC discrepancy described in equation~\eqref{eq:mfc-discrepancy}. Knowing that this is a problem to do with spoken audio, choosing a discrepancy in this way allows us to exploit domain knowledge.
+For the generalised shapelet transform, we use the MFC discrepancy described in equation~\eqref{eq:mfc-discrepancy}.% Knowing that this is a problem to do with spoken audio, choosing a discrepancy in this way allows us to exploit domain knowledge.
 
-For this more complicated dataset, we found that the generalised shapelet transform substantially outperformed the classical shapelet transform. (To keep things fair, the classical shaplet transform is performed in MFC-space; the performance gap is not due to this.) We find that  the classical shapelet transform produces a test accuracy of 44.8\% $\pm$ 8.6\%, whilst our more flexible generalised shapelet transform, with $L^2$ discrepancy, produces a test accuracy of 91.9\% $\pm$ 2.4\% (mean $\pm$ std, averaged over three runs).
+For this more complicated dataset, we found that the generalised shapelet transform outperformed the classical shapelet transform. (To keep things fair, the classical shaplet transform is performed in MFC-space; the performance gap is not due to this.) The classical shapelet transform produces a test accuracy of 44.8\% $\pm$ 8.6\%, whilst the more flexible generalised shapelet transform, with $L^2$ discrepancy, produces a test accuracy of 91.9\% $\pm$ 2.4\% (mean $\pm$ std, averaged over three runs).
 
 \boldheading{Interpretability of Speech Commands}
-To examine the interpretability of speech commands, we refer to Figure \ref{fig:speech_commands} which shows the first 10 MFC coefficiets for a given shapelet (left) the corresponding training set discrepancy minimizer (middle) along with the difference between the two (right). It is clear from the difference plot that the new method produces shapelets far more similar to the closest training example and thus, we expect, far easier to interpret it's meaning in terms of audio. We have converted the shapelet MFC coefficients back into audio format and you can hear the sounds at ???. Whilst it is not as easy to identify what aspect of the sound belongs to what word, clear differences can certainly be made out, we expect someone more well versed in audio analysis than ourselves would be able to better analyse these resulting sound bites. We refer to Appendix \ref{apx:further_speech_commands_interpretability} for the full plots of each MFC coefficient for the shapelet against the training set example.
-	\begin{figure}[t]
-		\begin{subfigure}[b]{\linewidth}
+We examine interpretability in two different ways. First we consider MFC-space, see Figure \ref{fig:speech_commands}. We see that the shapelets have learnt to resemble small segments of the training data, so that classification may be decided by the values of certain MFC coefficients, essentially corresponding to the presence of different frequencies.
+
+Furthermore, however, these shapelets may be listened to as audio! The audio files may be found at \texttt{https://github.com/jambo6/generalised\_shapelets/tree/master/audio}. A reasonable amount is thrown away in the audio to MFC map, so the audio shapelets learnt are far from perfect, but the difference between them is nonetheless clear. The shapelet corresponding to  `left' captures the `eft' sound, whilst the one associated with `stop' actually sounds like the word itself. In general, much like the shapelet associated with class 7 in the PenDigits example, the sounds extracted may not resemble the word in isolation, but instead capture the feature that distinguishes that class from the others present.
+
+See Appendix \ref{apx:further_speech_commands_interpretability} for further plots.
+%	\begin{figure}[t]
+%		\begin{subfigure}[b]{\linewidth}
+%			\centering
+%			\includegraphics[width=\linewidth]{images/old_speech_commands_heatmap.png}
+%			\caption{Classical shapelet transform.}
+%			\label{fig:old_speech_commands}
+%		\end{subfigure}
+%		\begin{subfigure}[b]{\linewidth}
+%			\centering
+%			\includegraphics[width=\linewidth]{images/new_speech_commands_heatmap.png}
+%			\caption{Generalised shapelet transform with $L^2$ discrepancy.}
+%			\label{fig:new_speech_commands}
+%		\end{subfigure}
+%		\caption{First 10 MFC coefficients for the shapelet (left), training set minimizer (middle), and the difference between them (right).}
+%		\label{fig:speech_commands}
+%	\end{figure}
+\begin{figure}
 			\centering
-			\includegraphics[width=\linewidth]{images/old_speech_commands_heatmap.png}
-			\caption{Classical shapelet transform.}
-			\label{fig:old_speech_commands}
-		\end{subfigure}
-		\begin{subfigure}[b]{\linewidth}
-			\centering
+			\caption{Generalised shapelet transform with $L^2$ discrepancy. First 10 MFC coefficients for the shapelet (left), training set minimizer (middle), and the difference between them (right).}\label{fig:speech_commands}
 			\includegraphics[width=\linewidth]{images/new_speech_commands_heatmap.png}
-			\caption{Generalised shapelet transform with $L^2$ discrepancy.}
-			\label{fig:new_speech_commands}
-		\end{subfigure}
-		\caption{First 10 MFC coefficients for the shapelet (left), training set minimizer (middle), and the difference between them (right).}
-		\label{fig:speech_commands}
-	\end{figure}
+\end{figure}
 
 
 % Limiations: no DTW; speed+memory of training lengths
 
 
 	\section{Conclusion}
-	In this work we have extended and generalised the classical shapelet method in several ways. We have generalised it from discrete time to continuous time, and in doing so extend the method to the general case of irregularly-sampled partially-observed multivariate time series; furthermore this allows for the length of each shapelet to be treated as a parameter rather than a hyperparameter and optimised differentiably. We have introduced generalised discrepancies to allow for domain adaptation. Finally we have introduced a simple regularisation penalty that produces interpretable results capable of giving new insight into the data.
+	In this work we have extended and generalised the classical shapelet method in several ways. We have generalised it from discrete time to continuous time, and in doing so extend the method to the general case of irregularly-sampled partially-observed multivariate time series; furthermore this allows for the length of each shapelet to be treated as a parameter rather than a hyperparameter, and optimised differentiably. We have introduced generalised discrepancies to allow for domain adaptation. Finally we have introduced a simple regularisation penalty that produces interpretable results capable of giving new insight into the data.
 	
 	\section*{Broader Impact}
-	Interpretability is important in the application of machine learning systems, so that the reason for choices made on the basis of that system can be justified, fairly, and without undue bias. Furthermore, methods which give new insight into the data are valuable for their ability to help the subequent development of theory. The generalised shapelet transform, with interpretable regularisation, is capable of supporting both of these objectives, and so it is our hope that a substantial part of the broader impact of this work will be its contributions towards these strategic goals.
+	Interpretability is important in the application of many machine learning systems, often over and above raw performance, so that the reason for choices made on the basis of that system can be justified, seen to be made fairly, and without undue bias. Furthermore, methods which give new insight into the data are valuable for their ability to help the subequent development of theory. The generalised shapelet transform, with interpretable regularisation, is capable of supporting both of these objectives, and so it is our hope that a substantial part of the broader impact of this work will be its contributions towards these strategic goals.
 	
 	
 	\begin{ack}
@@ -377,75 +400,76 @@ To examine the interpretability of speech commands, we refer to Figure \ref{fig:
 	\subsection{General notes}
 	Many details of the experiments are already specified in Section \ref{section:experiments}, and we do not repeat those details here.
 	
-	\boldheading{Code} Code to reproduce every experimental can found at \texttt{https://github.com/jambo6/generalised\_shapelets}.
+	\boldheading{Code} Code to reproduce every experiment can found at \texttt{https://github.com/jambo6/generalised\_shapelets}.
 	
 	\boldheading{Computer infrastructure} Experiments were run on the CPU of a variety of different machines, all using Ubuntu 18.04 LTS, and running PyTorch 1.3.1.
 	
 	\subsection{UEA} \label{apx:uea}
 	The datasets can be downloaded from \texttt{https://timeseriesclassification.com}.
-	
+
+	The maximum number of epochs allowed for training was 250.	
+
 	All UEA datasets were used unnormalised. Those samples which were shorter than the maximum length of the sequence were padded to the maximum length by repeating their final entry.
 	
 	Hyperparameters were found by performing a grid search over 2, 3, 5 shapelets \emph{per class}, with a maximum total number of shapelets of 30, and shapelets being set to (classical shapelet transform) / initialised at (generalised shapelet transform) 0.15, 0.3, 0.5, 1.0 times the maximum length of the time series.
 	
 	The dataset comes with default train/test splits, which we respect here. The training data is split 80\%/20\% into train and validation sets, stratified by class label.
 	
-	The maximum number of epochs allowed for training was 250.
-	
 	The details of each dataset are as below. We note that the train/test splits are sometimes of unusual proportion; we do not know the reason for this odd choice.
 
 	\begin{table}[ht]
-		\caption{}
+		\caption{UEA dataset details and hyperparameter choices}
 		\label{tab:uea_hyperparams_old}
 		\centering
 		\begin{tabular}{lccccccc}
 			\toprule
-			Dataset & Train size & Test size & Dimensions & Length & Classes & \parbox{10mm}{Shapelets per class} & \parbox{10mm}{Shapelet length fraction} \\ \midrule
-			BasicMotions    & 40 & 40 & 6 & 100 & 4 & 3 & 0.5 \\
-			ERing           & 30 & 30 & 4 & 65 & 6 & 2 & 0.5 \\
-			Epilepsy        & 137 & 138 & 3 & 206 & 4 & 5 & 0.5 \\
-			Handwriting     & 150 & 850 & 3 & 152 & 26 & 3 & 0.5 \\
-			JapaneseVowels  & 270 & 370 & 12 & 29 & 9 & 2 & 0.5 \\
-			Libras          & 180 & 180 & 2 & 45 & 15 & 5 & 1.0 \\
-			LSST            & 2459 & 2466 & 6 & 36 & 14 & 2 & 1.0 \\
-			PenDigits       & 7494 & 3498 & 2 & 8 & 10 & 5 & 0.5 \\
-			RacketSports    & 151 & 152 & 6 & 30 & 4 & 3 & 0.5 \\
+			Dataset & Train size & Test size & Dimensions & Length & Classes & \parbox{10mm}{Shapelets} & \parbox{10mm}{Shapelet length fraction} \\ \midrule
+			BasicMotions    & 40 & 40 & 6 & 100 & 4 & 12 & 0.5 \\
+			ERing           & 30 & 30 & 4 & 65 & 6 & 12 & 0.5 \\
+			Epilepsy        & 137 & 138 & 3 & 206 & 4 & 20 & 0.5 \\
+			Handwriting     & 150 & 850 & 3 & 152 & 26 & 30 & 0.5 \\
+			JapaneseVowels  & 270 & 370 & 12 & 29 & 9 & 18 & 0.5 \\
+			Libras          & 180 & 180 & 2 & 45 & 15 & 30 & 1.0 \\
+			LSST            & 2459 & 2466 & 6 & 36 & 14 & 28 & 1.0 \\
+			PenDigits       & 7494 & 3498 & 2 & 8 & 10 & 30 & 0.5 \\
+			RacketSports    & 151 & 152 & 6 & 30 & 4 & 12 & 0.5 \\
 			\bottomrule
 		\end{tabular}
 	\end{table}
+	
+	\subsection{Learning lengths}
 
-
-	We also give the hyperparameters used for Section \ref{sec:missing_and_length} below. These were chosen to optimize the validation score for the generalised $L^2$ discrepancy rather than on classical shapelets and as such are different to those noted above.
+	Table \ref{tab:uea_hyperparams_l2} shows the hyperparameters used in Section \ref{subsec:uea_missing_and_length}. These were chosen to optimize the validation score for the generalised shapelet transform without learnt lengths, rather than the classical shapelet transform, and as such are different to those noted above. The hyperparameters were optimised for the 30\% drop rate, and the same hyperparameters simply used for the 10\% and 50\% drop rate cases.
 
 	\begin{table}[ht]
-		\caption{}
+		\caption{Hyperparameter choices for study on learnt lengths}
 		\label{tab:uea_hyperparams_l2}
 		\centering
 		\begin{tabular}{lccc}
 			\toprule
-			Dataset & Shapelets per class & Best length fraction & Worst length fraction \\
+			Dataset & Shapelets & Best length fraction & Worst length fraction \\
 			\midrule
-			JapaneseVowels  & 3 & 0.15 & 0.5 \\
-			Libras          & 2 & 1.0 & 0.15 \\
-			LSST            & 2 & 0.3 & 1.0 \\
+			JapaneseVowels  & 27 & 0.15 & 0.5 \\
+			Libras          & 30 & 1.0 & 0.15 \\
+			LSST            & 28 & 0.3 & 1.0 \\
 			\bottomrule
 		\end{tabular}
 	\end{table}
 
-	For completeness, we also give the full results from both hyperparamters in Tables \ref{tab:uea_hyperparameter_old, tab:uea_hyperparameter_l2}.
+	For completeness, we also give the full results from both hyperparameters in Tables \ref{tab:uea_hyperparameter_old, tab:uea_hyperparameter_l2}.
 
 	\begin{sidewaystable}
 		\centering
 		\label{tab:uea_hyperparams_old_results}
 		\input{results/uea_hyperparameter_old.tex}
-		\caption{Accuracy on the validation set for the hyperparmeter runs performed to determine the hyperparameters used in Section \ref{subsec:uea_classification}. The top column value represents the number of classes per shapelet for the run, with the lower values being the shapelet length proportion for that number of classes. The best run is given in bold. When multiple options achieved the highest score, the hyperparameters were chosen randomly from that top performing set.}
+		\caption{Accuracy on the validation set for the hyperparameter runs performed to determine the hyperparameters used in Section \ref{subsec:uea_classification}. The top column value represents the number of classes per shapelet for the run, with the lower values being the shapelet length proportion for that number of classes. The best run is given in bold. When multiple options achieved the highest score, the hyperparameters were chosen randomly from that top performing set.}
 
 		\bigskip\bigskip  % provide some separation between the two tables
 
 		\centering
 		\label{tab:uea_hyperparams_l2_results}
 		\input{results/uea_hyperparameter_l2.tex}
-		\caption{Accuracy on the validation set for the hyperparmeter runs performed to determine the hyperparameters used in Section \ref{subsec:uea_missing_and_length}. The top column value represents the number of classes per shapelet for the run, with the lower values being the shapelet length proportion for that number of classes. The best hyperparameters are denoted in bold with a $^*$ and the worst length hyperperameter for the same number of shapelets per class denoted as bold followed by a $_*$. When multiple options achieved the highest score, the hyperparameters were chosen randomly from that top performing set.}
+		\caption{Accuracy on the validation set for the hyperparameter runs performed to determine the hyperparameters used in Section \ref{subsec:uea_missing_and_length}. The top column value represents the number of classes per shapelet for the run, with the lower values being the shapelet length proportion for that number of classes. The best hyperparameters are denoted in bold with a $^*$ and the worst length hyperperameter for the same number of shapelets per class denoted as bold followed by a $_*$. When multiple options achieved the highest score, the hyperparameters were chosen randomly from that top performing set.}
 	\end{sidewaystable}
 
 
