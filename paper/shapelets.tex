@@ -455,25 +455,24 @@ See Appendix \ref{apx:further_speech_commands_interpretability} for further plot
 			\bottomrule
 		\end{tabular}
 	\end{table}
-
-	For completeness, we also give the full results from both hyperparameters in Tables \ref{tab:uea_hyperparameter_old, tab:uea_hyperparameter_l2}.
+	
+	\subsection{Full hyperparameter search results}
+	For completeness we also give the full results from both hyperparameter searches in the preceding two sections, in Tables \ref{tab:uea_hyperparams_old_results} and \ref{tab:uea_hyperparams_l2_results}.
 
 	\begin{sidewaystable}
 		\centering
-		\label{tab:uea_hyperparams_old_results}
 		\input{results/uea_hyperparameter_old.tex}
-		\caption{Accuracy on the validation set for the hyperparameter runs performed to determine the hyperparameters used in Section \ref{subsec:uea_classification}. The top column value represents the number of classes per shapelet for the run, with the lower values being the shapelet length proportion for that number of classes. The best run is given in bold. When multiple options achieved the highest score, the hyperparameters were chosen randomly from that top performing set.}
+		\caption{Accuracy on the validation set for the hyperparameter runs performed to determine the hyperparameters used in Section \ref{subsec:uea_classification}. The upper row represents the number of shapelets per class, with the lower row being the shapelet length fraction. The best run is given in bold. When multiple options achieved the highest score, the hyperparameters were chosen randomly from that top performing set. Only one run was performed for each hyperparameter option.}\label{tab:uea_hyperparams_old_results}
 
 		\bigskip\bigskip  % provide some separation between the two tables
 
 		\centering
-		\label{tab:uea_hyperparams_l2_results}
 		\input{results/uea_hyperparameter_l2.tex}
-		\caption{Accuracy on the validation set for the hyperparameter runs performed to determine the hyperparameters used in Section \ref{subsec:uea_missing_and_length}. The top column value represents the number of classes per shapelet for the run, with the lower values being the shapelet length proportion for that number of classes. The best hyperparameters are denoted in bold with a $^*$ and the worst length hyperperameter for the same number of shapelets per class denoted as bold followed by a $_*$. When multiple options achieved the highest score, the hyperparameters were chosen randomly from that top performing set.}
+		\caption{Accuracy on the validation set for the hyperparameter runs performed to determine the hyperparameters used in Section \ref{subsec:uea_missing_and_length}. The upper row represents the number of shapelets per class, with the lower row being the shapelet length fraction. The best and worst hyperparameters -- recall that worst is also used here -- are denoted in bold. The best case additionally has a superscript $^*$ and the worst case additionally has a superscript $_*$. When multiple options achieved the highest score, the hyperparameters were chosen randomly from that top performing set.}\label{tab:uea_hyperparams_l2_results}
 	\end{sidewaystable}
 
 
-	\subsection{Speech Commands}
+	\subsection{Speech Commands}\label{apx:further_speech_commands_interpretability}
 	The dataset can be downloaded from\\ \texttt{http://download.tensorflow.org/data/speech\_commands\_v0.02.tar.gz}.
 	
 	We began by selecting every sample from the `yes', `no', `up', `down', `left', `right', `on', `off', `stop' and `go' categories, and discarding the samples which were not of the maximum length (16000; not many samples were shorter than this). This gives a total of 34975 samples.
@@ -486,23 +485,27 @@ See Appendix \ref{apx:further_speech_commands_interpretability} for further plot
 	
 	The data is combined into a single dataset and a 70\%/15\%/15\% training/validation/test split taken, stratified by class label.
 
-
-    \subsection{A further look at speech commands interpretability.} \label{apx:further_speech_commands_interpretability}
-	In Figure \ref{fig:speech_commands_axisplot} we show all 40 MFC coefficients for the shapelet (blue) and the training set minimizer (orange, dashed) for the classical and generalised $L^2$ methods. This was omitted from the body of the text due to the size of the figures and also that the MFC plots are easier to digest.
+	In Figure \ref{fig:speech_commands_axisplot} we show all 40 MFC coefficients for the shapelet (blue) and the training set minimizer (orange, dashed) for the generalised shapelet transform with $L^2$ discrepancy, for a particular (arbitrarily selected) run.
+%	\begin{figure}[t]
+%		\begin{subfigure}[b]{\linewidth}
+%			\centering
+%			\includegraphics[width=\linewidth]{images/new_speech_commands_axisplots.png}
+%			\caption{Classical shapelet transform.}
+%			\label{fig:old_speech_commands_axisplot}
+%		\end{subfigure}
+%		\begin{subfigure}[b]{\linewidth}
+%			\centering
+%			\includegraphics[width=\linewidth]{images/new_speech_commands_axisplots.png}
+%			\caption{Generalised shapelet transform with $L^2$ discrepancy.}
+%			\label{fig:new_speech_commands_axisplot}
+%		\end{subfigure}
+%		\caption{All MFC coefficients for the shapelet (blue) and the training set minimizer (orange, dashed).}
+%		\label{fig:speech_commands_axisplot}
+%	\end{figure}
 	\begin{figure}[t]
-		\begin{subfigure}[b]{\linewidth}
 			\centering
 			\includegraphics[width=\linewidth]{images/new_speech_commands_axisplots.png}
-			\caption{Classical shapelet transform.}
-			\label{fig:old_speech_commands_axisplot}
-		\end{subfigure}
-		\begin{subfigure}[b]{\linewidth}
-			\centering
-			\includegraphics[width=\linewidth]{images/new_speech_commands_axisplots.png}
-			\caption{Generalised shapelet transform with $L^2$ discrepancy.}
-			\label{fig:new_speech_commands_axisplot}
-		\end{subfigure}
-		\caption{All MFC coefficients for the shapelet (blue) and the training set minimizer (orange, dashed).}
+		\caption{Generalised shapelet transform with $L^2$ discrepancy. All MFC coefficients for the shapelet (blue) and the training set minimizer (orange, dashed).}
 		\label{fig:speech_commands_axisplot}
 	\end{figure}
 
