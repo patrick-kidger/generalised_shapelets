@@ -66,11 +66,11 @@ The following are also needed if you wish to run the interpretability notebooks:
 Finally, the `torchshapelets` package (in this repository) must be installed via:
 ``python torchshapelets/setup.py develop``
 
-## Downloading the data
+### Downloading the data
 + ``python get_data/uea.py``
 + ``python get_data/speech_commands.py``
 
-## Reproducing experiments
+### Running the experiments
 First make a folder at `experiments/results`, which is where the results of the experiments will be stored. Each model is saved after training for later analysis, so make this a symlink if you need to save on space. All experiments can be run via:
 + ``python experiments/uea.py <argument>``
 + ``python experiments/speech_commands.py``
@@ -85,6 +85,6 @@ where ``<argument>`` is one of:
 
 However due to the high memory cost, we do not advise attempting this in one go and instead suggest using the scripts as a guide to understand how experiments are run, and only running a subset of experiments that are of most interest.
 
-## Model evaluation
+### Model evaluation
 Once an experiment has been completed, model performance can be viewed using the `experiments/parse_results.py` script. Simply run the file with an argument that corresponds to the name of a folder in `experiments/results`. For example, suppose we have run the UEA comparison test, then results can be viewed by running:
 + `python experiments/parse_results.py uea_comparison`
