@@ -21,8 +21,8 @@ Despite the similar names, shapelets have nothing to do with wavelets.
 ## Library
 We provide a PyTorch-compatible library for computing the generalised shapelet transform [here](./torchshapelets).
 
-## Some Results
-Accuracies on a collection of datasets:
+## Results
+Accuracies on ten different datasets:
 <p align="center">
 <img align="middle" src="./paper/images/results_table_full.png" width="666" />
 </p>
@@ -32,7 +32,7 @@ The first 14 MFC coefficients for an audio recording from the Speech Commands da
 <img align="middle" src="./paper/images/new_speech_commands_heatmap.png" width="666" />
 </p>
 
-Interpreting why a class was chosen based on similarity to a shapelet:
+Interpreting why a class was chosen based on similarity to a shapelet, on the PenDigits dataset:
 <p align="center">
 <img align="middle" src="./paper/images/new_pendigits.png" width="666" />
 </p>
