@@ -251,13 +251,14 @@
 	over model parameters $\theta$, discrepancy parameters $A$, shapelet parameters $\rho$, and shapelet lengths $S_k$, via standard stochastic gradient descent based techniques.
 
 	\boldheading{Differentiability}
-	Some thought is necessary to verify that this constructions is differentiable, in particular with respect to $S_k$. Examining the definition of $\sigma^A_{S_k}$ in equation \eqref{eq:new-sigma}, there are two operations that may seem to pose a problem, namely the minimum over a range $\min_{s \in [0, T_n - S_k]}$, and the restriction operator $\iota(f^n) \mapsto \restr{\iota(f^n)}{[s, s + S_k]}$.
+	Some thought is necessary to verify that this constructions is differentiable with respect to $S_k$. %Examining the definition of $\sigma^A_{S_k}$ in equation \eqref{eq:new-sigma}, 
+	There are two operations that may seem to pose a problem, namely the minimum over a range $\min_{s \in [0, T_n - S_k]}$, and the restriction operator $\iota(f^n) \mapsto \restr{\iota(f^n)}{[s, s + S_k]}$.
 
 	Practically speaking, however, it is straightforward to resolve both of these issues. For the minimum over a range, this may reasonably be approximated by a minimum over some collection of points $s \in \{0, \varepsilon, 2 \varepsilon, \ldots, T_n - S_k - \varepsilon, T_n - S_k\}$, for some $\varepsilon > 0$ small and dividing $T_n - S_k$. This is now a standard piece of an autodifferentiation package. The error of this approximation may be controlled by the modulus of continuity of $s \mapsto \pi^A_{S_k}(\restr{\iota(f^n)}{[s, s + S_k]}(s + \cdot), w^{k, \rho, S_k})$, but in practice we found this to be unnecessary, and simply took $\varepsilon$ equal to the smallest gap between observations.
 	
 	Next, the continuous-time paths $\iota(f^n)$ and continuous-time shapelets $w^{k, \rho, S_k}$ must both be represented by some parameterisation of function space, and it is thus sufficient to restrict to considering differentiability with respect to this parameterisation.
 	
-	In our experiments we represent both $\iota(f^n)$ and $w^{k, \rho, S_k}$ as a continuous piecewise linear function stored as a collection of knots. In this context, the restriction operator is clearly differentiable, as a map from the unrestricted function, represented by one collection of knots, to the restricted function, represented by another collection of knots. Each knot is either kept (the identity function), thrown away (the zero function), or interpolated between to place a new knot at the boundary (a ratio of existing knots).
+	In our experiments we represent both $\iota(f^n)$ and $w^{k, \rho, S_k}$ as a continuous piecewise linear function stored as a collection of knots. In this context, the restriction operator is clearly differentiable, as a map from one collection of knots to a restricted collection of knots. Each knot is either kept (the identity function), thrown away (the zero function), or interpolated between to place a new knot at the boundary (a ratio of existing knots).
 
 	
 	\boldheading{Choice of $F^\theta$}\label{section:choice-of-f}
@@ -268,15 +269,9 @@
 \section{Experiments}\label{section:experiments}
 We compare the generalised shapelet transform to the classical shapelet transform, in terms of both performance and interpretability, on a large range of time series classification problems. The shapelets of the classical shapelet transform are learnt differentiably.
 
-In every case the model is linear, for interpretability as previously described, on either the generalised (equation \eqref{eq:generalised-shapelet-transform}) or classical (equation \eqref{eq:classical-shapelet-transform}) shapelet transforms.
+In every case the model is linear, for interpretability as previously described, on either the generalised (equation \eqref{eq:generalised-shapelet-transform}) or classical (equation \eqref{eq:classical-shapelet-transform}) shapelet transforms. The learnt pseudometrics for the generalised shapelet transform scale each channel individually by taking $A$ to be diagonal.
 
-%Every experiment is run three times, and we report the mean and standard deviation of test accuracy.
-The interpolation scheme $\iota$ is taken to be piecewise linear interpolation. %; in particular efficient algorithms for computing the logsignature transform only exist for piecewise linear paths \cite{signatory}.
-The regularisation parameter $\gamma$ is taken to be $10^{-4}$. This was selected by starting at $10^{-3}$ and reducing the value until test accuracy no longer improved, so as to ensure that it did not compromise performance.
-
-The loss was cross entropy, the optimiser was Adam \cite{kingma2015} with learning rate 0.05 and batch size 1024. If validation loss stagnated for 20 epochs then the learning rate was reduced by a factor of 10 and training resumed, down to a minimum learning rate of 0.001. We note that these relatively large learning rates are (as is standard practice) proportional to the large batch size. If validation loss and accuracy failed to decrease over 60 epochs then training was halted. Once training was completed then the model parameters were rolled back to those which produced the highest validation accuracy.
-
-Further experimental details may be found in Appendix \ref{appendix:experimental}.
+Precise experimental details (optimiser, training scheme, ...) may be found in Appendix \ref{appendix:experimental}.
 
 \subsection{The UEA Time Series Archive} \label{subsec:uea_classification}
 This is a collection of 30 fully-observed regularly-sampled datasets with varying properties \cite{bagnall2018uea}, see Appendix \ref{appendix:experimental}. Evaluating on the full collection of datasets would take a prohibitively long time, and so we select 9 representing a range of difficulties.
@@ -297,7 +292,8 @@ The results are given in Table \ref{tab:uea_comparison_results}. We see that the
 \boldheading{Interpretability on PenDigits}
 We demonstrate interpretability by examining the PenDigits dataset. This is a dataset of handwritten digits 0--9, sampled at 8 points along their trajectory. We select the most informative shapelet for each of the ten classes (as in Section \ref{section:choice-of-f}), for both the classical shapelet transform and the generalised shapelet transform, with $L^2$ discrepancy. We then locate the training sample that it is most similar to, and plot an overlay of the two. See Figure \ref{fig:pendigits}.
 
-\begin{figure}[t]
+\begin{figure}[b]
+\vspace{0.25em}
     \begin{subfigure}[b]{\linewidth}
         \centering
         \includegraphics[width=\linewidth]{images/old_pendigits.png}
@@ -327,14 +323,14 @@ Another such example is the shapelet corresponding to the class 7, for the gener
 \subsection{Learning lengths, with irregularly sampled partially observed time series} \label{subsec:uea_missing_and_length}
 We now investigate the strategy of learning lengths differentiably.
 
-So as to keep things interesting, and to additionally provide benchmarks on irregularly sampled partially-observed datasets (to which the classical shapelet transform cannot be applied), the datasets we use for this test are three UEA datasets, in which we drop either 10\%, 30\% or 50\% of the data for each channel of the dataset. The data dropped is independently selected for every channel of each time series, and is the same for every model and repeat. The datasets used are the JapaneseVowels, Libras and LSST datasets, selected for representing a range of difficulties.
+So as to keep things interesting, and to additionally provide benchmarks on irregularly sampled partially-observed datasets (to which the classical shapelet transform cannot be applied), for this test we drop either 10\%, 30\% or 50\% of the data for each channel of each of three UEA datasets. The data dropped is independently selected for every channel of each time series, and is the same for every model and repeat. The datasets used are the JapaneseVowels, Libras and LSST datasets, selected for representing a range of difficulties.
 
 We use the generalised shapelet transform, except we fix the lengths rather than learning them differentiably. We then perform a hyperparameter search to determine the best and worst lengths for this model on each dataset. We then train a model with differentiably learnt lengths initialised at the \emph{worst} lengths, and compare it to the \emph{best} performer from the hyperparameter search. See Table~\ref{tab:missing_and_length}. We see that the performance is comparable! This demonstrates lengths learnt differentiably perform just as effectively as those selected by hyperparameter search, but without the relatively more expensive search.
 
-\begin{table}[ht]
+\begin{table}[t]
     \centering
-    \input{results/uea_missing_and_length.tex}
 	\caption{Test accuracy (mean $\pm$ std, computed over three runs) on three UEA datasets with missing data. A `win' is defined as the number of times each algorithm was within 1 standard deviation of the top performer for each dataset.}\label{tab:missing_and_length}
+    \input{results/uea_missing_and_length.tex}
 \end{table}
 
 
@@ -346,32 +342,26 @@ For the generalised shapelet transform, we use the MFC discrepancy described in 
 For this more complicated dataset, we found that the generalised shapelet transform outperformed the classical shapelet transform. (To keep things fair, the classical shaplet transform is performed in MFC-space; the performance gap is not due to this.) The classical shapelet transform produces a test accuracy of 44.8\% $\pm$ 8.6\%, whilst the more flexible generalised shapelet transform, with $L^2$ discrepancy, produces a test accuracy of 91.9\% $\pm$ 2.4\% (mean $\pm$ std, averaged over three runs).
 
 \boldheading{Interpretability of Speech Commands}
+
+\begin{figure}
+			\centering
+			\includegraphics[width=\linewidth]{images/new_speech_commands_heatmap.png}
+			\caption{Generalised shapelet transform with $L^2$ discrepancy. First 15 MFC coefficients for the training set minimizer (left), shapelet (middle), and the difference between them (right). The dashed box in the minimizer plot indicates the position in the series that the shapelet corresponds to.}\label{fig:speech_commands}
+\end{figure}
+
 We examine interpretability in two different ways. First we consider MFC-space, see Figure \ref{fig:speech_commands}. We see that the shapelets have learnt to resemble small segments of the training data, so that classification may be decided by the values of certain MFC coefficients, essentially corresponding to the presence of different frequencies.
 
 Furthermore, however, these shapelets may be listened to as audio! The audio files may be found at \texttt{https://github.com/jambo6/generalised\_shapelets/tree/master/audio}. A reasonable amount is thrown away in the audio to MFC map, so the audio shapelets learnt are far from perfect, but the difference between them is nonetheless clear. The shapelet corresponding to  `left' captures the `eft' sound, whilst the one associated with `stop' actually sounds like the word itself. In general, much like the shapelet associated with class 7 in the PenDigits example, the sounds extracted may not resemble the word in isolation, but instead capture the feature that distinguishes that class from the others present.
 
+\begin{wrapfigure}[11]{l}{5cm}\centering
+\vspace{-2em}
+\includegraphics[width=\linewidth]{images/spectral.png}
+\caption{Pseudometric channel weighting identifies a spectral gap.}\label{fig:spectral}
+\end{wrapfigure}
+
+Finally, we examine the coefficients of the learnt $L^2$ pseudometric, recalling that the matrix $A$ of equation \eqref{eq:mfc-discrepancy} is diagonal and thus scales the importance of each channel. See Figure \ref{fig:spectral}. It is known that lower frequencies are more important to distinguish words \cite{monson2019maximum}, and here we observe that the coefficients of the pseudometric have learnt to be relatively large for the first 15 coefficients, and dramatically smaller for the later 25 coefficients, corresponding to the importance of each feature. The pseudometric has automatically identified a spectral gap!
+
 See Appendix \ref{apx:further_speech_commands_interpretability} for further plots.
-%	\begin{figure}[t]
-%		\begin{subfigure}[b]{\linewidth}
-%			\centering
-%			\includegraphics[width=\linewidth]{images/old_speech_commands_heatmap.png}
-%			\caption{Classical shapelet transform.}
-%			\label{fig:old_speech_commands}
-%		\end{subfigure}
-%		\begin{subfigure}[b]{\linewidth}
-%			\centering
-%			\includegraphics[width=\linewidth]{images/new_speech_commands_heatmap.png}
-%			\caption{Generalised shapelet transform with $L^2$ discrepancy.}
-%			\label{fig:new_speech_commands}
-%		\end{subfigure}
-%		\caption{First 10 MFC coefficients for the shapelet (left), training set minimizer (middle), and the difference between them (right).}
-%		\label{fig:speech_commands}
-%	\end{figure}
-\begin{figure}
-			\centering
-			\caption{Generalised shapelet transform with $L^2$ discrepancy. First 10 MFC coefficients for the training set minimizer (left), shapelet (middle), and the difference between them (right). The dashed box in the minimizer plot indicates the position in the series that the shapelet corresponds to.}\label{fig:speech_commands}
-			\includegraphics[width=\linewidth]{images/new_speech_commands_heatmap.png}
-\end{figure}
 
 
 % Limiations: no DTW; speed+memory of training lengths
@@ -401,6 +391,13 @@ See Appendix \ref{apx:further_speech_commands_interpretability} for further plot
 	Many details of the experiments are already specified in Section \ref{section:experiments}, and we do not repeat those details here.
 	
 	\boldheading{Code} Code to reproduce every experiment can found at \texttt{https://github.com/jambo6/generalised\_shapelets}.
+	
+	\boldheading{Choice of $\iota$} The interpolation scheme $\iota$ is taken to be piecewise linear interpolation. In particular efficient algorithms for computing the logsignature transform only exist for piecewise linear paths \cite{signatory}.
+	
+	\boldheading{Regularisation parameter} The parameter $\gamma$ for the interpretable regularisation is taken to be $10^{-4}$. This was selected by starting at $10^{-3}$ and reducing the value until test accuracy no longer improved, so as to ensure that it did not compromise performance.
+	
+	\boldheading{Optimisation} %Every experiment is run three times, and we report the mean and standard deviation of test accuracy.
+The loss was cross entropy, the optimiser was Adam \cite{kingma2015} with learning rate 0.05 and batch size 1024. If validation loss stagnated for 20 epochs then the learning rate was reduced by a factor of 10 and training resumed, down to a minimum learning rate of 0.001. We note that these relatively large learning rates are (as is standard practice) proportional to the large batch size. If validation loss and accuracy failed to decrease over 60 epochs then training was halted. Once training was completed then the model parameters were rolled back to those which produced the highest validation accuracy.
 	
 	\boldheading{Computer infrastructure} Experiments were run on the CPU of a variety of different machines, all using Ubuntu 18.04 LTS, and running PyTorch 1.3.1.
 	
