@@ -93,3 +93,5 @@ _Note that the code uses a lot of memory, and takes a long time to run. It's ver
 ### Model evaluation
 Once an experiment has been completed, model performance can be viewed using the `experiments/parse_results.py` script. Simply run the file with an argument that corresponds to the name of a folder in `experiments/results`. For example, suppose we have run the UEA comparison test, then results can be viewed by running:
 + `python experiments/parse_results.py uea_comparison`
+
+Also see the notebooks in the [`notebooks`](./notebooks) directory, for an investigation into the interpretability of these models.
