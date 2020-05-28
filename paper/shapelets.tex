@@ -325,7 +325,7 @@ We now investigate the strategy of learning lengths differentiably.
 
 So as to keep things interesting, and to additionally provide benchmarks on irregularly sampled partially-observed datasets (to which the classical shapelet transform cannot be applied), for this test we drop either 10\%, 30\% or 50\% of the data for each channel of each of three UEA datasets. The data dropped is independently selected for every channel of each time series, and is the same for every model and repeat. The datasets used are the JapaneseVowels, Libras and LSST datasets, selected for representing a range of difficulties.
 
-We use the generalised shapelet transform, except we fix the lengths rather than learning them differentiably. We then perform a hyperparameter search to determine the best and worst lengths for this model on each dataset. We then train a model with differentiably learnt lengths initialised at the \emph{worst} lengths, and compare it to the \emph{best} performer from the hyperparameter search. See Table~\ref{tab:missing_and_length}. We see that the performance is comparable! This demonstrates lengths learnt differentiably perform just as effectively as those selected by hyperparameter search, but without the relatively more expensive search.
+We use the generalised shapelet transform with $L^2$ discrepancy, except we fix the lengths rather than learning them differentiably. We then perform a hyperparameter search to determine the best and worst lengths for this model on each dataset. We then train a model with differentiably learnt lengths initialised at the \emph{worst} lengths, and compare it to the \emph{best} performer from the hyperparameter search. See Table~\ref{tab:missing_and_length}. We see that the performance is comparable! This demonstrates lengths learnt differentiably perform just as effectively as those selected by hyperparameter search, but without the relatively more expensive search.
 
 \begin{table}[t]
     \centering
@@ -335,11 +335,11 @@ We use the generalised shapelet transform, except we fix the lengths rather than
 
 
 \subsection{Speech Commands}
-Next we consider the Speech Commands dataset~\cite{warden2018speech}. This is comprised of one-second audio files, corresponding to words such as `yes', `no', `left', `right', and so on. We consider 10 classes so as to create a balanced classification problem.
+Finally we consider the Speech Commands dataset~\cite{warden2018speech}. This is comprised of one-second audio files, corresponding to words such as `yes', `no', `left', `right', and so on. We consider 10 classes so as to create a balanced classification problem.
 
 For the generalised shapelet transform, we use the MFC discrepancy described in equation~\eqref{eq:mfc-discrepancy}.% Knowing that this is a problem to do with spoken audio, choosing a discrepancy in this way allows us to exploit domain knowledge.
 
-For this more complicated dataset, we found that the generalised shapelet transform outperformed the classical shapelet transform. (To keep things fair, the classical shaplet transform is performed in MFC-space; the performance gap is not due to this.) The classical shapelet transform produces a test accuracy of 44.8\% $\pm$ 8.6\%, whilst the more flexible generalised shapelet transform, with $L^2$ discrepancy, produces a test accuracy of 91.9\% $\pm$ 2.4\% (mean $\pm$ std, averaged over three runs).
+For this more complicated dataset, we found that the generalised shapelet transform substantially outperformed the classical shapelet transform. (To keep things fair, the classical shaplet transform is performed in MFC-space; the performance gap is not due to this.) The classical shapelet transform produces a test accuracy of 44.8\% $\pm$ 8.6\%, whilst the generalised shapelet transform produces a test accuracy of 91.9\% $\pm$ 2.4\% (mean $\pm$ std, averaged over three runs).
 
 \boldheading{Interpretability of Speech Commands}
 
@@ -349,9 +349,9 @@ For this more complicated dataset, we found that the generalised shapelet transf
 			\caption{Generalised shapelet transform with $L^2$ discrepancy. First 15 MFC coefficients for the training set minimizer (left), shapelet (middle), and the difference between them (right). The dashed box in the minimizer plot indicates the position in the series that the shapelet corresponds to.}\label{fig:speech_commands}
 \end{figure}
 
-We examine interpretability in two different ways. First we consider MFC-space, see Figure \ref{fig:speech_commands}. We see that the shapelets have learnt to resemble small segments of the training data, so that classification may be decided by the values of certain MFC coefficients, essentially corresponding to the presence of different frequencies.
+We examine interpretability in three different ways. First we consider MFC-space, see Figure \ref{fig:speech_commands}. We see that the shapelets have learnt to resemble small segments of the training data, so that classification may be determined by the presence of different frequencies.
 
-Furthermore, however, these shapelets may be listened to as audio! The audio files may be found at \texttt{https://github.com/jambo6/generalised\_shapelets/tree/master/audio}. A reasonable amount is thrown away in the audio to MFC map, so the audio shapelets learnt are far from perfect, but the difference between them is nonetheless clear. The shapelet corresponding to  `left' captures the `eft' sound, whilst the one associated with `stop' actually sounds like the word itself. In general, much like the shapelet associated with class 7 in the PenDigits example, the sounds extracted may not resemble the word in isolation, but instead capture the feature that distinguishes that class from the others present.
+Furthermore, however, these shapelets may be listened to as audio! The audio files may be found at \texttt{https://github.com/jambo6/generalised\_shapelets/tree/master/audio}. The audio to MFC map is naturally lossy, so the shapelets are far from perfect, but the difference between them is nonetheless clear. The shapelet most strongly associated with `left' captures the `eft' sound, whilst the one associated with `stop' actually sounds like the word itself. Much like the shapelet associated with class 7 in the PenDigits example, the sounds extracted need not resemble the word in isolation. Instead, they capture features that distinguishes that class from the others present.
 
 \begin{wrapfigure}[11]{l}{5cm}\centering
 \vspace{-2em}
@@ -359,7 +359,7 @@ Furthermore, however, these shapelets may be listened to as audio! The audio fil
 \caption{Pseudometric channel weighting identifies a spectral gap.}\label{fig:spectral}
 \end{wrapfigure}
 
-Finally, we examine the coefficients of the learnt $L^2$ pseudometric, recalling that the matrix $A$ of equation \eqref{eq:mfc-discrepancy} is diagonal and thus scales the importance of each channel. See Figure \ref{fig:spectral}. It is known that lower frequencies are more important to distinguish words \cite{monson2019maximum}, and here we observe that the coefficients of the pseudometric have learnt to be relatively large for the first 15 coefficients, and dramatically smaller for the later 25 coefficients, corresponding to the importance of each feature. The pseudometric has automatically identified a spectral gap!
+Finally, we examine the coefficients of the learnt $L^2$ pseudometric, recalling that the matrix $A$ of equation \eqref{eq:mfc-discrepancy} is diagonal and thus scales the importance of each channel. See Figure \ref{fig:spectral}. It is known that lower frequencies are more important to distinguish words \cite{monson2019maximum}, and here we observe that the coefficients of the pseudometric have learnt to be relatively large for the first 15 coefficients, and dramatically smaller for the later 25 coefficients, corresponding to the importance of each feature. The pseudometric has automatically identified a kind of spectral gap!
 
 See Appendix \ref{apx:further_speech_commands_interpretability} for further plots.
 
@@ -368,7 +368,7 @@ See Appendix \ref{apx:further_speech_commands_interpretability} for further plot
 
 
 	\section{Conclusion}
-	In this work we have extended and generalised the classical shapelet method in several ways. We have generalised it from discrete time to continuous time, and in doing so extend the method to the general case of irregularly-sampled partially-observed multivariate time series; furthermore this allows for the length of each shapelet to be treated as a parameter rather than a hyperparameter, and optimised differentiably. We have introduced generalised discrepancies to allow for domain adaptation. Finally we have introduced a simple regularisation penalty that produces interpretable results capable of giving new insight into the data.
+	In this work we have generalised the classical shapelet method in several ways. We have generalised it from discrete time to continuous time, and in doing so extend the method to the general case of irregularly-sampled partially-observed multivariate time series. Furthermore this allows for the length of each shapelet to be treated as a parameter rather than a hyperparameter, and optimised differentiably. We have introduced generalised discrepancies to allow for domain adaptation. Finally we have introduced a simple regularisation penalty that produces interpretable results capable of giving new insight into the data.
 	
 	\section*{Broader Impact}
 	Interpretability is important in the application of many machine learning systems, often over and above raw performance, so that the reason for choices made on the basis of that system can be justified, seen to be made fairly, and without undue bias. Furthermore, methods which give new insight into the data are valuable for their ability to help the subequent development of theory. The generalised shapelet transform, with interpretable regularisation, is capable of supporting both of these objectives, and so it is our hope that a substantial part of the broader impact of this work will be its contributions towards these strategic goals.
