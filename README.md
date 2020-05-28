@@ -6,15 +6,15 @@
 <img align="middle" src="./paper/images/new_pendigits.png" width="666" />
 </p>
 
-A generalised approach to _the shapelet method_ used in time series classification, in which a time series is described by its similarity to each of a collection of 'shapelets'.
+A generalised approach to _the shapelet method_ used in time series classification, in which a time series is described by its similarity to each of a collection of 'shapelets'. Given lots of well-chosen shapelets, then you can now look at those similarities and conclude that "This time series is probably of class X, because it has a very high similarity to shapelet Y."
 
 We extend the method via:
 + Extending to irregularly sampled, partially observed multivariate time series.
-+ Differentiably optimized shapelet lengths.
-+ Interpretable regularisation
-+ Generalised discrepancy functions
++ Differentiably optimising the shapelet lengths. (Previously a discrete parameter.)
++ Impose interpretability via regularisation.
++ Generalised discrepancy functions for domain adaptation.
 
-Giving a performant way to classify time series, whilst being able to answer questions about why that classification was chosen, and even being able to give new insight into the data. (For example, we demonstrate the discovery of a kind of spectral gap in an audio classification problem.)
+This gives a way to classify time series, whilst being able to answer questions about why that classification was chosen, and even being able to give new insight into the data. (For example, we demonstrate the discovery of a kind of spectral gap in an audio classification problem.)
 
 ----
 ### Library
