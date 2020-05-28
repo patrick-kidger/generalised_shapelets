@@ -13,6 +13,7 @@ import argparse
 import common
 
 parser = argparse.ArgumentParser()
+parser.add_argument('function', help="The function from the file to run.", type=str)
 parser.add_argument('-test', help="Whether to run in test mode (reduces n_epochs).", action='store_true')
 args = parser.parse_args()
 
@@ -230,7 +231,7 @@ def main(result_folder=None,                  # saving parameters
                        save_on_uniform_grid)
 
 
-def comparison_test():
+def comparison_test(old=True):
     """ Comparison of old and new methods with tensors for interpretability being saved for the first run. """
     seed = 1234
     common.handle_seeds(seed)
@@ -238,21 +239,37 @@ def comparison_test():
 
     for i in range(3):
         seed = common.handle_seeds(seed)
-        for old in [True, False]:
-            result_subfolder = 'old' if old else 'L2'
-            if common.assert_not_done(result_folder, result_subfolder, n_done=3, seed=i):
-                main(result_folder='speech_commands',
-                     result_subfolder=result_subfolder,
-                     old_shapelets=old,
-                     save_top_logreg_shapelets=True if i == 0 else False,   # Save for interpretability
-                     epochs=0,
-                     save_on_uniform_grid=True)
+        result_subfolder = 'old' if old else 'L2'
+        if common.assert_not_done(result_folder, result_subfolder, n_done=3, seed=i):
+            main(result_folder='speech_commands',
+                 result_subfolder=result_subfolder,
+                 old_shapelets=old,
+                 save_top_logreg_shapelets=True if i == 0 else False,   # Save for interpretability
+                 epochs=0,
+                 save_on_uniform_grid=True)
 
 
 
 if __name__ == '__main__':
+    import os
+    assert os.path.exists('./results'), "Please make a folder at experiments/results to store results in."
+    # We allow runs for old shapelets, new shapelets, or all
+    func_name = args.function
+    allowed_names = [
+        'old',
+        'new',
+        'all'
+    ]
+    assert func_name in allowed_names, 'function argument must be one of: \n\t{}\nGot: {}'.format(allowed_names, func_name)
+
     # The comparison test function runs the old and new-L2 methods on the speech_commands dataset over three iterations
     # In the first iteration we also save the top log-reg minimizers and shapelets (it is very expensive to have this
     # as another function run).
     # The output can be further analysed by running notebooks/speech_interpretability.ipynb
-    comparison_test()
+    if func_name == 'all':
+        comparison_test(True)
+        comparison_test(False)
+    elif func_name == 'old':
+        comparison_test(True)
+    elif func_name == 'new':
+        comparison_test(False)
