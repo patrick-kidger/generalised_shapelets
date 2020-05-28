@@ -32,10 +32,12 @@ The package requirements are listed below:
 + tqdm==4.46.0
 + signatory==1.2.0.1.4.0        # This must be installed _after_ PyTorch
 + torchshapelets==0.1.0         # Run ``python torchshapelets/setup.py develop``
-The following are needed only for the interpretability plots
+
+The following are needed if you wish to run the interpretability plots
 + jupyter==1.0.0          
 + matplotlib==3.2.1
 + seaborn==0.10.1
+
 The following can be omitted if not analysing the speech commands data
 + six-1.15.0 
 + torchaudio==0.4.0 
