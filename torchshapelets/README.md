@@ -4,7 +4,7 @@ A differentiable implementation of the generalised shapelet transform, using PyT
 
 _Will probably only work on the CPU, and it is neither fast nor memory efficient. We're working on that!_
 
-### Installation
+## Installation
 
 `pip install "git+https://github.com/jambo6/generalised_shapelets/#egg=torchshapelets&subdirectory=torchshapelets"`
 
@@ -12,13 +12,13 @@ Make sure you include the quotation marks. Tested to work on Linux. If on other 
 
 If you want to compute logsignature discrepancies then install [Signatory](https://github.com/patrick-kidger/signatory) first. If that's not installed then `torchshapelets` will still work, but `torchshapelets.LogsignatureDiscrepancy` will not be available.
 
-### Usage
+## Usage
 
 Once installed, then `import torchshapelets` to get everything.
 
 The key class is `torchshapelets.GeneralisedShapeletTransform`, which computes the generalised shapelet transform.
 
-### Example:
+## Example:
 ```python
 import torch
 import torchshapelets
@@ -51,7 +51,7 @@ shapelet_similarity = transform(times, path)
 # describing the similarity between each batch element and each shapelet.
 ```
 
-### Full API
+## Full API
 Available objects are:
 ```python
 torchshapelets.GeneralisedShapeletTransform
@@ -70,11 +70,11 @@ The regularisation will help ensure that the shapelets that are learnt are in fa
 
 Check their docstrings and the paper TODO for more details.
 
-### CPU vs GPU
+## CPU vs GPU
 
 The code may or may not crash if ran on the GPU. OpenMP and CUDA don't always seem to play well with each other.
 
-### Limitations
+## Limitations
 
 There are a number of limitations with this implementation - this definitely constitutes research code, not production code!
 
@@ -84,6 +84,6 @@ In brief, the code is slow and memory inefficient. We're pretty sure that this i
 
 If you're curious, having a look at [`LIMITATIONS.md`](./LIMITATIONS.md) for more information.
 
-### Citation
+## Citation
 
 TODO
