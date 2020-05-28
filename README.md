@@ -33,14 +33,24 @@ In principle this can be done just via:
 However due to the high memory cost, we do not advise attempting this in one go and instead suggest using the scripts as a guide to understand how experiments are run, and only running a subset of experiments that are of most interest.
 
 ## Results
-A table compiling all the accuracy results that are given in the paper. 
+Accuracies on a collection of datasets:
 <p align="center">
 <img align="middle" src="./paper/images/results_table_full.png" width="666" />
 </p>
-The first 14 MFC coefficients for an audio recording from the Speech Commands dataset, along with the learnt shapelet, and the difference between them. 
+
+The first 14 MFC coefficients for an audio recording from the Speech Commands dataset, along with the learnt shapelet, and the difference between them.:
 <p align="center">
 <img align="middle" src="./paper/images/new_speech_commands_heatmap.png" width="666" />
 </p>
-For further analysis and graphics, check the full paper. 
+
+Interpreting why a class was chosen based on similarity to a shapelet:
+<p align="center">
+<img align="middle" src="./paper/images/new_pendigits.png" width="666" />
+</p>
+
+Using a pseudometric uncovers a spectral gap in an audio classification problem:
+<p align="center">
+<img align="middle" src="./paper/images/spectral.png" width="300" />
+</p>
 
 ## Citation
