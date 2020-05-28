@@ -12,11 +12,6 @@ import argparse
 
 import common
 
-parser = argparse.ArgumentParser()
-parser.add_argument('function', help="The function from the file to run.", type=str)
-parser.add_argument('-test', help="Whether to run in test mode (reduces n_epochs).", action='store_true')
-args = parser.parse_args()
-
 here = pathlib.Path(__file__).resolve().parent
 
 
@@ -251,8 +246,13 @@ def comparison_test(old=True):
 
 
 if __name__ == '__main__':
-    import os
     assert os.path.exists('./results'), "Please make a folder at experiments/results to store results in."
+    
+    parser = argparse.ArgumentParser()
+    parser.add_argument('function', help="The function from the file to run.", type=str)
+    parser.add_argument('-test', help="Whether to run in test mode (reduces n_epochs).", action='store_true')
+    args = parser.parse_args()
+
     # We allow runs for old shapelets, new shapelets, or all
     func_name = args.function
     allowed_names = [
