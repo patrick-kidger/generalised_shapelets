@@ -135,23 +135,24 @@ def invert(model_filename, find_closest=True):
 
     # Apply SGD to match the MFCC of our candiate with the MFCC of the shapelet
     optim = torch.optim.SGD([learnt_audio], lr=1.)
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optim, factor=0.5, patience=1000, cooldown=1000,
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optim, factor=0.5, patience=700, cooldown=700,
                                                            verbose=True, min_lr=1e-3)
-    mfcc_transform = torchaudio.transforms.MFCC(log_mels=True, n_mfcc=40)
-    scaling = (torch.linspace(2, 0.5, 40) ** 2) / 40
+    mfcc_transform = torchaudio.transforms.MFCC(log_mels=True, n_mfcc=128)
     print('Starting inversion')
     trange = tqdm.trange(25_000)
     for i in trange:
         learnt_mfcc = mfcc_transform(learnt_audio).transpose(1, 2)
-        learnt_mfcc = (learnt_mfcc - means) / (stds + 1e-5)
-        diff = (learnt_mfcc - shapelet_mfcc) ** 2
-        diff = diff.mean(dim=[0, 1])
-        loss = diff.dot(scaling)  # matching lower frequencies is more important than higher frequencies
+        normalised_learnt_mfcc = (learnt_mfcc[..., :15] - means[..., :15]) / (stds[..., :15] + 1e-5)
+        # Match the lower frequencies
+        loss = torch.nn.functional.mse_loss(normalised_learnt_mfcc, shapelet_mfcc[..., :15])
+        # We observe a spectral gap (in the learnt pseudometric) after which the higher frequences don't matter, so
+        # regularise those down to zero.
+        loss = loss + 0.1 * torch.nn.functional.mse_loss(learnt_mfcc[..., 15:], torch.zeros_like(learnt_mfcc[..., 15:]))
         # Regularise to be similar to the closest. Again, this corresponds to a prior. There _is_ a potential issue that
         # we just end up learning something that sounds like the init_audio, which we mitigate by taking a small scaling
         # factor, so that we should just end up selecting the thing that is most similar to init_audio along the
         # manifold of those things that match the MFCC, which is the more important criterion here.
-        loss = loss + 0.01 * torch.nn.functional.mse_loss(learnt_audio, init_audio_extract)
+        # loss = loss + 0.001 * torch.nn.functional.mse_loss(learnt_audio, init_audio_extract)
         if i % 1000 == 0:
             trange.write("Epoch: {} Loss: {}".format(i, loss.item()))
         loss.backward()
@@ -184,7 +185,7 @@ def get_data():
 
 def main(result_folder=None,                  # saving parameters
          result_subfolder=None,               #
-         epochs=1000 if not args.test else 1, # training parameters
+         epochs=1000,                         # training parameters
          num_shapelets_per_class=4,           # model parameters
          num_shapelet_samples=None,           #
          discrepancy_fn='L2',                 #
@@ -236,21 +237,18 @@ def comparison_test(old=True):
         seed = common.handle_seeds(seed)
         result_subfolder = 'old' if old else 'L2'
         if common.assert_not_done(result_folder, result_subfolder, n_done=3, seed=i):
-            main(result_folder='speech_commands',
+            main(result_folder=result_folder,
                  result_subfolder=result_subfolder,
                  old_shapelets=old,
-                 save_top_logreg_shapelets=True if i == 0 else False,   # Save for interpretability
-                 epochs=0,
+                 save_top_logreg_shapelets=i == 0,   # Save for interpretability
                  save_on_uniform_grid=True)
 
 
-
 if __name__ == '__main__':
-    assert os.path.exists('./results'), "Please make a folder at experiments/results to store results in."
+    assert os.path.exists(here / 'results'), "Please make a folder at experiments/results to store results in."
     
     parser = argparse.ArgumentParser()
     parser.add_argument('function', help="The function from the file to run.", type=str)
-    parser.add_argument('-test', help="Whether to run in test mode (reduces n_epochs).", action='store_true')
     args = parser.parse_args()
 
     # We allow runs for old shapelets, new shapelets, or all

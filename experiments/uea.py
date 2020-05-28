@@ -225,7 +225,7 @@ def main(dataset_name,                        # dataset parameters
          result_folder=None,                  # saving parameters
          result_subfolder='',                 #
          dataset_detail='',                   #
-         epochs=250 if not args.test else 1,  # training parameters
+         epochs=250,                          # training parameters
          num_shapelets_per_class=3,           # model parameters
          num_shapelet_samples=None,           #
          discrepancy_fn='L2',                 #
@@ -384,11 +384,10 @@ def pendigits_interpretability():
 
 
 if __name__ == '__main__':
-    assert os.path.exists('./results'), "Please make a folder or symlink at experiments/results to store results in."
+    assert os.path.exists(here / 'results'), "Please make a folder or symlink at experiments/results to store results in."
     
     parser = argparse.ArgumentParser()
     parser.add_argument('function', help="The function from the file to run.", type=str)
-    parser.add_argument('-test', help="Whether to run in test mode (reduces n_epochs).", action='store_true')
     args = parser.parse_args()
 
     # Ensure the specified function name can be run
