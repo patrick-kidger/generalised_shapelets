@@ -1,23 +1,31 @@
-Generalised Interpretable Shapelets for Irregular Time-Series
-==================================================================
-[<a href="">arXiv</a>]
+<h1 align='center'> Generalised Interpretable Shapelets<br>
+    for Irregular Time Series<br>
+    [<a href="https://arxiv.org/abs/TODO">arXiv</a>] </h1>
 
 <p align="center">
 <img align="middle" src="./paper/images/new_pendigits.png" width="666" />
 </p>
 
-A generalised approach to _the shapelet method_ used in time-series classification. This code provides an extension of the shapelet method through its ability to handle
-1. Irregular (messy) time-series data.
-2. Differentiably optimized shapelet lengths.
-3. Interpretable regularisation term to force the 
-4. Ability to handle arbitrary shapelet-path discrepancy functions (not just L2) provided we can back-propagate through them.
+A generalised approach to _the shapelet method_ used in time series classification, in which a time series is described by its similarity to each of a collection of 'shapelets'.
+
+We extend the method via:
++ Extending to irregularly sampled, partially observed multivariate time series.
++ Differentiably optimized shapelet lengths.
++ Interpretable regularisation
++ Generalised discrepancy functions
+
+Giving a performant way to classify time series, whilst being able to answer questions about why that classification was chosen, and even being able to give new insight into the data. (For example, we demonstrate the discovery of a kind of spectral gap in an audio classification problem.)
 
 ----
+### Library
+We provide a PyTorch-compatible library for computing the generalised shapelet transform [here](./torchshapelets).
+
 ### Downloading the data
-The scripts for downloading the data can be found in ther [`get_data`](./get_data) folder. 
++ ``python get_data/uea.py``
++ ``python get_data/speech_commands.py``
 
 ### Reproducing experiments
-Everything to reproduce the experiments of the paper can be found in the [`experiments`](./experiments) folder. In principle at least, all that needs to be run (assuming the data is downloaded) is:
+In principle this can be done just via:
 + ``python experiments/uea.py``
 + ``python experiments/speech_commands.py``
 
