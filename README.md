@@ -73,7 +73,7 @@ Finally, the `torchshapelets` package (in this repository) must be installed via
 ### Running the experiments
 First make a folder at `experiments/results`, which is where the results of the experiments will be stored. Each model is saved after training for later analysis, so make this a symlink if you need to save on space. All experiments can be run via:
 + ``python experiments/uea.py <argument>``
-+ ``python experiments/speech_commands.py``
++ ``python experiments/speech_commands.py <argument2>``
 
 where ``<argument>`` is one of:
 + ``all``: run every experiment. Not recommended, will take forever.
@@ -83,7 +83,12 @@ where ``<argument>`` is one of:
 + ``missing_and_length_test``: actually use the hyperparameter searches (hardcoded to the results we found) for the test about learning lengths and missing data.
 + ``pendigits_interpretability``: run models for just PenDigits, and then save the resulting shapelets.
 
-However due to the high memory cost, we do not advise attempting this in one go and instead suggest using the scripts as a guide to understand how experiments are run, and only running a subset of experiments that are of most interest.
+and ``<argument2>`` is one of:
++ ``all``: Run every experiment. Not recommended, will take forever.
++ ``old``: Run just the classical shapelet transform.
++ ``new``: Run just the generalised shapelet transform.
+
+_Note that the code uses a lot of memory, and takes a long time to run. It's very much research code, not production code. See [`LIMIATIONS.md`](./torchshapelets/LIMITATIONS.md) for some discussion on why._
 
 ### Model evaluation
 Once an experiment has been completed, model performance can be viewed using the `experiments/parse_results.py` script. Simply run the file with an argument that corresponds to the name of a folder in `experiments/results`. For example, suppose we have run the UEA comparison test, then results can be viewed by running:
