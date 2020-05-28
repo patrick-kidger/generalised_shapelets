@@ -8,9 +8,13 @@ import torch
 import torchaudio
 import torchshapelets
 import tqdm
+import argparse
 
 import common
 
+parser = argparse.ArgumentParser()
+parser.add_argument('-test', help="Whether to run in test mode (reduces n_epochs).", action='store_true')
+args = parser.parse_args()
 
 here = pathlib.Path(__file__).resolve().parent
 
@@ -184,7 +188,7 @@ def get_data():
 
 def main(result_folder=None,                  # saving parameters
          result_subfolder=None,               #
-         epochs=1000,                         # training parameters
+         epochs=1000 if not args.test else 1, # training parameters
          num_shapelets_per_class=4,           # model parameters
          num_shapelet_samples=None,           #
          discrepancy_fn='L2',                 #

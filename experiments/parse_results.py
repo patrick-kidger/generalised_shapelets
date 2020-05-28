@@ -1,12 +1,10 @@
 import collections as co
-import copy
 import json
 import math
 import os
 import pathlib
 import statistics
 import sys
-import pandas as pd
 
 
 here = pathlib.Path(__file__).resolve().parent
@@ -107,64 +105,64 @@ def main(dataset_folder):
     return means, wins, stds
 
 
-def generate_dataframes(means, wins, stds):
-    """ Generates dataframes from means, stds and wins. """
-    # Save mean
-    means = pd.DataFrame.from_dict(means).T
-
-    # Save wins
-    wins = pd.DataFrame.from_dict(wins, orient='index')
-    wins = wins.T
-    wins.index = ['Wins']
-    wins = wins[means.columns]
-
-    stds = pd.DataFrame.from_dict(stds).T
-    if stds.shape[1] > 0:
-        stds = stds[means.columns]
-    else:
-        stds = None
-
-    return means, wins, stds
-
-
-def generate_table(save_loc, means, wins, stds, round=3):
-    """ Generates latex ready tables from means, wins, stds. """
-    means, wins, stds = generate_dataframes(means, wins, stds)
-
-    n_cols = len(means.columns)
-    means = means.round(round)
-
-    stds = None
-    if stds is not None:
-        stds = stds.round(round)
-        zfill = lambda x: x.astype(str).str.ljust(width=round + 2, fillchar='0')
-        new_means = copy.deepcopy(means)
-        for col in means.columns:
-            new_means[col] = zfill(means[col]) + ' $\pm$ ' + zfill(stds[col])
-        means = new_means
-
-    # Slight column name hack
-    means = means[sorted([x for x in means.columns])]
-    means.columns = pd.MultiIndex.from_arrays([['\\textbf{Discrepancy}'] * n_cols, means.columns])
-
-    # Convert onto a win frame
-    column_format = 'l' + 'c' * n_cols
-    top_section = (means.to_latex(float_format="%.3f", column_format=column_format, na_rep='-', escape=False, index_names=True)
-                        .split('\\\\\n\\bottom')[0])
-
-    # Make column heading centreed
-    top_section = top_section.replace('{l}{\\textbf{Discrepancy}}', '{c}{\\textbf{Discrepancy}}')
-    # Add dataset col name
-    top_split = top_section.split('\\\\\n{} ')
-    discrepancy_string = '\\\\\n\\textbf{Dataset} '
-    top_section_discrepancy = top_split[0] + discrepancy_string + top_split[1]
-
-    bottom_section = 'Wins' + wins.to_latex().split('Wins')[1]
-    tex_string = top_section_discrepancy + '\\\\ \n\midrule\n' + bottom_section
-
-    # Write the table
-    with open(save_loc, "w") as file:
-        file.write(tex_string)
+# def generate_dataframes(means, wins, stds):
+#     """ Generates dataframes from means, stds and wins. """
+#     # Save mean
+#     means = pd.DataFrame.from_dict(means).T
+#
+#     # Save wins
+#     wins = pd.DataFrame.from_dict(wins, orient='index')
+#     wins = wins.T
+#     wins.index = ['Wins']
+#     wins = wins[means.columns]
+#
+#     stds = pd.DataFrame.from_dict(stds).T
+#     if stds.shape[1] > 0:
+#         stds = stds[means.columns]
+#     else:
+#         stds = None
+#
+#     return means, wins, stds
+#
+#
+# def generate_table(save_loc, means, wins, stds, round=3):
+#     """ Generates latex ready tables from means, wins, stds. """
+#     means, wins, stds = generate_dataframes(means, wins, stds)
+#
+#     n_cols = len(means.columns)
+#     means = means.round(round)
+#
+#     stds = None
+#     if stds is not None:
+#         stds = stds.round(round)
+#         zfill = lambda x: x.astype(str).str.ljust(width=round + 2, fillchar='0')
+#         new_means = copy.deepcopy(means)
+#         for col in means.columns:
+#             new_means[col] = zfill(means[col]) + ' $\pm$ ' + zfill(stds[col])
+#         means = new_means
+#
+#     # Slight column name hack
+#     means = means[sorted([x for x in means.columns])]
+#     means.columns = pd.MultiIndex.from_arrays([['\\textbf{Discrepancy}'] * n_cols, means.columns])
+#
+#     # Convert onto a win frame
+#     column_format = 'l' + 'c' * n_cols
+#     top_section = (means.to_latex(float_format="%.3f", column_format=column_format, na_rep='-', escape=False, index_names=True)
+#                         .split('\\\\\n\\bottom')[0])
+#
+#     # Make column heading centreed
+#     top_section = top_section.replace('{l}{\\textbf{Discrepancy}}', '{c}{\\textbf{Discrepancy}}')
+#     # Add dataset col name
+#     top_split = top_section.split('\\\\\n{} ')
+#     discrepancy_string = '\\\\\n\\textbf{Dataset} '
+#     top_section_discrepancy = top_split[0] + discrepancy_string + top_split[1]
+#
+#     bottom_section = 'Wins' + wins.to_latex().split('Wins')[1]
+#     tex_string = top_section_discrepancy + '\\\\ \n\midrule\n' + bottom_section
+#
+#     # Write the table
+#     with open(save_loc, "w") as file:
+#         file.write(tex_string)
 
 
 if __name__ == '__main__':
@@ -173,7 +171,3 @@ if __name__ == '__main__':
     dataset = 'uea_missing_and_length'
     means, wins, stds = main(dataset)
 
-    if len(sys.argv) == 3 and sys.argv[2] == '--save':
-        # Save the table to results
-        save_loc = '../paper/results/data/{}.tex'.format(dataset)
-        generate_table(save_loc, means, wins, stds)

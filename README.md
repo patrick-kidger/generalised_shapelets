@@ -21,6 +21,21 @@ Despite the similar names, shapelets have nothing to do with wavelets.
 ## Library
 We provide a PyTorch-compatible library for computing the generalised shapelet transform [here](./torchshapelets).
 
+## Requirements
+The package requirements are listed below:
++ numpy==1.18.3
++ scikit-learn==0.22.2
++ scipy==1.4.1
++ torch==1.4.0  
++ tqdm==4.46.0
++ torchaudio==0.4.0             # Omit if not interested in speech commands data
++ jupyter==1.0.0                # Only needed for interpretability plots
++ matplotlib==3.2.1             # Only needed for interpretability plots
++ seaborn==0.10.1               # Only needed for interpretability plots
++ signatory==1.2.0.1.4.0        # This must be installed _after_ PyTorch
++ torchshapelets==0.1.0         # Run ``python torchshapelets/setup.py develop``
+
+
 ## Downloading the data
 + ``python get_data/uea.py``
 + ``python get_data/speech_commands.py``

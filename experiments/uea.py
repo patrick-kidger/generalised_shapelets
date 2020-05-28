@@ -4,9 +4,14 @@ import pathlib
 import sklearn.model_selection
 import sktime.utils.load_data
 import torch
+import argparse
 
 import common
 
+parser = argparse.ArgumentParser()
+parser.add_argument('function', help="The function from the file to run.", type=str)
+parser.add_argument('-test', help="Whether to run in test mode (reduces n_epochs).", action='store_true')
+args = parser.parse_args()
 
 here = pathlib.Path(__file__).resolve().parent
 
@@ -224,7 +229,7 @@ def main(dataset_name,                        # dataset parameters
          result_folder=None,                  # saving parameters
          result_subfolder='',                 #
          dataset_detail='',                   #
-         epochs=250,                          # training parameters
+         epochs=250 if not args.test else 1,  # training parameters
          num_shapelets_per_class=3,           # model parameters
          num_shapelet_samples=None,           #
          discrepancy_fn='L2',                 #
@@ -383,20 +388,36 @@ def pendigits_interpretability():
 
 
 if __name__ == '__main__':
-    # First find the hyperparameters for the old and new-L2 methods
-    # The hyperparameters from our runs are given in the old_hyperparameter_output and l2_hyperparameter_output
-    # variables defined at the top of this script (Tables 3, 4, 5 and 6 in the paper)
-    hyperparameter_search_old()
-    hyperparameter_search_l2()
+    # Ensure the specified function name can be run
+    func_name = args.function
+    allowed_names = [
+        'hyperparameter_search_old',
+        'hyperparameter_search_l2',
+        'comparison_test',
+        'missing_and_length_test',
+        'pendigits_interpretability',
+        'all'
+    ]
+    assert func_name in allowed_names, 'function argument must be one of: \n\t{}\nGot: {}'.format(allowed_names, func_name)
 
-    # The comparison test function runs classical shapelets, and the new method with the L2 and logsignature
-    # discrepancies over the 9 UEA datasets given in the paper (Table 1 in the paper)
-    comparison_test()
+    # 'all' will run the full process
+    if args.function == 'all':
+        # First find the hyperparameters for the old and new-L2 methods
+        # The hyperparameters from our runs are given in the old_hyperparameter_output and l2_hyperparameter_output
+        # variables defined at the top of this script (Tables 3, 4, 5 and 6 in the paper)
+        hyperparameter_search_old()
+        hyperparameter_search_l2()
 
-    # For demonstrating the ability to handle missing data, as well as to learn lengths differentiably
-    # (Table 2 in the paper)
-    missing_and_length_test()
+        # The comparison test function runs classical shapelets, and the new method with the L2 and logsignature
+        # discrepancies over the 9 UEA datasets given in the paper (Table 1 in the paper)
+        comparison_test()
 
-    # Finally to demostrate interpretability on the PenDigits dataset (Figure 1 in the paper)
-    # To examine the images, run /notebooks/pendigits_interpretability.ipynb after running this function
-    pendigits_interpretability()
+        # For demonstrating the ability to handle missing data, as well as to learn lengths differentiably
+        # (Table 2 in the paper)
+        missing_and_length_test()
+
+        # Finally to demostrate interpretability on the PenDigits dataset (Figure 1 in the paper)
+        # To examine the images, run /notebooks/pendigits_interpretability.ipynb after running this function
+        pendigits_interpretability()
+    else:
+        locals()[func_name]()
