@@ -18,21 +18,21 @@ This gives a way to classify time series, whilst being able to answer questions 
 Despite the similar names, it has nothing to do with wavelets.
 
 ----
-### Library
+## Library
 We provide a PyTorch-compatible library for computing the generalised shapelet transform [here](./torchshapelets).
 
-### Downloading the data
+## Downloading the data
 + ``python get_data/uea.py``
 + ``python get_data/speech_commands.py``
 
-### Reproducing experiments
+## Reproducing experiments
 In principle this can be done just via:
 + ``python experiments/uea.py``
 + ``python experiments/speech_commands.py``
 
 However due to the high memory cost, we do not advise attempting this in one go and instead suggest using the scripts as a guide to understand how experiments are run, and only running a subset of experiments that are of most interest.
 
-### Results
+## Results
 A table compiling all the accuracy results that are given in the paper. 
 <p align="center">
 <img align="middle" src="./paper/images/results_table_full.png" width="666" />
@@ -43,4 +43,4 @@ The first 14 MFC coefficients for an audio recording from the Speech Commands da
 </p>
 For further analysis and graphics, check the full paper. 
 
-### Citation
+## Citation
