@@ -11,6 +11,7 @@ import time
 import torch
 import tqdm
 import torchshapelets
+from torchshapelets import _impl
 
 
 here = pathlib.Path(__file__).resolve().parent
@@ -348,7 +349,7 @@ def save_results(result_folder, result_subfolder, results):
     return loc
 
 
-def save_top_shapelets_and_minimizers(model, times, train_data, save_dir, model_path=None):
+def save_top_shapelets_and_minimizers(model, times, train_data, save_dir, model_path=None, upsample_to_grid=False):
     """Extracts the shapelet corresponding to the max log-reg value for each class and its train data minimizer.
 
     Args:
@@ -358,40 +359,119 @@ def save_top_shapelets_and_minimizers(model, times, train_data, save_dir, model_
         train_data (torch.Tensor): The full set of training data.
         save_dir (str): Location to save the data.
         model_path (str): A string containing the state_dict of a trained model if the model supplied is untrained.
+        upsample_to_grid (int): Set True to upsample the shapelets and minimizers onto a fine, equally spaced grid.
     """
     # Load the model
     if model_path is not None:
         state_dict = torch.load(model_path)
         model.load_state_dict(state_dict)
 
-    # Extract shapelets, logreg values, and lengths.
-    shapelets = model.shapelet_transform.shapelets.detach()
-    linear = model.linear.weight.detach()
-    lengths = model.shapelet_transform.lengths.detach()
-
     # Get the indexes of the top shapelets for each class
+    linear = model.linear.weight.detach()
     idxs = np.argmin(linear, 1)
 
+    # Get the corresponding shapelets and lengths
+    shapelets = model.shapelet_transform.shapelets.detach()[idxs]
+    lengths = model.shapelet_transform.lengths.detach()[idxs]
+
     # Find the shapelet minimizer from the training data
-    distances = []
+    distances, time_idxs = [], []
     with torch.no_grad():
-        for i, data in tqdm.tqdm(enumerate(train_data.split(500))):
-            shapelet_similarity = model.shapelet_transform(times, data)
+        for i, data in tqdm.tqdm(enumerate(train_data.split(500)[0:1])):
+            shapelet_similarity, time_idx = model.shapelet_transform(times, data)
             distances.append(shapelet_similarity)
+            time_idxs.append(time_idx)
     distances = torch.cat(distances)
+    time_idxs = torch.cat(time_idxs)
 
     argmins = torch.argmin(distances, 0)
-    minimizers = train_data[argmins].detach()
+    minimizers = train_data[argmins].detach()[idxs]
+    time_idxs = time_idxs[argmins][idxs, idxs]
 
     # Get the subset
     save_dict = {
-        'shapelets': shapelets[idxs],
-        'lengths': lengths[idxs],
-        'minimizers': minimizers[idxs]
+        'shapelets': shapelets,
+        'lengths': lengths,
+        'minimizers': minimizers,
+        'time_idxs': time_idxs,
+        'training_set_idxs': argmins,
     }
 
+    # Upsample onto a fine spaced grid (useful if we wish the output to be plotted on a heatmap.
+    if upsample_to_grid:
+        minimizer_times, minimizers, shapelet_times, shapelets = upsample_minimizers_and_shapelets(
+            times, minimizers, shapelets, time_idxs, lengths
+        )
+        save_dict['minimizers'] = minimizers
+        save_dict['minimizer_times'] = minimizer_times
+        save_dict['shapelets'] = shapelets
+        save_dict['shapelet_times'] = shapelet_times
+
     for name, item in save_dict.items():
-        torch.save(item, save_dir + '/{}.pt'.format(name))
+        torch.save(item, str(save_dir) + '/{}.pt'.format(name))
+
+
+def upsample_minimizers_and_shapelets(times,
+                                      minimizers,
+                                      shapelets,
+                                      shapelet_initial_times,
+                                      shapelet_lengths):
+    """Upsamples the minimizers and shapelets to contain knots at the same places on a uniform grid.
+
+    Args:
+        times (torch.Tensor): The minimizer times.
+        minimizers (torch.Tensor): The samples from the training set that give minimum discrepancy on the corresponding
+            shapelets.
+        shapelets (torch.Tensor): A collection of shapelets.
+        shapelet_initial_times (torch.Tensor): The start time index of the minimizer that the shapelet corresponds to.
+        shapelet_lengths (torch.Tensor): The length of the shapelets.
+        make_uniformly_spaced (bool): Set True to output the data on a uniformly spaced grid. This option was made out
+            of a desire to plot on a heatmap which only makes sense (as the squares have fixed width) if the data is
+            regularly spaced. If False the datapoints will not have fixed spacing.
+    """
+    # Now we need to get the times on which
+    assert minimizers.size(0) == shapelets.size(0), "Must have same number of minimizers and shapelets."
+
+    def upsample_path(times, path, upsample_times, clip_times=True):
+        """ Upsamples a path with knots at times to have additional knots at upsample_times. """
+        if clip_times:
+            upsample_times = upsample_times[upsample_times <= times[-1]]
+        arg1, arg2 = (times[0], times[1:-1], times[-1]), (path[0], path[1:-1], path[-1])
+        new_times, interp = _impl.unsafe_add_knots(arg1, arg2, upsample_times, False)
+        return new_times, interp
+
+    # First upsample the original path to have knots in the same place as the shapelets
+    all_minimizer_times, all_shapelet_times = [], []
+    all_upsampled_minimizers, all_upsampled_shapelets = [], []
+    n_timepoints = len(times)
+    for i in range(shapelets.size(0)):
+        # The shapelet search interval [T - L] is subdivided into N points, this is to account for that
+        shapelet_initial_time = (shapelet_initial_times[i] * (n_timepoints - 1 - shapelet_lengths[i])) / n_timepoints
+        shapelet_final_time = shapelet_initial_time + shapelet_lengths[i]
+        shapelet_times = torch.linspace(shapelet_initial_time, shapelet_final_time, n_timepoints)
+
+        # Sample minimizers onto the uniform grid
+        n_grid = 20000
+        uniform_grid = torch.linspace(0, n_timepoints-1, n_grid)
+        minimizer_times, minimizer_interp = upsample_path(times, minimizers[i], uniform_grid)
+
+        # Sample shapelets onto the uniform grid
+        new_shapelet_times = uniform_grid[(uniform_grid >= shapelet_initial_time) & (uniform_grid <= shapelet_final_time)]
+        new_shapelet_times = torch.Tensor([x for x in new_shapelet_times if x not in shapelet_times])
+        _, shapelet_interp = upsample_path(shapelet_times, shapelets[i], new_shapelet_times)
+
+        # Find the grid index that minimizes the absolute distance between the shapelet and the minimizer
+        shapelet_len = shapelet_interp.size(0)
+        distances = [(minimizer_interp[j:j+shapelet_len, 0:10] - shapelet_interp[:, 0:10]).abs().mean().item() for j in range(n_grid - shapelet_len)]
+        argmin = np.argmin(distances)
+        new_shapelet_times = uniform_grid[argmin:argmin + shapelet_len]
+
+        all_upsampled_minimizers.append(minimizer_interp)
+        all_minimizer_times.append(minimizer_times)
+        all_upsampled_shapelets.append(shapelet_interp)
+        all_shapelet_times.append(new_shapelet_times)
+
+    return all_minimizer_times, all_upsampled_minimizers, all_shapelet_times, all_upsampled_shapelets
 
 
 def main(times,
@@ -413,7 +493,8 @@ def main(times,
          ablation_learntlengths,
          ablation_similarreg,
          old_shapelets,
-         save_top_logreg_shapelets):
+         save_top_logreg_shapelets,
+         save_on_uniform_grid):
 
     if old_shapelets:
         discrepancy_fn = 'piecewise_constant_L2_squared'
@@ -494,7 +575,7 @@ def main(times,
         loc = save_results(result_folder, result_subfolder, results)
         if save_top_logreg_shapelets:
             train_data = train_dataloader.dataset.tensors[0]
-            save_top_shapelets_and_minimizers(model, times, train_data, loc)
+            save_top_shapelets_and_minimizers(model, times, train_data, loc, upsample_to_grid=save_on_uniform_grid)
 
     return results
 

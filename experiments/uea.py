@@ -229,13 +229,14 @@ def main(dataset_name,                        # dataset parameters
          num_shapelet_samples=None,           #
          discrepancy_fn='L2',                 #
          max_shapelet_length_proportion=1.0,  #
-         initialization_proportion=None,
+         initialization_proportion=None,      # Set to initialise shaplets at a desired fraction of length
          num_continuous_samples=None,         #
          ablation_pseudometric=True,          # For ablation studies
          ablation_learntlengths=True,         #
          ablation_similarreg=True,            #
          old_shapelets=False,                 # Whether to toggle off all of our innovations and use old-style shapelets
-         save_top_logreg_shapelets=False):
+         save_top_logreg_shapelets=False,     # True will save shapelets of the top logreg coefficients
+         save_on_uniform_grid=False):         # Active if save_top_logreg_shapelets, will first sample onto a uniform grid
 
     times, train_dataloader, val_dataloader, test_dataloader, num_classes, input_channels = get_data(dataset_name,
                                                                                                      missing_rate,
@@ -260,7 +261,8 @@ def main(dataset_name,                        # dataset parameters
                        ablation_learntlengths,
                        ablation_similarreg,
                        old_shapelets,
-                       save_top_logreg_shapelets)
+                       save_top_logreg_shapelets,
+                       save_on_uniform_grid)
 
 
 def hyperparameter_search_old():
@@ -296,32 +298,6 @@ def hyperparameter_search_l2():
                          old_shapelets=False)
 
 
-def missing_and_length_test():
-    seed = 5678
-    for i in range(3):
-        result_folder = 'uea_missing_and_length'
-        for dataset_name, num_shapelets_per_class, best_length_proportion, worst_length_proportion in l2_hyperparameter_output:
-            for missing_rate in (0.1, 0.3, 0.5):
-                discrepancy_fn = 'L2'
-                for learntlengths in (True, False):
-                    seed = common.handle_seeds(seed)
-                    result_subfolder = discrepancy_fn + '-' + str(learntlengths)
-                    dataset_detail = str(int(missing_rate * 100))
-                    full_result_subfolder = _subfolder(dataset_name, dataset_detail, result_subfolder)
-                    if common.assert_not_done(result_folder, full_result_subfolder, n_done=3):
-                        print("Starting comparison: " + full_result_subfolder)
-                        main(dataset_name,
-                             result_folder=result_folder,
-                             result_subfolder=result_subfolder,
-                             dataset_detail=dataset_detail,
-                             missing_rate=missing_rate,
-                             discrepancy_fn=discrepancy_fn,
-                             max_shapelet_length_proportion=1.0 if learntlengths else best_length_proportion,
-                             num_shapelets_per_class=num_shapelets_per_class,
-                             initialization_propotion=None if not learntlengths else worst_length_proportion,
-                             ablation_learntlengths=learntlengths)
-
-
 def comparison_test():
     seed = 5394
     for i in range(0, 3):
@@ -354,3 +330,73 @@ def comparison_test():
                      num_shapelets_per_class=shapelets_per_class,
                      max_shapelet_length_proportion=shapelet_length_proportion)
 
+
+def missing_and_length_test():
+    seed = 5678
+    for i in range(3):
+        result_folder = 'uea_missing_and_length'
+        for dataset_name, num_shapelets_per_class, best_length_proportion, worst_length_proportion in l2_hyperparameter_output:
+            for missing_rate in (0.1, 0.3, 0.5):
+                discrepancy_fn = 'L2'
+                for learntlengths in (True, False):
+                    seed = common.handle_seeds(seed)
+                    result_subfolder = discrepancy_fn + '-' + str(learntlengths)
+                    dataset_detail = str(int(missing_rate * 100))
+                    full_result_subfolder = _subfolder(dataset_name, dataset_detail, result_subfolder)
+                    if common.assert_not_done(result_folder, full_result_subfolder, n_done=3):
+                        print("Starting comparison: " + full_result_subfolder)
+                        main(dataset_name,
+                             result_folder=result_folder,
+                             result_subfolder=result_subfolder,
+                             dataset_detail=dataset_detail,
+                             missing_rate=missing_rate,
+                             discrepancy_fn=discrepancy_fn,
+                             max_shapelet_length_proportion=1.0 if learntlengths else best_length_proportion,
+                             num_shapelets_per_class=num_shapelets_per_class,
+                             initialization_propotion=None if not learntlengths else worst_length_proportion,
+                             ablation_learntlengths=learntlengths)
+
+
+def pendigits_interpretability():
+    seed = 5959
+    dataset_name = 'PenDigits'
+    common.handle_seeds(seed)
+
+    print('Starting PenDigits interpretability: Classical shapelets')
+    main(dataset_name,
+         result_folder='pendigits_interpretability',
+         result_subfolder='old',
+         num_shapelets_per_class=5,
+         max_shapelet_length_proportion=0.5,
+         old_shapelets=True,
+         save_top_logreg_shapelets=True)
+
+    print('Starting PenDigits interpretability: New shapelets (L2-discrepancy)')
+    main(dataset_name,
+         result_folder='pendigits_interpretability',
+         result_subfolder='new',
+         num_shapelets_per_class=5,
+         max_shapelet_length_proportion=1,
+         discrepancy_fn='L2',
+         old_shapelets=False,
+         save_top_logreg_shapelets=True)
+
+
+if __name__ == '__main__':
+    # First find the hyperparameters for the old and new-L2 methods
+    # The hyperparameters from our runs are given in the old_hyperparameter_output and l2_hyperparameter_output
+    # variables defined at the top of this script (Tables 3, 4, 5 and 6 in the paper)
+    hyperparameter_search_old()
+    hyperparameter_search_l2()
+
+    # The comparison test function runs classical shapelets, and the new method with the L2 and logsignature
+    # discrepancies over the 9 UEA datasets given in the paper (Table 1 in the paper)
+    comparison_test()
+
+    # For demonstrating the ability to handle missing data, as well as to learn lengths differentiably
+    # (Table 2 in the paper)
+    missing_and_length_test()
+
+    # Finally to demostrate interpretability on the PenDigits dataset (Figure 1 in the paper)
+    # To examine the images, run /notebooks/pendigits_interpretability.ipynb after running this function
+    pendigits_interpretability()

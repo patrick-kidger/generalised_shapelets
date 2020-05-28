@@ -195,7 +195,8 @@ def main(result_folder=None,                  # saving parameters
          ablation_learntlengths=True,         #
          ablation_similarreg=True,            #
          old_shapelets=False,                 # Whether to toggle off all of our innovations and use old-style shapelets
-         save_top_logreg_shapelets=False):
+         save_top_logreg_shapelets=False,
+         save_on_uniform_grid=True):
 
     times, train_dataloader, val_dataloader, test_dataloader = get_data()
 
@@ -221,22 +222,33 @@ def main(result_folder=None,                  # saving parameters
                        ablation_learntlengths,
                        ablation_similarreg,
                        old_shapelets,
-                       save_top_logreg_shapelets)
+                       save_top_logreg_shapelets,
+                       save_on_uniform_grid)
 
 
-def comparison_test(seed, old):
+def comparison_test():
+    """ Comparison of old and new methods with tensors for interpretability being saved for the first run. """
+    seed = 1234
     common.handle_seeds(seed)
-    main(result_folder='speech_commands',
-         result_subfolder='old' if old else 'L2',
-         old_shapelets=old)
+    result_folder = 'speech_commands'
+
+    for i in range(3):
+        seed = common.handle_seeds(seed)
+        for old in [True, False]:
+            result_subfolder = 'old' if old else 'L2'
+            if common.assert_not_done(result_folder, result_subfolder, n_done=3, seed=i):
+                main(result_folder='speech_commands',
+                     result_subfolder=result_subfolder,
+                     old_shapelets=old,
+                     save_top_logreg_shapelets=True if i == 0 else False,   # Save for interpretability
+                     epochs=0,
+                     save_on_uniform_grid=True)
 
 
-def analyse():
-    main(result_folder='speech_commands',
-         result_subfolder='L2',
-         epochs=0,
-         old_shapelets=False)
 
 if __name__ == '__main__':
-    # invert('./results/shapelet_sc', find_closest=False)
-    analyse()
+    # The comparison test function runs the old and new-L2 methods on the speech_commands dataset over three iterations
+    # In the first iteration we also save the top log-reg minimizers and shapelets (it is very expensive to have this
+    # as another function run).
+    # The output can be further analysed by running notebooks/speech_interpretability.ipynb
+    comparison_test()
