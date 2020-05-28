@@ -39,7 +39,7 @@ The following are needed if you wish to run the interpretability plots
 + seaborn==0.10.1
 
 The following can be omitted if not analysing the speech commands data
-+ six-1.15.0 
++ six==1.15.0 
 + torchaudio==0.4.0 
 
 
