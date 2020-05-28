@@ -15,7 +15,7 @@ We extend the method by:
 
 This gives a way to classify time series, whilst being able to answer questions about why that classification was chosen, and even being able to give new insight into the data. (For example, we demonstrate the discovery of a kind of spectral gap in an audio classification problem.)
 
-Despite the similar names, it has nothing to do with wavelets.
+Despite the similar names, shapelets have nothing to do with wavelets.
 
 ----
 ## Library
