@@ -6,7 +6,7 @@ _Will probably only work on the CPU, and it is neither fast nor memory efficient
 
 ## Installation
 
-`pip install "git+https://github.com/jambo6/generalised_shapelets/#egg=torchshapelets&subdirectory=torchshapelets"`
+`pip install "git+https://github.com/patrick-kidger/generalised_shapelets/#egg=torchshapelets&subdirectory=torchshapelets"`
 
 Make sure you include the quotation marks. Tested to work on Linux. If on other operating systems then you must have a C++ compiler available and known to `pip`. (If you're on a Linux system then this should already be the case.)
 
