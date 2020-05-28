@@ -1,5 +1,6 @@
 import collections as co
 import numpy as np
+import os
 import pathlib
 import sklearn.model_selection
 import sktime.utils.load_data
@@ -7,11 +8,6 @@ import torch
 import argparse
 
 import common
-
-parser = argparse.ArgumentParser()
-parser.add_argument('function', help="The function from the file to run.", type=str)
-parser.add_argument('-test', help="Whether to run in test mode (reduces n_epochs).", action='store_true')
-args = parser.parse_args()
 
 here = pathlib.Path(__file__).resolve().parent
 
@@ -388,8 +384,12 @@ def pendigits_interpretability():
 
 
 if __name__ == '__main__':
-    import os
-    assert os.path.exists('./results'), "Please make a folder at experiments/results to store results in."
+    assert os.path.exists('./results'), "Please make a folder or symlink at experiments/results to store results in."
+    
+    parser = argparse.ArgumentParser()
+    parser.add_argument('function', help="The function from the file to run.", type=str)
+    parser.add_argument('-test', help="Whether to run in test mode (reduces n_epochs).", action='store_true')
+    args = parser.parse_args()
 
     # Ensure the specified function name can be run
     func_name = args.function
