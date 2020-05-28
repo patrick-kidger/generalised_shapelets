@@ -2,14 +2,9 @@
 
 A differentiable implementation of the generalised shapelet transform, using PyTorch, parallelised via OpenMP.
 
-# What is the shapelet transform?
-It's a feature extraction method for time series, in which a time series is described by its similarity to a small 'shapelet'. Given lots of well-chosen shapelets, then you can now look at those similarities and conclude that "This time series is probably of class X, because it has a very high similarity to shapelet Y." (In practice of course you feed these features into a machine learning model, but the point is that these features are interpretable.)
+_Will probably only work on the CPU, and it is neither fast nor memory efficient. We're working on that!_
 
-For more details, see the paper: TODO.
-
-Despite the similar names, it has nothing to do with wavelets.
-
-# Installation
+### Installation
 
 `pip install "git+https://github.com/jambo6/generalised_shapelets/#egg=torchshapelets&subdirectory=torchshapelets"`
 
@@ -17,7 +12,7 @@ Make sure you include the quotation marks. Tested to work on Linux. If on other 
 
 If you want to compute logsignature discrepancies then install [Signatory](https://github.com/patrick-kidger/signatory) first. If that's not installed then `torchshapelets` will still work, but `torchshapelets.LogsignatureDiscrepancy` will not be available.
 
-# Usage
+### Usage
 
 Once installed, then `import torchshapelets` to get everything.
 
@@ -76,16 +71,16 @@ Check their docstrings and the paper TODO for more details.
 
 The code may or may not crash if ran on the GPU. OpenMP and CUDA don't always seem to play well with each other.
 
-# Limitations
+### Limitations
 
 There are a number of limitations with this implementation - this definitely constitutes research code, not production code!
 
-In brief, the code is slow and memory inefficient. We're pretty sure that this is mostly just a limitation of the implementation though - in principle the shapelet transform shouldn't suffer from any of these issues.
+In brief, the code is slow and memory inefficient. We're pretty sure that this is mostly just a limitation of the implementation though - in principle the shapelet transform itself shouldn't suffer from any of these issues.
 
 (Footnote - if anyone writes a better `torchshapelets` then we'll happily link to it as superseding this code.)
 
-If you're curious, having a look at `LIMITATIONS.md` for more information.
+If you're curious, having a look at [`LIMITATIONS.md`](./LIMITATIONS.md) for more information.
 
-# Citation
+### Citation
 
 TODO
