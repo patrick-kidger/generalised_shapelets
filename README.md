@@ -1,5 +1,4 @@
-<h1 align='center'> Generalised Interpretable Shapelets<br>
-    for Irregular Time Series<br>
+<h1 align='center'> Generalised Interpretable Shapelets for Irregular Time Series<br>
     [<a href="https://arxiv.org/abs/TODO">arXiv</a>] </h1>
 
 <p align="center">
