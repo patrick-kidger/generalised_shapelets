@@ -25,10 +25,12 @@ import torchshapelets
 
 in_channels = 3
 num_shapelets = 4
-num_shapelet_samples = 5
+num_shapelet_samples = 5   # each shapelet is piecewise linear between this 
+                           # many points
+max_shapelet_length = 5.0  # make sure that our shapelets don't get longer 
+                           # than our time series!
+                           
 discrepancy_fn = torchshapelets.L2Discrepancy(in_channels)
-max_shapelet_length = 5.0
-
 transform = torchshapelets.GeneralisedShapeletTransform(in_channels,
                                                         num_shapelets,
                                                         num_shapelet_samples,
@@ -36,12 +38,13 @@ transform = torchshapelets.GeneralisedShapeletTransform(in_channels,
                                                         max_shapelet_length)
 
 batch_size = 8
-time_sampling = 10
-# In particular the time difference 9 - 0 is greater than the
-# max_shapelet_length. (Note that this is unrelated to how often
-# times are sampled.)
-times = torch.linspace(0, 9, time_sampling)
-path = torch.rand(batch_size, time_sampling, in_channels)
+length_size = 20
+
+# In particular the time difference 5 - 0 is greater than the
+# `max_shapelet_length`. (Note that this is unrelated to the value of 
+# `length_size`.)
+times = torch.linspace(0, 5, length_size)
+path = torch.rand(batch_size, length_size, in_channels)
 
 shapelet_similarity = transform(times, path)
 # This will now be a tensor of shape (batch_size, num_shapelets),
