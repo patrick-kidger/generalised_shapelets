@@ -23,17 +23,22 @@ We provide a PyTorch-compatible library for computing the generalised shapelet t
 
 ## Requirements
 The package requirements are listed below:
++ python==3.7.4
 + numpy==1.18.3
 + scikit-learn==0.22.2
 + scipy==1.4.1
++ sktime==0.3.1 
 + torch==1.4.0  
 + tqdm==4.46.0
-+ torchaudio==0.4.0             # Omit if not interested in speech commands data
-+ jupyter==1.0.0                # Only needed for interpretability plots
-+ matplotlib==3.2.1             # Only needed for interpretability plots
-+ seaborn==0.10.1               # Only needed for interpretability plots
 + signatory==1.2.0.1.4.0        # This must be installed _after_ PyTorch
 + torchshapelets==0.1.0         # Run ``python torchshapelets/setup.py develop``
+The following are needed only for the interpretability plots
++ jupyter==1.0.0          
++ matplotlib==3.2.1
++ seaborn==0.10.1
+The following can be omitted if not analysing the speech commands data
++ six-1.15.0 
++ torchaudio==0.4.0 
 
 
 ## Downloading the data
@@ -41,11 +46,17 @@ The package requirements are listed below:
 + ``python get_data/speech_commands.py``
 
 ## Reproducing experiments
-In principle this can be done just via:
-+ ``python experiments/uea.py``
+First make a folder at `experiments/results`, this is where the results of the experiments will be stored. Each model is saved after training for later analysis, so make this a symlink if you need to save on space. In principle, all experiments can be run via:
++ ``python experiments/uea.py all``
 + ``python experiments/speech_commands.py``
 
 However due to the high memory cost, we do not advise attempting this in one go and instead suggest using the scripts as a guide to understand how experiments are run, and only running a subset of experiments that are of most interest.
+
+## Model evaluation
+Once an experiment has been completed, model performance can be viewed using the `experimnets/parse_results.py` script. Simply run the file with an argument that corresponds to the name of a folder in `experiments/results`. For example, suppose we have run the UEA comparison test, then results can be viewed by running:
++ `python parse_results.py uea_comparison`
+
+----
 
 ## Results
 Accuracies on a collection of datasets:

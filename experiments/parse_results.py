@@ -166,8 +166,7 @@ def main(dataset_folder):
 
 
 if __name__ == '__main__':
-    assert len(sys.argv) in (2, 3)
+    assert len(sys.argv) == 2
     dataset = sys.argv[1]
-    dataset = 'uea_missing_and_length'
     means, wins, stds = main(dataset)
 

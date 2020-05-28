@@ -14,7 +14,7 @@ def main():
                            " directory. (We're going to put a lot of data there, so we don't make it automatically - "
                            "thus giving you the opportunity to make it a symlink rather than a normal directory, so "
                            "that the data can be stored elsewhere if you wish.)")
-    base_loc = base_base_loc + 'UEA'
+    base_loc = base_base_loc + '/UEA'
     loc = base_loc + '/Multivariate2018_ts.zip'
     if os.path.exists(loc):
         return

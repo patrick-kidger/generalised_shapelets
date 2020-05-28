@@ -358,7 +358,7 @@ def missing_and_length_test():
                              discrepancy_fn=discrepancy_fn,
                              max_shapelet_length_proportion=1.0 if learntlengths else best_length_proportion,
                              num_shapelets_per_class=num_shapelets_per_class,
-                             initialization_propotion=None if not learntlengths else worst_length_proportion,
+                             initialization_proportion=None if not learntlengths else worst_length_proportion,
                              ablation_learntlengths=learntlengths)
 
 
@@ -388,6 +388,9 @@ def pendigits_interpretability():
 
 
 if __name__ == '__main__':
+    import os
+    assert os.path.exists('./results'), "Please make a folder at experiments/results to store results in."
+
     # Ensure the specified function name can be run
     func_name = args.function
     allowed_names = [
