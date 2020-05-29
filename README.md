@@ -1,5 +1,5 @@
 <h1 align='center'> Generalised Interpretable Shapelets for Irregular Time Series<br>
-    [<a href="https://arxiv.org/abs/TODO">arXiv</a>] </h1>
+    [<a href="https://arxiv.org/abs/2005.13948">arXiv</a>] </h1>
 
 <p align="center">
 <img align="middle" src="./paper/images/new_pendigits.png" width="666" />
@@ -43,6 +43,15 @@ Using a pseudometric uncovers a spectral gap in an audio classification problem:
 </p>
 
 ## Citation
+
+```bibtex
+@article{kidger2020shapelets,
+    author={Kidger, Patrick and Morrill, James and Lyons, Terry},
+    title={{Generalised Interpretable Shapelets for Irregular Time Series}},
+    year={2020},
+    journal={arXiv:2005.13948}
+}
+```
 
 ## Reproducing the experiments
 
