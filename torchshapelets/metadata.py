@@ -7,7 +7,7 @@ project = 'torchshapelets'
 author = "Patrick Kidger"
 copyright = "2020, {}".format(author)
 author_email = "contact@kidger.site"
-url = "https://github.com/jambo6/generalised_shapelets"
+url = "https://github.com/patrick-kidger/generalised_shapelets"
 license = "MIT"
 python_requires = ">=3.5, <4"
 keywords = "shapelets"
