@@ -86,4 +86,11 @@ If you're curious, having a look at [`LIMITATIONS.md`](./LIMITATIONS.md) for mor
 
 ## Citation
 
-TODO
+```bibtex
+@article{kidger2020shapelets,
+    author={Kidger, Patrick and Morrill, James and Lyons, Terry},
+    title={{Generalised Interpretable Shapelets for Irregular Time Series}},
+    year={2020},
+    journal={arXiv:2005.13948}
+}
+```
